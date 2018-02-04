@@ -45,8 +45,9 @@ train['comment_text'][2]
 lens = train.comment_text.str.len()
 print(lens.mean(), lens.std(), lens.max())
 
-lens.hist()
-plt.show()
+if False:
+    lens.hist()
+    plt.show()
 
 
 # We'll create a list of all the labels to predict, and we'll also create a 'none' label so we can
@@ -140,6 +141,7 @@ for i, j in enumerate(label_cols):
     m, r = get_mdl(train[j])
     preds[:, i] = m.predict_proba(test_x.multiply(r))[:, 1]
 
+print()
 
 # And finally, create the submission file.
 submid = pd.DataFrame({'id': subm["id"]})
