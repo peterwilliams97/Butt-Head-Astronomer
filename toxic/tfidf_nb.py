@@ -27,6 +27,12 @@ train = pd.read_csv(join(data_dir, 'train.csv'))
 test = pd.read_csv(join(data_dir, 'test.csv'))
 subm = pd.read_csv(join(data_dir, 'sample_submission.csv'))
 
+N_SAMPLES = 100
+
+if N_SAMPLES > 0:
+    train = train[:N_SAMPLES]
+    test = test[:N_SAMPLES]
+
 
 # ## Looking at the data
 #
@@ -110,10 +116,6 @@ def pr(y_i, y):
 
     """
     p = x[y == y_i].sum(0)
-#     print(y_i, x.shape, y.shape, x[y==y_i].shape)
-#     print(x[y==y_i].sum(0).shape)
-#     print(x[y==y_i].sum().shape)
-#     assert False
     return (p + 1) / ((y == y_i).sum() + 1)
 
 
@@ -128,9 +130,8 @@ def get_mdl(y):
     r = np.log(pr(1, y) / pr(0, y))
     m = LogisticRegression(C=4, dual=True)
     x_nb = x.multiply(r)
-#     print(r.shape)
-#     print(x_nb.shape)
-#     assert False
+    print(x.shape, r.shape, x_nb.shape)
+    assert False
     return m.fit(x_nb, y), r
 
 
