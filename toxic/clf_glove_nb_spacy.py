@@ -21,6 +21,12 @@ import spacy
 import time
 from utils import COMMENT, save_json, load_json, save_pickle, load_pickle
 
+if False:
+    x = np.ones((3, 5))
+    t = np.ones(5)
+    x_nb = t * x
+    x_nb = np.multiply
+    assert False
 
 SPACY_VECTOR_SIZE = 300  # To match SpaCY vectors
 SPACY_VECTOR_TYPE = np.float32
@@ -45,13 +51,28 @@ def fit_model(x, y):
     """Fit a model for one dependent at a time
     """
     y = y.values
-    r_1 = pr(1, x, y)
-    r_0 = pr(0, x, y)
-    r = r_1 - r_0
-    x_nb = x * r
-    print('** x, r, x_nb, y:', x.shape, r.shape, x_nb.shape, y.shape)
+    # r_1 = pr(1, x, y)
+    # r_0 = pr(0, x, y)
+    # r = r_1 - r_0
+    # x_nb = x * r
+    # print('** x, y:', x.shape, y.shape)
+    t = np.zeros(y.shape[0], dtype=np.float64)
+    y0 = y == 0
+    y1 = y == 1
+    x0 = x[y0]
+    x1 = x[y1]
+    t[y0] = -1.0 / y0.sum()
+    t[y1] = 1.0 / y1.sum()
+    # print('** y0, y1, t:', y0.shape, y1.shape, t.shape)
+    # print('** x0, x1:', x0.shape, x1.shape)
+    x_nb = (t * x.T).T
+    # print('** x_nb:', x_nb.shape)
+    # x_nb = x_nb.reshape(-1, 1)
+    # print('** x_nb:', x_nb.shape)
+
+    # print('** x, r, x_nb, y:', x.shape, r.shape, x_nb.shape, y.shape)
     m = LogisticRegression(C=4, dual=True)
-    return m.fit(x_nb, y), r
+    return m.fit(x_nb, y)
 
 
 class ClfGloveNBSpace:
@@ -123,11 +144,15 @@ class ClfGloveNBSpace:
         """Compute an embedding vector for all n-grams in token_list
         """
         vec = np.zeros((n, SPACY_VECTOR_SIZE), dtype=np.float64)
-        n_toks = len(token_list)
-        for i in range(n_toks):
-            for j in range(min(n, n_toks - i)):
-                vec[j] += self.token_vector[token_list[i + j]]
-        vec /= n_toks
+        n_toks = len(token_list) - n + 1
+        if n_toks <= 0:
+            for j in range(n):
+                vec[j, :] += self.token_vector[token_list[j]]
+        else:
+            for i in range(n_toks):
+                for j in range(n):
+                    vec[j, :] += self.token_vector[token_list[i + j]]
+            vec /= n_toks
         return np.reshape(vec, n * SPACY_VECTOR_SIZE)
 
     def compute_ngram_matrix(self, token_matrix):
@@ -142,7 +167,7 @@ class ClfGloveNBSpace:
         print('train_tokens: %1.f sec %.2f sec / token' % (time.clock() - t0, (time.clock() - t0) / len(train_tokens)))
         x = self.compute_ngram_matrix(train_tokens)
         for i, col in enumerate(self.label_cols):
-            self.m[col], self.r[col] = fit_model(x, train[col])
+            self.m[col] = fit_model(x, train[col])
 
     def predict(self, test):
         label_cols = self.label_cols
@@ -151,7 +176,6 @@ class ClfGloveNBSpace:
         test_x = self.compute_ngram_matrix(test_tokens)
         for i, col in enumerate(self.label_cols):
             print('fit', i, col)
-            m, r = self.m[col], self.r[col]
-            x_nb = test_x * r
-            preds[:, i] = m.predict_proba(x_nb)[:, 1]
+            m = self.m[col]
+            preds[:, i] = m.predict_proba(test_x)[:, 1]
         return preds

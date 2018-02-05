@@ -11,13 +11,15 @@ from sklearn.metrics import roc_auc_score
 import matplotlib.pyplot as plt
 from utils import COMMENT
 from clf_glove_nb_spacy import ClfGloveNBSpace
+from clf_tfidf_nb import ClfTfidfNB
 
 
 VERBOSE = False
 GRAPHS = False
-N_GRAM = 1
-N_SAMPLES = -1  # 50000  # > 0 for testing
+N_GRAM = 2
+N_SAMPLES = 50000 # > 0 for testing
 MODEL = ClfGloveNBSpace
+MODEL = ClfTfidfNB
 MODEL_DIR = 'model.%s' % MODEL.__name__
 SUBMISSION_NAME = 'submissionxxx.csv'
 SEED = 234
@@ -80,6 +82,7 @@ def split_data(df, frac):
     n = int(len(df) * frac)
     train = df.loc[indexes[:n]]
     test = df.loc[indexes[n:]]
+    print('split_data: %.2f of %d: train=%d test=%d' % (frac, len(df), len(train), len(test)))
     return train, test
 
 
@@ -96,7 +99,8 @@ def make_submission(train, test):
 
 def evaluate(train0):
     train, test = split_data(train0, 0.7)
-    clf = MODEL(label_cols, MODEL_DIR, N_GRAM)
+    # clf = MODEL(label_cols, MODEL_DIR, N_GRAM)
+    clf = MODEL(label_cols)
     clf.fit(train)
     preds = clf.predict(test)
     auc = np.zeros(len(label_cols), dtype=np.float64)
