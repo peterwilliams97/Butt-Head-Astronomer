@@ -16,7 +16,7 @@ from clf_glove_nb_spacy import ClfGloveNBSpace
 VERBOSE = False
 GRAPHS = False
 N_GRAM = 1
-N_SAMPLES = 50000  # > 0 for testing
+N_SAMPLES = -1  # 50000  # > 0 for testing
 MODEL = ClfGloveNBSpace
 MODEL_DIR = 'model.%s' % MODEL.__name__
 SUBMISSION_NAME = 'submissionxxx.csv'
