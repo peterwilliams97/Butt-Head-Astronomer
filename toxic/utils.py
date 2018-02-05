@@ -6,7 +6,12 @@ import pickle
 import os
 
 
-def load_json(path):
+COMMENT = 'comment_text'
+
+
+def load_json(path, default=None):
+    if default is not None and not os.path.exists(path):
+        return default
     try:
         with open(path, 'r') as f:
             obj = json.load(f)
@@ -26,7 +31,9 @@ def save_json(path, obj):
     os.renames(temp_json, path)
 
 
-def load_pickle(path):
+def load_pickle(path, default=None):
+    if default is not None and not os.path.exists(path):
+        return default
     try:
         with open(path, 'rb') as f:
             obj = pickle.load(f)
