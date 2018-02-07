@@ -2,19 +2,19 @@
 """
     Framework for evaluating and submitting models to Kaggle Toxic Comment challenge
 """
-from utils import label_cols
-from framework import evaluate, make_submission
+from framework import label_cols, evaluate, make_submission
 from clf_glove_nb_spacy import ClfGloveNBSpacy
 
 
-clf = ClfGloveNBSpacy(label_cols, n_gram=2)
+def new_clf():
+    return ClfGloveNBSpacy(label_cols, n_gram=2)
+
 
 if False:
     make_submission(clf, 'submissionxxx.csv')
 
 if True:
-    evaluate(clf)
-
-
-# make_submission(train, test)
-evaluate(clf)
+    evaluate(new_clf, n=4)
+    # evaluate(new_clf)
+    # evaluate(new_clf)
+    # evaluate(new_clf)

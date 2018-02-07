@@ -12,7 +12,7 @@ import pandas as pd
 
 
 pd.options.display.max_columns = 999
-pd.options.display.width = 200
+pd.options.display.width = 120
 
 VERBOSE = True
 CATEGORICALS = True
@@ -30,7 +30,8 @@ data_dir = expanduser('~/data/support-predictions/')
 
 sheets = {}
 for name in files:
-    sheets[name] = pd.read_csv(join(data_dir, '%s.csv' % name), encoding='latin-1')
+    sheets[name] = pd.read_csv(join(data_dir, '%s.csv' % name),
+        encoding='latin-1', error_bad_lines=False)
     print('%20s: %s' % (name, list(sheets[name].shape)))
 
 # crn = pd.read_csv(join(data_dir, 'crn.csv'), encoding='latin-1')
@@ -89,14 +90,14 @@ def show_categoricals(name, df, threshold=20):
              continue
 
         level_counts = {l: len([v for v in scores if v == l]) for l in levels}
-        levels.sort(key=lambda l: -len(level_counts[l], l))
+        levels.sort(key=lambda l: (-level_counts[l], l))
         print('%4d: %-20s - %7d levels %7d total %4.1f%%' % (i, col, len(levels), len(scores),
             100.0 * len(levels) / len(scores)))
         if len(levels) <= threshold:
             categoricals.append(col)
             for l in levels:
                 m = level_counts[l]
-                print('%20s: %7d %.3f' % (l, m, m / len(scores)), flush=True)
+                print('%20s: %7d %4.1f' % (l, m, 100.0 * m / len(scores)), flush=True)
     print('-' * 80)
     print('categoricals: %d %s' % (len(categoricals), categoricals))
     return categoricals

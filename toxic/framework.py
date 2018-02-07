@@ -10,28 +10,19 @@ from os.path import expanduser, join
 from sklearn.metrics import roc_auc_score
 import matplotlib.pyplot as plt
 from utils import COMMENT
-from clf_glove_nb_spacy import ClfGloveNBSpace
-from clf_tfidf_nb import ClfTfidfNB
 
 
 VERBOSE = False
 GRAPHS = False
-N_GRAM = 2
-N_SAMPLES = 50000 # > 0 for testing
-MODEL = ClfGloveNBSpace
-MODEL = ClfTfidfNB
-MODEL_DIR = 'model.%s' % MODEL.__name__
-SUBMISSION_NAME = 'submissionxxx.csv'
+N_SAMPLES = -1  # > 0 for testing
 SEED = 234
+SUBMISSION_DIR = 'submissions'
 
-print('MODEL_DIR=%s' % MODEL_DIR)
-
-data_dir = expanduser('/Users/pcadmin/data/toxic/')
+data_dir = expanduser('~/data/toxic/')
 train = pd.read_csv(join(data_dir, 'train.csv'))
 test = pd.read_csv(join(data_dir, 'test.csv'))
 subm = pd.read_csv(join(data_dir, 'sample_submission.csv'))
 print('train,test,subm:', train.shape, test.shape, subm.shape)
-os.makedirs(MODEL_DIR, exist_ok=True)
 
 if N_SAMPLES > 0:
     train = train[:N_SAMPLES]
@@ -74,11 +65,22 @@ print('train=%d test=%d (%.1f%%)' % (len(train), len(test), 100.0 * len(test) / 
 train[COMMENT].fillna("unknown", inplace=True)
 test[COMMENT].fillna("unknown", inplace=True)
 
+seed_delta = 1
+
+
+def my_shuffle(indexes):
+    global seed_delta
+
+    old_state = random.getstate()
+    random.seed(SEED + seed_delta)
+    random.shuffle(indexes)
+    random.setstate(old_state)
+    seed_delta += 1
+
 
 def split_data(df, frac):
-    # indexes = list(range(len(df)))
     indexes = list(df.index)
-    random.shuffle(indexes)
+    my_shuffle(indexes)
     n = int(len(df) * frac)
     train = df.loc[indexes[:n]]
     test = df.loc[indexes[n:]]
@@ -86,31 +88,59 @@ def split_data(df, frac):
     return train, test
 
 
-def make_submission(train, test):
-    clf = MODEL(label_cols, MODEL_DIR, N_GRAM)
+def make_submission(new_clf, submission_name):
+    clf = new_clf()
     clf.fit(train)
     preds = clf.predict(test)
+
+    os.makedirs(SUBMISSION_DIR, exist_ok=True)
+    submission_path = join(SUBMISSION_DIR, submission_name)
 
     # And finally, create the submission file.
     submid = pd.DataFrame({'id': subm['id']})
     submission = pd.concat([submid, pd.DataFrame(preds, columns=label_cols)], axis=1)
-    submission.to_csv(SUBMISSION_NAME, index=False)
+    submission.to_csv(submission_path, index=False)
+    print('Saved in %s' % submission_path)
 
 
-def evaluate(train0):
-    train, test = split_data(train0, 0.7)
-    # clf = MODEL(label_cols, MODEL_DIR, N_GRAM)
-    clf = MODEL(label_cols)
-    clf.fit(train)
-    preds = clf.predict(test)
+def label_score(auc):
+    return '(%s)' % ', '.join(['%s:%.3f' % (col, auc[j])
+                              for j, col in enumerate(label_cols)])
+
+
+def _evaluate(new_clf, i):
+    train_part, test_part = split_data(train, 0.7)
+
+    clf = new_clf()
+    clf.fit(train_part)
+    preds = clf.predict(test_part)
+
     auc = np.zeros(len(label_cols), dtype=np.float64)
-    for i, col in enumerate(label_cols):
-        y_true = test[col]
-        y_pred = preds[:, i]
-        auc[i] = roc_auc_score(y_true, y_pred)
+    for j, col in enumerate(label_cols):
+        y_true = test_part[col]
+        y_pred = preds[:, j]
+        auc[j] = roc_auc_score(y_true, y_pred)
     mean_auc = auc.mean()
-    print('auc=%.3f' % mean_auc)
+    print('%5d: auc=%.3f %s' % (i, mean_auc, label_score(auc)))
+    return auc
 
 
-# make_submission(train, test)
-evaluate(train)
+def evaluate(new_clf, n=5):
+    auc = np.zeros((n, len(label_cols)), dtype=np.float64)
+    for i in range(n):
+        auc[i, :] = _evaluate(new_clf, i)
+    mean_auc = auc.mean(axis=0)
+
+    print('-' * 110)
+    for i in range(n):
+        print('%5d: auc=%.3f %s' % (i, auc[i].mean(), label_score(auc[i])))
+    print('%5s: auc=%.3f %s' % ('Mean', mean_auc.mean(), label_score(mean_auc)))
+    print('-' * 110)
+    print('auc=%.3f +- %.3f (%.0f%%) range=%.3f (%.0f%%)' % (
+         mean_auc.mean(), mean_auc.std(),
+         100.0 * mean_auc.std() / mean_auc.mean(),
+         mean_auc.max() - mean_auc.min(),
+         100.0 * (mean_auc.max() - mean_auc.min()) / mean_auc.mean()
+    ))
+    return auc
+

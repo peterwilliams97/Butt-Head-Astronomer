@@ -1,25 +1,11 @@
 # coding: utf-8
 """
-    This kernel shows how to use NBSVM (Naive Bayes - Support Vector Machine) to create a strong
-    baseline for the Toxic Comment Classification Challenge
-    https://www.kaggle.com/c/jigsaw-toxic-comment-classification-challenge) competition.
-
-    NBSVM was introduced by Sida Wang and Chris Manning in the paper Baselines and Bigrams: Simple,
-    Good Sentiment and Topic Classiﬁcation (https://nlp.stanford.edu/pubs/sidaw12_simple_sentiment.pdf).
-    In this kernel, we use sklearn's logistic regression, rather than SVM, although in practice the
-    two are nearly identical (sklearn uses the liblinear library behind the scenes).
-
-    If you're not familiar with naive bayes and bag of words matrices, I've made a preview available
-    of one of fast.ai's upcoming *Practical Machine Learning* course videos, which introduces this
-    topic. Here is a link to the section of the video which discusses this:
-    [Naive Bayes video](https://youtu.be/37sFIak42Sc?t=3745).
 """
 import numpy as np
 from sklearn.linear_model import LogisticRegression
-import os
-import spacy
 import time
-from utils import COMMENT, save_json, load_json, save_pickle, load_pickle
+from utils import COMMENT
+from spacy_glue import SpacyCache
 
 if False:
     x = np.ones((3, 5))
@@ -51,18 +37,11 @@ def fit_model(x, y):
     """Fit a model for one dependent at a time
     """
     y = y.values
-    # r_1 = pr(1, x, y)
-    # r_0 = pr(0, x, y)
-    # r = r_1 - r_0
-    # x_nb = x * r
-    # print('** x, y:', x.shape, y.shape)
     t = np.zeros(y.shape[0], dtype=np.float64)
     y0 = y == 0
     y1 = y == 1
-    x0 = x[y0]
-    x1 = x[y1]
-    t[y0] = -1.0 / y0.sum()
-    t[y1] = 1.0 / y1.sum()
+    t[y0] = -1.0
+    t[y1] = 1.0
     # print('** y0, y1, t:', y0.shape, y1.shape, t.shape)
     # print('** x0, x1:', x0.shape, x1.shape)
     x_nb = (t * x.T).T
@@ -75,59 +54,28 @@ def fit_model(x, y):
     return m.fit(x_nb, y)
 
 
-class ClfGloveNBSpace:
+class ClfGloveNBSpacy:
 
-    def __init__(self, label_cols, model_dir, n_gram):
+    def __init__(self, label_cols, n_gram):
         self.label_cols = label_cols
-        self.model_dir = model_dir
         self.n_gram = n_gram
+
+        self.spacy_cache = SpacyCache()
+        self.nlp = self.spacy_cache.nlp
         self.m = {}
         self.r = {}
-        self.text_tokens_path = os.path.join(self.model_dir, 'text.tokens.json')
-        self.token_vector_path = os.path.join(self.model_dir, 'token.vector.pkl')
-        self.text_tokens = load_json(self.text_tokens_path, {})
-        self.token_vector = load_pickle(self.token_vector_path, {})
-        self.text_tokens_len = len(self.text_tokens)
-        self.token_vector_len = len(self.token_vector)
-        self.nlp = spacy.load('en_core_web_lg')
-
-    def _save(self, min_delta=0):
-        if self.text_tokens_len + min_delta < len(self.text_tokens):
-            print('_save 1: %7d = %7d + %4d %s' % (len(self.text_tokens),
-                self.text_tokens_len, len(self.text_tokens) - self.text_tokens_len,
-                self.text_tokens_path))
-            save_json(self.text_tokens_path, self.text_tokens)
-            self.text_tokens_len = len(self.text_tokens)
-        if self.token_vector_len + 2 * min_delta < len(self.token_vector):
-            print('_save 2: %7d = %7d + %4d %s' % (len(self.token_vector),
-                self.token_vector_len, len(self.token_vector) - self.token_vector_len,
-                self.token_vector_path))
-            save_pickle(self.token_vector_path, self.token_vector)
-            self.token_vector_len = len(self.token_vector)
-
-    def tokenize(self, text):
-        """Use SpaCy tokenization and word vectors"""
-        doc = self.nlp(text)
-        tokens = []
-        for t in doc:
-            tokens.append(t.text)
-            self.token_vector[t.text] = t.vector
-        return tokens
 
     def tokenize_df(self, df):
         """Return a list of token lists
             Each token list corresponds to a row of df
         """
-        print('tokenize_df: %d %d' % (len(df), self.text_tokens_len))
+        print('tokenize_df: %d %d' % (len(df), self.spacy_cache.text_tokens_len))
         t0 = t1 = time.clock()
         tokens_list = []
         n_tokenized = 0
         for i, text in enumerate(df[COMMENT]):
-            tokens = self.text_tokens.get(text)
-            if not tokens:
-                tokens = self.tokenize(text)
-                self.text_tokens[text] = tokens
-                n_tokenized += 1
+            tokens, loaded = self.spacy_cache.tokenize(text)
+            n_tokenized += loaded
             tokens_list.append(tokens)
             t = time.clock()
             if t > t1 + SAVE_TIME or i + 1 == len(df):
@@ -136,22 +84,23 @@ class ClfGloveNBSpace:
                     time.clock() - t0,
                     (time.clock() - t0) / max(n_tokenized, 1)))
                 t1 = t
-                self._save(min_delta=SAVE_ITEMS)
-        self._save()
+                self.spacy_cache._save(min_delta=SAVE_ITEMS)
+        self.spacy_cache._save()
         return tokens_list
 
     def compute_ngram_vector(self, token_list, n):
         """Compute an embedding vector for all n-grams in token_list
         """
+        token_vector = self.spacy_cache.token_vector
         vec = np.zeros((n, SPACY_VECTOR_SIZE), dtype=np.float64)
         n_toks = len(token_list) - n + 1
         if n_toks <= 0:
-            for j in range(n):
-                vec[j, :] += self.token_vector[token_list[j]]
+            for j in range(len(token_list)):
+                vec[j, :] += token_vector[token_list[j]]
         else:
             for i in range(n_toks):
                 for j in range(n):
-                    vec[j, :] += self.token_vector[token_list[i + j]]
+                    vec[j, :] += token_vector[token_list[i + j]]
             vec /= n_toks
         return np.reshape(vec, n * SPACY_VECTOR_SIZE)
 
@@ -175,7 +124,7 @@ class ClfGloveNBSpace:
         test_tokens = self.tokenize_df(test)
         test_x = self.compute_ngram_matrix(test_tokens)
         for i, col in enumerate(self.label_cols):
-            print('fit', i, col)
+            # print('fit', i, col)
             m = self.m[col]
             preds[:, i] = m.predict_proba(test_x)[:, 1]
         return preds

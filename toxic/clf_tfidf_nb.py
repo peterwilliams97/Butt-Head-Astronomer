@@ -17,6 +17,7 @@
 import numpy as np
 from sklearn.linear_model import LogisticRegression
 from sklearn.feature_extraction.text import TfidfVectorizer
+import time
 from utils import COMMENT
 
 
@@ -26,14 +27,32 @@ from utils import COMMENT
 # ngrams, as suggested in the NBSVM paper.
 import re
 import string
+from spacy_glue import SpacyCache
 
 
-re_tok = re.compile('([%s“”¨«»®´·º½¾¿¡§£₤‘’])' % string.punctuation)
+# do_spacy = False
 
 
-def tokenize(s):
-    """Surround punctuation with spaces then spilt on spaces"""
-    return re_tok.sub(r' \1 ', s).split()
+# def set_spacy_tokenization(on):
+#     global do_spacy
+#     do_spacy = on
+
+
+def get_tokenizer(do_spacy):
+    if do_spacy:
+        spacy_cache = SpacyCache()
+
+        def tokenize(s):
+            return spacy_cache.tokenize(s)[0]
+
+    else:
+        re_tok = re.compile('([%s“”¨«»®´·º½¾¿¡§£₤‘’])' % string.punctuation)
+
+        def tokenize(s):
+            """Surround punctuation with spaces then spilt on spaces"""
+            return re_tok.sub(r' \1 ', s).split()
+
+    return tokenize
 
 
 if False:
@@ -82,16 +101,22 @@ def get_mdl(x, y):
 
 class ClfTfidfNB:
 
-    def __init__(self, label_cols):
+    def __init__(self, label_cols, do_spacy):
         self.label_cols = label_cols
-        self.vec = TfidfVectorizer(ngram_range=(1, 2), tokenizer=tokenize,
+        print('TfidfVectorizer')
+        t0 = time.clock()
+        self.vec = TfidfVectorizer(ngram_range=(1, 2), tokenizer=get_tokenizer(do_spacy),
                min_df=3, max_df=0.9, strip_accents='unicode', use_idf=1,
                smooth_idf=1, sublinear_tf=1)
+        print('TfidfVectorizer took %.1f seconds' % (time.clock() - t0))
         self.m = {}
         self.r = {}
 
     def fit(self, train):
+        print('fit_transform')
+        t0 = time.clock()
         x = self.vec.fit_transform(train[COMMENT])
+        print('fit_transform took %.1f seconds' % (time.clock() - t0))
         for i, j in enumerate(self.label_cols):
             print('fit', j)
             self.m[j], self.r[j] = get_mdl(x, train[j])
