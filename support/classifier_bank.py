@@ -92,7 +92,8 @@ def compute_score_classifier(clf, X_train, y_train, X_test, y_test):
 
 def compute_score(X_train, y_train, X_test, y_test, n_neighbors):
     # clf = KNeighborsClassifier(n_neighbors)
-    clf = LogisticRegression(C=4, dual=True)
+    # clf = LogisticRegression(C=.1, dual=True)
+    clf = XGBClassifier()
     scores = compute_score_classifier(clf, X_train, y_train, X_test, y_test)
     return scores
 

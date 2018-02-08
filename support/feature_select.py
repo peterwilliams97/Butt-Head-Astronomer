@@ -10,6 +10,18 @@ from utils import orders_name, local_path, load_json
 from classifier_bank import metrics, compute_score, compute_all_scores
 
 
+def load_enumerations():
+    enumerations = load_json('enumerations.json')
+    idx_to_key = {col: {i: k for i, k in enumerate(enumerations[col])} for col in enumerations}
+    key_to_idx = {col: {k: i for i, k in enumerate(enumerations[col])} for col in enumerations}
+
+    # for col in enumerations:
+    #     idx_to_key[col] = {i: k for i, k in enumerate(enumerations[col])}
+    #     key_to_idx[col] = {k: i for i, k in enumerate(enumerations[col])}
+
+    return idx_to_key, key_to_idx
+
+
 def make_Xy():
     orders = pd.read_pickle(local_path)
     print('%s: %s' % (orders_name, list(orders.shape)))
@@ -23,6 +35,11 @@ def make_Xy():
     converted = {q for q, s in converted_quotes if s}
 
     quotes = orders[orders['isQuote'] == 1]
+
+    _, key_to_idx = load_enumerations()
+    CHANGE = key_to_idx['type']['CHANGE']
+    quotes = quotes[quotes['type'] == CHANGE]
+
     print('%s: %s' % ('quotes', list(quotes.shape)))
     quotes = quotes[[col for col in quotes.columns if col not in
                      {'endCustomerId', 'originalEndCustomerId'}]]
@@ -44,10 +61,10 @@ def make_Xy():
 def find_best_features(X, y, max_k=10):
     for stat in chi2, f_classif, mutual_info_classif:
         print('-' * 80)
-        print('stat.__name__')
+        print(stat.__name__)
         for k in range(1, max_k + 1):
             clf = SelectKBest(stat, k=k).fit(X.values, y.converted.values)
-            X_new = clf.transform(X)
+            # X_new = clf.transform(X)
             support = clf.get_support(indices=True)
             columns = [X.columns[i] for i in support]
             print(k, columns)
@@ -70,9 +87,10 @@ def show_scores(X_train, y_train, X_test, y_test):
         scores = []
         for n_neighbors in range(4, 5):
             score = compute_score(X_train, y_train, X_test, y_test, n_neighbors)
-            scores.append((n_neighbors, score))
-        for i, (n, score) in enumerate(scores):
-            print('%3d: %3d %s' % (i, n, score))
+            scores.append(score)
+        for i, score in enumerate(scores):
+            print('%3d: %s' % (i, score))
+        return scores[0]
 
 
 def show_scores_feature(X_train, y_train, X_test, y_test, stat, k):
@@ -97,7 +115,7 @@ def show_scores_feature(X_train, y_train, X_test, y_test, stat, k):
     print('OneHotEncoder: X_train_feat=%s X_train_feat=%s' % (
         list(X_train_feat.shape), list(X_test_feat.shape)))
 
-    show_scores(X_train_feat, y_train, X_test_feat, y_test)
+    return list(X_train_feat.shape), show_scores(X_train_feat, y_train, X_test_feat, y_test), columns
 
 
 def show_balance(y):
@@ -177,21 +195,9 @@ def value_str(y):
     return '%6d - %5d  (%4.1f%%)' % (v_0, v_1, r_1)
 
 
-def load_enumerations():
-    enumerations = load_json('enumerations.json')
-    # key_to_idx = {}
-    idx_to_key = {}
-    for col in enumerations:
-        i_to_k = {i: k for i, k in enumerate(enumerations[col])}
-        # k_to_i = {k: i for i, k in enumerate(enumerations[col])}
-        # key_to_idx[col] = k_to_i
-        idx_to_key[col] = i_to_k
-    return idx_to_key
-
-
 def show_splits(X, y, columns):
 
-    idx_to_key = load_enumerations()
+    idx_to_key, _ = load_enumerations()
 
     y = y['converted']
     print('+' * 80)
@@ -210,34 +216,96 @@ if __name__ == '__main__':
     X, y = make_Xy()
     if False:
         find_best_features(X, y)
-    if False:
-        (X_train, y_train), (X_test, y_test) = resample(X, y, sample_fraction=1.0)
-        show_scores_feature(X_train, y_train, X_test, y_test, f_classif, k=5)
     if True:
+        (X_train, y_train), (X_test, y_test) = resample(X, y, sample_fraction=1.0)
+        results = []
+        for k in range(1, 11):
+            # chi2                10: [24478, 3527]  [0.8236972232788132, 0.8460899883778848, 0.8236972232788131]
+            # f_classif           10: [24478, 1631]  [0.8236021300874857, 0.8453522300958731, 0.8236021300874857]
+             # f_classif          10: [24478, 1631]  [0.8225561049828832, 0.8473244968090329, 0.8225561049828833]  XGBoost
+            # mutual_info_classif 10: [24478, 3533]  [0.8235070368961582, 0.8458983726336766, 0.8235070368961582]
+            shape, score, columns = show_scores_feature(X_train, y_train, X_test, y_test, chi2, k=k)
+            results.append((k, shape, score, columns))
+        print('#' * 80)
+        for k, shape, score, columns in results:
+            print('%4d: %-20s %s %s ' % (k, shape, score, columns))
+        last_f1 = 0.0
+        last_col = set()
+        print('`' * 80)
+        for k, shape, score, columns in results:
+            f1 = score[1]
+            col = set(columns)
+            d_f1 = f1 - last_f1
+            d_col = list(col - last_col)
+            print('%4d: %-20s %g' % (k, d_col, d_f1))
+            last_f1 = f1
+            last_col = col
+    if False:
         columns = ['Parent Region', 'Reseller Tier', 'resellerDiscountPercentage', 'type']
         show_splits(X, y, columns)
 
-"""
-chi2 k=1 [0.8970740548938374, 0.9027332566618542, 0.8970740548938374]
-chi2 k=2 [0.8961677887105127, 0.9014742014742014, 0.8961677887105127]
-chi2 k=3 [0.8970999482133609, 0.902272280149518,  0.897099948213361]
-chi2 k=4 [0.8970740548938374, 0.9022500922168941, 0.8970740548938374]      =[90312, 2777]
-f_classif k=1  [0.8689280165717245, 0.87946471092485,   0.8689280165717245] =[90312,    4]
-f_classif k=2  [0.8663904712584153, 0.8791116109080687, 0.8663904712584154] =[90312,   16]
-f_classif k=3  [0.9035732780942517, 0.9095721431693458, 0.9035732780942517] =[90312,   32]
-f_classif k=4  [0.9616261004660798, 0.9619570797823185, 0.9616261004660797] =[90312,   38]
-f_classif k=5  [0.9629466597617815, 0.9633537350508335, 0.9629466597617815] =[90312,  688]
-f_classif k=10 [0.9612118073537027, 0.9617075664621677, 0.9612118073537027] =[90312, 3922]
-chi2 k=2
-chi2 k=2
+OLD = """
+    chi2 k=1 [0.8970740548938374, 0.9027332566618542, 0.8970740548938374]
+    chi2 k=2 [0.8961677887105127, 0.9014742014742014, 0.8961677887105127]
+    chi2 k=3 [0.8970999482133609, 0.902272280149518,  0.897099948213361]
+    chi2 k=4 [0.8970740548938374, 0.9022500922168941, 0.8970740548938374]      =[90312, 2777]
+    f_classif k=1  [0.8689280165717245, 0.87946471092485,   0.8689280165717245] =[90312,    4]
+    f_classif k=2  [0.8663904712584153, 0.8791116109080687, 0.8663904712584154] =[90312,   16]
+    f_classif k=3  [0.9035732780942517, 0.9095721431693458, 0.9035732780942517] =[90312,   32]
+    f_classif k=4  [0.9616261004660798, 0.9619570797823185, 0.9616261004660797] =[90312,   38]
+    f_classif k=5  [0.9629466597617815, 0.9633537350508335, 0.9629466597617815] =[90312,  688]
+    f_classif k=10 [0.9612118073537027, 0.9617075664621677, 0.9612118073537027] =[90312, 3922]
+    chi2 k=2
+    chi2 k=2
 
-1 ['Reseller Tier']
-2 ['Parent Region', 'Reseller Tier']
-3 ['Parent Region', 'Reseller Tier', 'resellerDiscountPercentage']
-4 ['Parent Region', 'Reseller Tier', 'resellerDiscountPercentage', 'type']
-5 ['Parent Region', 'Reseller Tier', 'Customer Country', 'resellerDiscountPercentage', 'type']
-6 ['Parent Region', 'Reseller Tier', 'Customer Country', 'firstName', 'resellerDiscountPercentage', 'type']
-7 ['Parent Region', 'Reseller Tier', 'Reseller Code', 'Customer Country', 'firstName', 'resellerDiscountPercentage', 'type']
-8 ['Parent Region', 'Reseller Tier', 'Reseller Code', 'Customer Country', 'firstName', 'resellerCode', 'resellerDiscountPercentage', 'type']
-9 ['Parent Region', 'Reseller Tier', 'Reseller Code', 'Reseller Name', 'Customer Country', 'firstName', 'resellerCode', 'resellerDiscountPercentage', 'type']
+    1 ['Reseller Tier']
+    2 ['Parent Region', 'Reseller Tier']
+    3 ['Parent Region', 'Reseller Tier', 'resellerDiscountPercentage']
+    4 ['Parent Region', 'Reseller Tier', 'resellerDiscountPercentage', 'type']
+    5 ['Parent Region', 'Reseller Tier', 'Customer Country', 'resellerDiscountPercentage', 'type']
+    6 ['Parent Region', 'Reseller Tier', 'Customer Country', 'firstName', 'resellerDiscountPercentage', 'type']
+    7 ['Parent Region', 'Reseller Tier', 'Reseller Code', 'Customer Country', 'firstName', 'resellerDiscountPercentage', 'type']
+    8 ['Parent Region', 'Reseller Tier', 'Reseller Code', 'Customer Country', 'firstName', 'resellerCode', 'resellerDiscountPercentage', 'type']
+    9 ['Parent Region', 'Reseller Tier', 'Reseller Code', 'Reseller Name', 'Customer Country', 'firstName', 'resellerCode', 'resellerDiscountPercentage', 'type']
+"""
+
+NEW = """
+    --------------------------------------------------------------------------------
+    stat.__name__
+    1 ['Reseller Code']
+    2 ['Reseller Code', 'resellerCode']
+    3 ['Reseller Code', 'organizationName', 'resellerCode']
+    4 ['Reseller Code', 'address1', 'organizationName', 'resellerCode']
+    5 ['Reseller Code', 'address1', 'lastName', 'organizationName', 'resellerCode']
+    6 ['Reseller Code', 'Customer Country', 'address1', 'lastName', 'organizationName', 'resellerCode']
+    7 ['Reseller Code', 'Reseller Name', 'Customer Country', 'address1', 'lastName', 'organizationName', 'resellerCode']
+    8 ['Reseller Code', 'Reseller Name', 'Customer Country', 'address1', 'firstName', 'lastName', 'organizationName', 'resellerCode']
+    9 ['Reseller Code', 'Reseller Name', 'Reseller City', 'Customer Country', 'address1', 'firstName', 'lastName', 'organizationName', 'resellerCode']
+    10 ['Reseller Code', 'Reseller Name', 'Reseller City', 'Customer Country', 'address1', 'city', 'firstName', 'lastName', 'organizationName', 'resellerCode']
+    --------------------------------------------------------------------------------
+    stat.__name__
+    1 ['Super Region']
+    2 ['Super Region', 'resellerDiscountPercentage']
+    3 ['Super Region', 'Reseller Tier', 'resellerDiscountPercentage']
+    4 ['Super Region', 'Reseller Tier', 'Customer Country', 'resellerDiscountPercentage']
+    5 ['Super Region', 'Reseller Tier', 'Customer Country', 'currency', 'resellerDiscountPercentage']
+    6 ['Super Region', 'Parent Region', 'Reseller Tier', 'Customer Country', 'currency', 'resellerDiscountPercentage']
+    7 ['Super Region', 'Parent Region', 'Reseller Tier', 'Customer Country', 'firstName', 'currency', 'resellerDiscountPercentage']
+    8 ['Super Region', 'Parent Region', 'Reseller Tier', 'Reseller Code', 'Customer Country', 'firstName', 'currency', 'resellerDiscountPercentage']
+    9 ['Super Region', 'Parent Region', 'Reseller Tier', 'Reseller Code', 'Customer Country', 'firstName', 'currency', 'resellerCode', 'resellerDiscountPercentage']
+    10 ['Super Region', 'Parent Region', 'Reseller Tier', 'Reseller Code', 'Reseller Name', 'Customer Country', 'firstName', 'currency', 'resellerCode', 'resellerDiscountPercentage']
+    --------------------------------------------------------------------------------
+    stat.__name__
+    1 ['Customer Country']
+    2 ['Customer Country', 'address1']
+    3 ['Customer Country', 'address1', 'organizationName']
+    4 ['Reseller Code', 'Customer Country', 'address1', 'organizationName']
+    5 ['Customer Country', 'address1', 'lastName', 'organizationName', 'resellerCode']
+    6 ['Reseller Code', 'Customer Country', 'address1', 'lastName', 'organizationName', 'resellerCode']
+    7 ['Reseller Code', 'Customer Country', 'address1', 'city', 'firstName', 'lastName', 'organizationName']
+    8 ['Reseller Code', 'Reseller Name', 'Customer Country', 'address1', 'firstName', 'lastName', 'organizationName', 'resellerCode']
+    9 ['Reseller Code', 'Reseller Name', 'Customer Country', 'address1', 'city', 'firstName', 'lastName', 'organizationName', 'resellerCode']
+    10 ['Reseller Code', 'Reseller Name', 'Customer Country', 'address1', 'city', 'zip', 'firstName', 'lastName', 'organizationName', 'resellerCode']
+
+
 """

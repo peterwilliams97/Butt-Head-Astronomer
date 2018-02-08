@@ -8,6 +8,7 @@ from collections import defaultdict
 from pprint import pprint
 import numpy as np
 import pandas as pd
+from datetime import timedelta
 from utils import save_json, load_json, orders_name, local_path, data_dir
 
 
@@ -18,9 +19,9 @@ FORCE_READ = False
 VERBOSE = False
 APPLY_CATEGORICALS = False
 MAKE_CATEGORICALS = False
-SHOW_CATEGORICALS = True
+SHOW_CATEGORICALS = False
 GRAPHS = False
-QUOTE_SALE = False
+QUOTE_SALE = True
 
 assert not (MAKE_CATEGORICALS and APPLY_CATEGORICALS)
 
@@ -34,7 +35,6 @@ def convert_categoricals(df):
             df2[col] = df[col]
             continue
         convert = {v: i for i, v in enumerate(enum)}
-        # trevnoc = {i: v for i, v in enumerate(enum)}
         v_nan = convert.get('nan')
         vals = list(df[col])
         print('Convert %r : %d' % (col, len(convert)))
@@ -164,17 +164,11 @@ if not exists(local_path) or FORCE_READ or APPLY_CATEGORICALS:
         'endCustomerId': np.float64,  # np.int32,
         'originalEndCustomerId': np.float64,  # np.int32,
     }
-    int_cols = ['id', 'isQuote',
-                # 'orderNumber',
-                 # 'paymentSecurityId',
-                 'customerId']
-    bad_int_cols = ['endCustomerId',
-                'originalEndCustomerId']
+    int_cols = ['id', 'isQuote', 'customerId']
+    bad_int_cols = ['endCustomerId', 'originalEndCustomerId']
     single_val_cols = ['Reseller Enabled/Disabled', 'exportedToNetSuite']
 
-    orders = pd.read_csv(join(data_dir, '%s.csv' % orders_name),
-                         # dtype=col_dtype,
-                         parse_dates=['dateCreated'],
+    orders = pd.read_csv(join(data_dir, '%s.csv' % orders_name), parse_dates=['dateCreated'],
                          encoding='latin-1', error_bad_lines=False)
     print('%s: %s' % (orders_name, list(orders.shape)))
     for col in int_cols:
@@ -191,8 +185,6 @@ if not exists(local_path) or FORCE_READ or APPLY_CATEGORICALS:
     good_cols = [col for col in orders.columns if col not in single_val_cols]
     orders = orders[good_cols]
 
-    # orders = orders[pd.notnull(orders[int_cols])]
-    # orders[int_cols] = orders[int_cols].astype(np.int32)
     orders.sort_values(by=['dateCreated'], inplace=True)
     orders.to_pickle(local_path)
 
@@ -229,12 +221,14 @@ if VERBOSE:
 
 if MAKE_CATEGORICALS or SHOW_CATEGORICALS:
     threshold = 1000 if MAKE_CATEGORICALS else 20
-    col_level, _, single_val_cols, enumerations = compute_categoricals(orders_name, orders, threshold=threshold)
+    col_level, _, single_val_cols, enumerations = compute_categoricals(orders_name, orders,
+        threshold=threshold)
     for i, col in enumerate(sorted(col_level, key=lambda k: (-col_level[k], k))):
-        print('%3d: %30s %6d %5.1f%%' % (i, col, col_level[col], 100.0 * col_level[col] / len(orders)))
+        print('%3d: %30s %6d %5.1f%%' % (i, col, col_level[col],
+              100.0 * col_level[col] / len(orders)))
     print('col_level_type = [')
     for i, col in enumerate(sorted(col_level, key=lambda k: (-col_level[k], k))):
-        print('    (%30r, %6d, %8r),  # %3d  %5.1f%%' % (
+        print('    (%30r, %6d, %8s),  # %3d  %5.1f%%' % (
               col, col_level[col], orders[col].dtype,
               i, 100.0 * col_level[col] / len(orders)
               ))
@@ -242,7 +236,7 @@ if MAKE_CATEGORICALS or SHOW_CATEGORICALS:
     print('single_val_cols=%d %s' % (len(single_val_cols), single_val_cols))
     if MAKE_CATEGORICALS:
         save_json('enumerations.json', enumerations)
-    assert False
+        assert False
 
 if QUOTE_SALE:
     customer_col = 'emailAddress'
@@ -270,8 +264,8 @@ if False:
     quote_counts = defaultdict(int)
     for i, cust in enumerate(unique_customers):
         both = orders.loc[orders[customer_col] == cust]
-        quotes = both.loc[orders['isQuote'] == 0.0]
-        sales = both.loc[orders['isQuote'] == 1.0]
+        quotes = both.loc[orders['isQuote'] == 0]
+        sales = both.loc[orders['isQuote'] == 1]
         b, q, s = [len(df) for df in (both, quotes, sales)]
         if b == 0:
             continue
@@ -298,29 +292,34 @@ if QUOTE_SALE:
     quote_sales = defaultdict(list)
     show_len = -1
 
+    customer_quote_all_sales = []
+    quote_duration = timedelta(days=180)
+
     for i, cust in enumerate(unique_customers):
+        quote_all_sales = []
         customer_orders = orders.loc[orders[customer_col] == cust]
         quotes = customer_orders.loc[orders['isQuote'] == 1]
         if len(quotes) == 0:
             continue
-        # print('quotes=%s' % type(quotes), quotes.shape)
         for k, quote in quotes.iterrows():
-            # print('quote=%s %s' % (type(quote), [type(v) for v in quote]))
-            # k, v = quote
-            # print('k=%d v=%s' % (k, list(v.shape)))
             price = quote['priceAtOrderTime']
             date = quote['dateCreated']
-            sales = customer_orders.loc[
-                                (orders['isQuote'] == 0) &
-                                (orders['priceAtOrderTime'] == price) &
-                                (orders['dateCreated'] >= date)
-                              ]
+            all_sales = customer_orders.loc[(orders['isQuote'] == 0) &
+                                            (orders['dateCreated'] >= date)]
+            if len(all_sales) == 0:
+                continue
+            ss = [(s['dateCreated'].strftime('%Y-%m-%d'), s['priceAtOrderTime'])
+                  for _, s in all_sales.iterrows()]
+            quote_all_sales.append(((date.strftime('%Y-%m-%d'), price), ss))
+
+            expiry = date + quote_duration
+            # sales = all_sales.loc[orders['priceAtOrderTime'] == price]
+            sales = all_sales.loc[orders['dateCreated'] <= expiry]
             oid = quote['id']
             assert oid not in quote_sales, oid
             if len(sales) == 0:
                 continue
 
-            # print('sales=%s' % type(sales), sales.shape)
             quote_sales[oid] = [s['id'] for _, s in sales.iterrows()]
             if len(quote_sales) % 10 == 1 and show_len < len(quote_sales) <= 21:
                 print('%6d of %d customers. %6d converted quotes (%4.1f%%)' % (
@@ -328,15 +327,38 @@ if QUOTE_SALE:
                     100.0 * len(quote_sales) / len(unique_customers)), flush=True)
                 pprint({k: v for k, v in quote_sales.items()})
                 show_len = len(quote_sales)
-        if i % (len(unique_customers) // 100) == len(unique_customers) // 200:
+            if quote_all_sales:
+                customer_quote_all_sales.append((cust, quote_all_sales))
+
+        if i % (len(unique_customers) // 100) == max(1, len(unique_customers) // 1000):
             print('%6d of %d customers. %6d converted quotes (%4.1f%%)' % (
                 i, len(unique_customers), len(quote_sales),
                 100.0 * len(quote_sales) / len(unique_customers)), flush=True)
+        # if len(customer_quote_all_sales) >= 1000:
+        #     break
 
     print('%d converted quotes from %d customers' % (len(quote_sales), i), flush=True)
     # pprint({k: v for k, v in quote_sales.items()})
     converted_quotes = [(q, quote_sales[q]) for q in sorted(quote_sales)]
     save_json('converted_quotes.json', converted_quotes)
+
+    for k, (cust, quote_all_sales) in enumerate(customer_quote_all_sales):
+        print('%4d: %s' % (k, '=' * 74))
+        print('customer: %r' % cust)
+        for i, (quote_price, sales_prices) in enumerate(quote_all_sales):
+            print('%4d: %s' % (i, '-' * 74))
+            print('%4s: %s %d sales' % ('quote', quote_price, len(sales_prices)))
+            matched = False
+            for j, sp in enumerate(sales_prices):
+                marker = ''
+                if not matched:
+                    if sp[1] == quote_price[1]:
+                        matched = True
+                        marker = 'match'
+                print('%5d: %s %s' % (j, sp, marker))
+
+    save_json('customer_quote_all_sales.json', customer_quote_all_sales)
+    assert False
 
 if True:
     import re
