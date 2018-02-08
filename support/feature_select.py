@@ -3,10 +3,11 @@ from sklearn.feature_selection import SelectKBest
 from sklearn.feature_selection import chi2, mutual_info_classif, f_classif
 from sklearn.model_selection import train_test_split
 from imblearn.over_sampling import RandomOverSampler
+from sklearn.preprocessing import OneHotEncoder
 import numpy as np
 import pandas as pd
 from utils import orders_name, local_path, load_json
-from classifier_bank import compute_score
+from classifier_bank import metrics, compute_score, compute_all_scores
 
 
 def make_Xy():
@@ -40,10 +41,11 @@ def make_Xy():
     return X, y
 
 
-def find_best_features(X, y):
+def find_best_features(X, y, max_k=10):
     for stat in chi2, f_classif, mutual_info_classif:
         print('-' * 80)
-        for k in range(1, 10):
+        print('stat.__name__')
+        for k in range(1, max_k + 1):
             clf = SelectKBest(stat, k=k).fit(X.values, y.converted.values)
             X_new = clf.transform(X)
             support = clf.get_support(indices=True)
@@ -51,66 +53,191 @@ def find_best_features(X, y):
             print(k, columns)
 
 
-def show_scores(X, y):
+def show_scores(X_train, y_train, X_test, y_test):
     print('-' * 80)
-    print('show_scores: X=%s y=%s columns=%s' % (list(X.shape), list(y.shape), list(X.columns)))
+    print('show_scores: X_train=%s y_train=%s X_test=%s y_test=%s' % (
+        list(X_train.shape), list(y_train.shape),
+        list(X_test.shape), list(y_test.shape)))
 
-    classifier_score, metrics = compute_score(X, y)
-    for i, met in metrics:
-        print('-' * 80)
-        print('%d %s' % (i, met))
-        for j, name in enumerate(sorted(classifier_score, key=lambda k: -classifier_score[k][i])):
-            print('%4d: %.3f %s' % (j, classifier_score[name][i], name), flush=True)
+    if False:
+        classifier_score = compute_all_scores(X_train, y_train, X_test, y_test)
+        for i, met in enumerate(metrics):
+            print('-' * 80)
+            print('%d %s' % (i, met))
+            for j, name in enumerate(sorted(classifier_score, key=lambda k: -classifier_score[k][i])):
+                print('%4d: %.3f %s' % (j, classifier_score[name][i], name), flush=True)
+    if True:
+        scores = []
+        for n_neighbors in range(4, 5):
+            score = compute_score(X_train, y_train, X_test, y_test, n_neighbors)
+            scores.append((n_neighbors, score))
+        for i, (n, score) in enumerate(scores):
+            print('%3d: %3d %s' % (i, n, score))
 
 
-def show_scores_feature(X, y, stat, k):
+def show_scores_feature(X_train, y_train, X_test, y_test, stat, k):
     print('-' * 80)
-    print('show_scores_feature: X=%s y=%s stat=%s k=%d' % (list(X.shape), list(y.shape),
+    print('show_scores_feature: X_train=%s y_train=%s X_test=%s y_test=%s stat=%s k=%d' % (
+        list(X_train.shape), list(y_train.shape),
+        list(X_test.shape), list(y_test.shape),
         stat.__name__, k))
 
-    clf = SelectKBest(stat, k=k).fit(X.values, y.converted.values)
+    clf = SelectKBest(stat, k=k).fit(X_train.values, y_train.converted.values)
     support = clf.get_support(indices=True)
-    columns = [X.columns[i] for i in support]
-    Xfeat = X[columns]
-    show_scores(Xfeat, y)
+    columns = [X_train.columns[i] for i in support]
+    X_train_feat = X_train[columns]
+    X_test_feat = X_test[columns]
+
+    ohe = OneHotEncoder()
+    X_feat = pd.concat([X_train_feat, X_test_feat])
+    ohe.fit(X_feat)
+    X_train_feat = ohe.transform(X_train_feat)
+    X_test_feat = ohe.transform(X_test_feat)
+
+    print('OneHotEncoder: X_train_feat=%s X_train_feat=%s' % (
+        list(X_train_feat.shape), list(X_test_feat.shape)))
+
+    show_scores(X_train_feat, y_train, X_test_feat, y_test)
 
 
 def show_balance(y):
     unique, counts = np.unique(y, return_counts=True)
     for u, c in zip(unique, counts):
-        print('%2d: %6d %4.1%%f' % (u, c, c / len(y)))
+        print('%2d: %6d %4.1f%%' % (u, c, 100.0 * c / len(y)))
     # print(np.asarray((unique, counts)).T)
 
 
-def resample(X, y, fraction=0.1):
+def resample(X, y, sample_fraction=0.1, test_size=0.3):
     X_columns = X.columns
     y_columns = y.columns
+    n = len(X_columns)
 
     print('~' * 80)
     print('@@-\n', y.converted.value_counts())
     print('@@0 - Original')
     show_balance(y.values)
 
+    X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=test_size, random_state=42)
+    print('@@2 - y_train')
+    show_balance(y_train)
+    print('@@2 -  y_test')
+    show_balance(y_test)
+    assert X_train.shape[1] == n and X_test.shape[1] == n
+
     ros = RandomOverSampler(random_state=42)
-    X_res, y_res = ros.fit_sample(X, y)
-    X, y = X_res, y_res
-    print('@@1 - Oversampled')
-    show_balance(y)
+    X_train, y_train = ros.fit_sample(X_train, y_train)
+    X_test, y_test = ros.fit_sample(X_test, y_test)
+    print('@@3 - Oversampled y_train')
+    show_balance(y_train)
+    print('@@3 - Oversampled y_test')
+    show_balance(y_test)
+    assert X_train.shape[1] == n and X_test.shape[1] == n
 
-    X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=fraction, random_state=42)
-    X, y = X_test, y_test
-    print('@@2 - Downasmpled')
-    show_balance(y)
+    if sample_fraction < 1.0:
+        _, X_train, _, y_train = train_test_split(X_train, y_train, test_size=sample_fraction, random_state=43)
+        _, X_test, _, y_test = train_test_split(X_test, y_test, test_size=sample_fraction, random_state=44)
+        print('@@2 - Downsampled y_train')
+        show_balance(y_train)
+        print('@@2 - Downsampled y_test')
+        show_balance(y_test)
+        assert len(X_train.shape) == 2 and len(X_test.shape) == 2, (X_train.shape, X_test.shape)
+        assert X_train.shape[1] == n and X_test.shape[1] == n, (X_train.shape, X_test.shape)
 
-    X = pd.DataFrame(X, columns=X_columns)
-    y = pd.DataFrame(y, columns=y_columns, index=X.index)
-    print('@@+\n', y.converted.value_counts(), flush=True)
+    print('X_columns=%d %s' % (len(X_columns), X_columns))
+    print('y_columns=%d %s' % (len(y_columns), y_columns))
+    print('X_train=%-10s y_train=%s' % (list(X_train.shape), list(y_train.shape)))
+    print('X_test =%-10s y_test =%s' % (list(X_test.shape), list(y_test.shape)))
+    assert X_train.shape[1] == n and X_test.shape[1] == n
 
-    return X, y
+    X_train = pd.DataFrame(X_train, columns=X_columns)
+    y_train = pd.DataFrame(y_train, columns=y_columns, index=X_train.index)
+    X_test = pd.DataFrame(X_test, columns=X_columns)
+    y_test = pd.DataFrame(y_test, columns=y_columns, index=X_test.index)
+    print('@@+ y_train\n', y_train.converted.value_counts(), flush=True)
+    print('@@+ y_test\n', y_test.converted.value_counts(), flush=True)
+
+    return (X_train, y_train), (X_test, y_test)
+
+
+def value_str(y):
+    # 0    13909
+    # 1     2357
+    vals = y.value_counts()
+    assert len(vals) <= 2, len(vals)
+    v_0 = 0
+    v_1 = 0
+    if 0 in vals.index:
+        v_0 = vals.loc[0]
+    if 1 in vals.index:
+        v_1 = vals.loc[1]
+    n = len(y)
+    assert v_0 + v_1 == n, (v_0, v_1, n)
+    # r_0 = 100.0 * v_0 / n
+    r_1 = 100.0 * v_1 / n
+    return '%6d - %5d  (%4.1f%%)' % (v_0, v_1, r_1)
+
+
+def load_enumerations():
+    enumerations = load_json('enumerations.json')
+    # key_to_idx = {}
+    idx_to_key = {}
+    for col in enumerations:
+        i_to_k = {i: k for i, k in enumerate(enumerations[col])}
+        # k_to_i = {k: i for i, k in enumerate(enumerations[col])}
+        # key_to_idx[col] = k_to_i
+        idx_to_key[col] = i_to_k
+    return idx_to_key
+
+
+def show_splits(X, y, columns):
+
+    idx_to_key = load_enumerations()
+
+    y = y['converted']
+    print('+' * 80)
+    print('%3s %-20s %s' % ('', 'all', value_str(y)))
+    for col in columns:
+        print('--', col)
+        vals = X[col].value_counts()
+        for i in vals.index:
+            k = idx_to_key[col][i]
+            idx = X[col] == i
+            y_i = y[idx]
+            print('%3d %-20s %s' % (i, k, value_str(y_i)))
 
 
 if __name__ == '__main__':
-    # find_best_features(X, y)
     X, y = make_Xy()
-    X, y = resample(X, y)
-    show_scores_feature(X, y, chi2, k=4)
+    if False:
+        find_best_features(X, y)
+    if False:
+        (X_train, y_train), (X_test, y_test) = resample(X, y, sample_fraction=1.0)
+        show_scores_feature(X_train, y_train, X_test, y_test, f_classif, k=5)
+    if True:
+        columns = ['Parent Region', 'Reseller Tier', 'resellerDiscountPercentage', 'type']
+        show_splits(X, y, columns)
+
+"""
+chi2 k=1 [0.8970740548938374, 0.9027332566618542, 0.8970740548938374]
+chi2 k=2 [0.8961677887105127, 0.9014742014742014, 0.8961677887105127]
+chi2 k=3 [0.8970999482133609, 0.902272280149518,  0.897099948213361]
+chi2 k=4 [0.8970740548938374, 0.9022500922168941, 0.8970740548938374]      =[90312, 2777]
+f_classif k=1  [0.8689280165717245, 0.87946471092485,   0.8689280165717245] =[90312,    4]
+f_classif k=2  [0.8663904712584153, 0.8791116109080687, 0.8663904712584154] =[90312,   16]
+f_classif k=3  [0.9035732780942517, 0.9095721431693458, 0.9035732780942517] =[90312,   32]
+f_classif k=4  [0.9616261004660798, 0.9619570797823185, 0.9616261004660797] =[90312,   38]
+f_classif k=5  [0.9629466597617815, 0.9633537350508335, 0.9629466597617815] =[90312,  688]
+f_classif k=10 [0.9612118073537027, 0.9617075664621677, 0.9612118073537027] =[90312, 3922]
+chi2 k=2
+chi2 k=2
+
+1 ['Reseller Tier']
+2 ['Parent Region', 'Reseller Tier']
+3 ['Parent Region', 'Reseller Tier', 'resellerDiscountPercentage']
+4 ['Parent Region', 'Reseller Tier', 'resellerDiscountPercentage', 'type']
+5 ['Parent Region', 'Reseller Tier', 'Customer Country', 'resellerDiscountPercentage', 'type']
+6 ['Parent Region', 'Reseller Tier', 'Customer Country', 'firstName', 'resellerDiscountPercentage', 'type']
+7 ['Parent Region', 'Reseller Tier', 'Reseller Code', 'Customer Country', 'firstName', 'resellerDiscountPercentage', 'type']
+8 ['Parent Region', 'Reseller Tier', 'Reseller Code', 'Customer Country', 'firstName', 'resellerCode', 'resellerDiscountPercentage', 'type']
+9 ['Parent Region', 'Reseller Tier', 'Reseller Code', 'Reseller Name', 'Customer Country', 'firstName', 'resellerCode', 'resellerDiscountPercentage', 'type']
+"""

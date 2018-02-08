@@ -21,6 +21,7 @@ semi-transparent. The lower right shows the classification accuracy on the test
 set.
 """
 import time
+import numpy as np
 from sklearn.model_selection import cross_val_score
 from sklearn.linear_model import LogisticRegression
 from sklearn.neural_network import MLPClassifier
@@ -33,6 +34,7 @@ from sklearn.ensemble import RandomForestClassifier, AdaBoostClassifier
 from sklearn.naive_bayes import GaussianNB
 from sklearn.discriminant_analysis import QuadraticDiscriminantAnalysis
 from xgboost import XGBClassifier
+from sklearn.metrics import accuracy_score, f1_score, roc_auc_score
 
 
 names = [
@@ -63,27 +65,44 @@ classifiers = [
     MLPClassifier(alpha=1),
 ]
 
+metrics = ['accuracy', 'f1', 'roc_auc']
+metric_funcs = [accuracy_score, f1_score, roc_auc_score]
 
-def compute_score(X, y, cv=2):
 
-    metrics = ['accuracy', 'f1',
-               #'neg_log_loss',
-               'roc_auc']
+def compute_score_classifier(clf, X_train, y_train, X_test, y_test):
+
+    t0 = time.clock()
+    clf.fit(X_train, np.ravel(y_train))
+    dt_fit = time.clock() - t0
+    print('(%.1f sec - ' % dt_fit, end='', flush=True)
+
+    t0 = time.clock()
+    y_pred = clf.predict(X_test)
+    dt_pred = time.clock() - t0
+    print('%.1f sec) ' % dt_pred, flush=True)
+
+    scores = []
+    for met, score_func in zip(metrics, metric_funcs):
+        score = score_func(y_test, y_pred)
+        print('%20s %.4f' % (met, score), flush=True)
+        scores.append(score)
+    print('** %s' % scores, flush=True)
+    return scores
+
+
+def compute_score(X_train, y_train, X_test, y_test, n_neighbors):
+    # clf = KNeighborsClassifier(n_neighbors)
+    clf = LogisticRegression(C=4, dual=True)
+    scores = compute_score_classifier(clf, X_train, y_train, X_test, y_test)
+    return scores
+
+
+def compute_all_scores(X_train, y_train, X_test, y_test):
+
     classifier_score = {}
     for name, clf in zip(names, classifiers):
-
-        # clf.fit(X_train, y_train)
-        scores = []
-        for met in metrics:
-            print('** %20s: %10s ' % (name, met), end='', flush=True)
-            t0 = time.clock()
-            score_cv = cross_val_score(clf, X, y, cv=cv, scoring=met)
-            score = score_cv.mean()
-            # score = clf.score(X_test, y_test, scoring=metric)
-            dt = time.clock() - t0
-            print('%20s %.4f (%.1f sec)' % (score_cv, score, dt), flush=True)
-            scores.append(score)
-        print('** %20s: %s' % (name, scores), flush=True)
+        print('** %20s: ' % name, end='', flush=True)
+        scores = compute_score_classifier(clf, X_train, y_train, X_test, y_test)
         classifier_score[name] = scores
 
-    return classifier_score, metrics
+    return classifier_score
