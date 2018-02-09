@@ -6,12 +6,8 @@ from imblearn.over_sampling import RandomOverSampler
 from sklearn.preprocessing import OneHotEncoder
 import numpy as np
 import pandas as pd
-from utils import orders_name, local_path, load_json, save_pickle
+from utils import ORDERS_NAME, ORDERS_LOCAL_PATH, dim, load_json, save_pickle
 from classifier_bank import metrics, compute_score, compute_all_scores
-
-
-def dim(x):
-    return list(x.shape)
 
 
 def load_enumerations():
@@ -27,13 +23,13 @@ def load_enumerations():
 
 
 def make_Xy():
-    orders = pd.read_pickle(local_path)
-    print('%s: %s' % (orders_name, list(orders.shape)))
+    orders = pd.read_pickle(ORDERS_LOCAL_PATH)
+    print('%s: %s' % (ORDERS_NAME, list(orders.shape)))
 
     Xcols = [col for col in orders.columns if orders[col].dtype == np.int32]
     print(len(Xcols))
     orders = orders[Xcols]
-    print('%s: %s' % (orders_name, list(orders.shape)))
+    print('%s: %s' % (ORDERS_NAME, list(orders.shape)))
 
     converted_quotes = load_json('converted_quotes.json')
     converted = {q for q, s in converted_quotes if s}

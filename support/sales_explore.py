@@ -9,7 +9,8 @@ from pprint import pprint
 import numpy as np
 import pandas as pd
 from datetime import timedelta
-from utils import save_json, load_json, orders_name, local_path, data_dir
+from utils import (save_json, load_json, ORDERS_NAME, ORDERS_LOCAL_PATH, data_dir,
+    convert_categoricals, compute_categoricals)
 
 
 pd.options.display.max_columns = 999
@@ -21,90 +22,15 @@ APPLY_CATEGORICALS = False
 MAKE_CATEGORICALS = False
 SHOW_CATEGORICALS = False
 GRAPHS = False
-QUOTE_SALE = True
+QUOTE_SALE = False
 
 assert not (MAKE_CATEGORICALS and APPLY_CATEGORICALS)
 
-
-def convert_categoricals(df):
-    enumerations = load_json('enumerations.json')
-    df2 = pd.DataFrame(index=df.index)
-    for col in df.columns:
-        enum = enumerations.get(col)
-        if not enum:
-            df2[col] = df[col]
-            continue
-        convert = {v: i for i, v in enumerate(enum)}
-        v_nan = convert.get('nan')
-        vals = list(df[col])
-        print('Convert %r : %d' % (col, len(convert)))
-        if v_nan is None:
-            for v in vals:
-                assert v in convert, (v, enum[:10])
-        categorical = [convert.get(v, v_nan) for v in vals]
-        print(len(categorical), sorted(set(categorical))[:20])
-        # df2[col] = pd.Series(categorical, dtype=np.int32).astype(np.int32)
-        df2[col] = pd.Series(categorical, index=df.index)
-        print(len(df2[col]), sorted(set(df2[col].values))[:20])
-        df2[col] = df2[col].astype(np.int32)
-        print('%20s : %20s -> %20s' % (col, df[col].dtype, df2[col].dtype))
-    return df2
+CATEGORY_ENUMERATIONS = 'enumerations.json'
+CONVERTED_QUOTES = 'converted_quotes.json'
 
 
-def compute_categoricals(orders_name, df, threshold=20):
-    print('=' * 80)
-    print('categorical: %s' % orders_name)
-    print(list(df.columns))
-    col_level = {}
-    categoricals = []
-    single_val_cols = []
-    enumerations = {}
-
-    for i, col in enumerate(df.columns):
-        scores = df[col]
-        print('%4d: %-20s %-10s - ' % (i, col, scores.dtype), end='', flush=True)
-        is_object = str(scores.dtype) == 'object'
-        scores = list(scores)
-        print('; ', end='', flush=True)
-        if is_object:
-            scores = [str(v) for v in scores]
-        print(', ', end='', flush=True)
-
-        try:
-            levels = set(scores)
-            print('. ', end='', flush=True)
-            levels = list(levels)
-        except Exception as e:
-             print(e)
-             continue
-        print('%7d levels %7d total %4.1f%%' % (len(levels), len(scores),
-            100.0 * len(levels) / len(scores)), end='', flush=True)
-
-        col_level[col] = len(levels)
-
-        if len(levels) == 1:
-            single_val_cols.append(col)
-
-        if len(levels) <= threshold:
-            level_counts = {l: len([v for v in scores if v == l]) for l in levels}
-            print(' ;', end='', flush=True)
-
-            levels.sort(key=lambda l: (-level_counts[l], l))
-            enumerations[col] = levels
-
-        print(' ***', flush=True)
-
-        if len(levels) <= threshold:
-            categoricals.append(col)
-            for l in levels:
-                m = level_counts[l]
-                print('%20s: %7d %4.1f' % (l, m, 100.0 * m / len(scores)), flush=True)
-    print('-' * 80)
-    print('categoricals: %d %s' % (len(categoricals), categoricals))
-    return col_level, categoricals, single_val_cols, enumerations
-
-
-if not exists(local_path) or FORCE_READ or APPLY_CATEGORICALS:
+if not exists(ORDERS_LOCAL_PATH) or FORCE_READ or APPLY_CATEGORICALS:
     col_dtype = {
         'ASC': str,
         'Manufacturer': str,
@@ -168,9 +94,9 @@ if not exists(local_path) or FORCE_READ or APPLY_CATEGORICALS:
     bad_int_cols = ['endCustomerId', 'originalEndCustomerId']
     single_val_cols = ['Reseller Enabled/Disabled', 'exportedToNetSuite']
 
-    orders = pd.read_csv(join(data_dir, '%s.csv' % orders_name), parse_dates=['dateCreated'],
+    orders = pd.read_csv(join(data_dir, '%s.csv' % ORDERS_NAME), parse_dates=['dateCreated'],
                          encoding='latin-1', error_bad_lines=False)
-    print('%s: %s' % (orders_name, list(orders.shape)))
+    print('%s: %s' % (ORDERS_NAME, list(orders.shape)))
     for col in int_cols:
         print(col, end=' ', flush=True)
         orders = orders[pd.notnull(orders[col])]
@@ -180,22 +106,23 @@ if not exists(local_path) or FORCE_READ or APPLY_CATEGORICALS:
     for col in bad_int_cols:
         orders[col] = orders[col].fillna(-1.0)
         orders[col] = orders[col].astype(np.int32)
-        print('%s: %s' % (orders_name, list(orders.shape)))
+        print('%s: %s' % (ORDERS_NAME, list(orders.shape)))
     orders['discountPercentage'] = orders['discountPercentage'].fillna(0.0)
     good_cols = [col for col in orders.columns if col not in single_val_cols]
     orders = orders[good_cols]
 
     orders.sort_values(by=['dateCreated'], inplace=True)
-    orders.to_pickle(local_path)
+    orders.to_pickle(ORDERS_LOCAL_PATH)
 
-orders = pd.read_pickle(local_path)
-print('%s: %s' % (orders_name, list(orders.shape)))
+orders = pd.read_pickle(ORDERS_LOCAL_PATH)
+print('%s: %s' % (ORDERS_NAME, list(orders.shape)))
 
 if APPLY_CATEGORICALS:
-    orders = convert_categoricals(orders)
+    enumerations = load_json(CATEGORY_ENUMERATIONS)
+    orders = convert_categoricals(orders, enumerations)
     for col in orders.columns:
         print('%20s : %s' % (col, orders[col].dtype))
-    orders.to_pickle(local_path)
+    orders.to_pickle(ORDERS_LOCAL_PATH)
     assert False
 
 if VERBOSE:
@@ -205,23 +132,23 @@ if VERBOSE:
 
     print('=' * 80)
     df = orders
-    print('%s: %s' % (orders_name, list(df.shape)))
+    print('%s: %s' % (ORDERS_NAME, list(df.shape)))
     for i, col in enumerate(df.columns):
         print('%6d: %s' % (i, col))
 
     print('-' * 80)
     df = orders
-    print('%s: %s' % (orders_name, list(df.shape)))
+    print('%s: %s' % (ORDERS_NAME, list(df.shape)))
     print(orders.head())
 
     print('^' * 80)
     df = orders
-    print('%s: %s' % (orders_name, list(df.shape)))
+    print('%s: %s' % (ORDERS_NAME, list(df.shape)))
     print(orders.describe())
 
 if MAKE_CATEGORICALS or SHOW_CATEGORICALS:
     threshold = 1000 if MAKE_CATEGORICALS else 20
-    col_level, _, single_val_cols, enumerations = compute_categoricals(orders_name, orders,
+    col_level, _, single_val_cols, enumerations = compute_categoricals(ORDERS_NAME, orders,
         threshold=threshold)
     for i, col in enumerate(sorted(col_level, key=lambda k: (-col_level[k], k))):
         print('%3d: %30s %6d %5.1f%%' % (i, col, col_level[col],
@@ -235,7 +162,7 @@ if MAKE_CATEGORICALS or SHOW_CATEGORICALS:
     print(']')
     print('single_val_cols=%d %s' % (len(single_val_cols), single_val_cols))
     if MAKE_CATEGORICALS:
-        save_json('enumerations.json', enumerations)
+        save_json(CATEGORY_ENUMERATIONS, enumerations)
         assert False
 
 if QUOTE_SALE:
@@ -340,7 +267,7 @@ if QUOTE_SALE:
     print('%d converted quotes from %d customers' % (len(quote_sales), i), flush=True)
     # pprint({k: v for k, v in quote_sales.items()})
     converted_quotes = [(q, quote_sales[q]) for q in sorted(quote_sales)]
-    save_json('converted_quotes.json', converted_quotes)
+    save_json(CONVERTED_QUOTES, converted_quotes)
 
     for k, (cust, quote_all_sales) in enumerate(customer_quote_all_sales):
         print('%4d: %s' % (k, '=' * 74))
