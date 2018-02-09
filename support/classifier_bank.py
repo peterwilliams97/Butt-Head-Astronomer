@@ -69,28 +69,38 @@ metrics = ['accuracy', 'f1', 'roc_auc']
 metric_funcs = [accuracy_score, f1_score, roc_auc_score]
 
 
-def compute_score_classifier(clf, X_train, y_train, X_test, y_test):
+def compute_score_classifier(clf, X_train, y_train, X_test, y_test, verbose=False):
 
     t0 = time.clock()
     clf.fit(X_train, np.ravel(y_train))
     dt_fit = time.clock() - t0
-    print('(%.1f sec - ' % dt_fit, end='', flush=True)
+    if verbose:
+        print('(%.1f sec - ' % dt_fit, end='', flush=True)
+
+   # !!!!
 
     t0 = time.clock()
     y_pred = clf.predict(X_test)
     dt_pred = time.clock() - t0
-    print('%.1f sec) ' % dt_pred, flush=True)
+    if verbose:
+        print('%.1f sec) ' % dt_pred, flush=True)
+
+    # return [1., 1., 1.]
+
+    # @@@
 
     scores = []
     for met, score_func in zip(metrics, metric_funcs):
         score = score_func(y_test, y_pred)
-        print('%20s %.4f' % (met, score), flush=True)
+        if verbose:
+            print('%20s %.4f' % (met, score), flush=True)
         scores.append(score)
-    print('** %s' % scores, flush=True)
+    if verbose:
+        print('** %s' % scores, flush=True)
     return scores
 
 
-def compute_score(X_train, y_train, X_test, y_test, n_neighbors):
+def compute_score(X_train, y_train, X_test, y_test):
     # clf = KNeighborsClassifier(n_neighbors)
     # clf = LogisticRegression(C=.1, dual=True)
     clf = XGBClassifier()

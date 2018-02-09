@@ -6,8 +6,12 @@ from imblearn.over_sampling import RandomOverSampler
 from sklearn.preprocessing import OneHotEncoder
 import numpy as np
 import pandas as pd
-from utils import orders_name, local_path, load_json
+from utils import orders_name, local_path, load_json, save_pickle
 from classifier_bank import metrics, compute_score, compute_all_scores
+
+
+def dim(x):
+    return list(x.shape)
 
 
 def load_enumerations():
@@ -40,10 +44,10 @@ def make_Xy():
     CHANGE = key_to_idx['type']['CHANGE']
     quotes = quotes[quotes['type'] == CHANGE]
 
-    print('%s: %s' % ('quotes', list(quotes.shape)))
+    print('%s: %s' % ('quotes', dim(quotes)))
     quotes = quotes[[col for col in quotes.columns if col not in
                      {'endCustomerId', 'originalEndCustomerId'}]]
-    print('%s: %s' % ('quotes', list(quotes.shape)))
+    print('%s: %s' % ('quotes', dim(quotes)))
 
     y = pd.DataFrame(index=quotes.index)
     y_values = [i in converted for i in quotes['id'].values]
@@ -73,8 +77,8 @@ def find_best_features(X, y, max_k=10):
 def show_scores(X_train, y_train, X_test, y_test):
     print('-' * 80)
     print('show_scores: X_train=%s y_train=%s X_test=%s y_test=%s' % (
-        list(X_train.shape), list(y_train.shape),
-        list(X_test.shape), list(y_test.shape)))
+        dim(X_train), dim(y_train),
+        dim(X_test), dim(y_test)))
 
     if False:
         classifier_score = compute_all_scores(X_train, y_train, X_test, y_test)
@@ -116,6 +120,68 @@ def show_scores_feature(X_train, y_train, X_test, y_test, stat, k):
         list(X_train_feat.shape), list(X_test_feat.shape)))
 
     return list(X_train_feat.shape), show_scores(X_train_feat, y_train, X_test_feat, y_test), columns
+
+
+def beam_search_feature(X_train, y_train, X_test, y_test, beam_size, max_items=-1, patience=5):
+    print('-' * 80)
+    print('beam_search_feature: X_train=%s y_train=%s X_test=%s y_test=%s' % (
+        dim(X_train), dim(y_train), dim(X_test), dim(y_test)))
+
+    def get_score(cols):
+        # print('$$', type(cols), cols)
+        X_train_feat = X_train[list(cols)]
+        X_test_feat = X_test[list(cols)]
+        ohe = OneHotEncoder()
+        X_feat = pd.concat([X_train_feat, X_test_feat])
+        ohe.fit(X_feat)
+        X_train_feat = ohe.transform(X_train_feat)
+        X_test_feat = ohe.transform(X_test_feat)
+        # print('OneHotEncoder: X_train_feat=%s X_train_feat=%s' % (dim(X_train_feat), dim(X_test_feat)))
+        return compute_score(X_train_feat, y_train, X_test_feat, y_test)
+
+    # m = number of columns
+    M = X_train.shape[1]
+    columns = list(X_train.columns)
+
+    m_scores = []
+    beam = [tuple()]
+    best_f1 = 0.0
+    best_m = 0
+    for m in range(1, M):
+        candidate_scores = []
+        history = set()
+        for b in beam:
+            for k in columns:
+                if k in b:
+                    continue
+                candidate = b + tuple([k])
+                fz = frozenset(candidate)
+                if fz in history:
+                    continue
+                history.add(fz)
+                score = get_score(candidate)
+                candidate_scores.append((candidate, score))
+
+        if not candidate_scores:
+            break
+        if m == 1:
+            assert all(len(c) == 1 for c, _ in candidate_scores)
+            columns = [c[0] for c, _ in candidate_scores]
+            if max_items > 0:
+                columns = columns[:max_items]
+            assert columns
+
+        candidate_scores.sort(key=lambda ks: (-ks[1][1], ks[0]))
+        m_scores.append((m, candidate_scores))
+        beam = tuple(k for k, _ in candidate_scores[:beam_size])
+        if candidate_scores[0][1][1] > best_f1:
+            best_f1 = candidate_scores[0][1][1]
+            best_m = m
+        if patience >= 0 and m > best_m + patience:
+            print('Patience! m=%d best_m=%d patience=%d' % (m, best_m, patience))
+            break
+        print('^^^ %d %s' % (m, beam), flush=True)
+    return m_scores
 
 
 def show_balance(y):
@@ -216,13 +282,13 @@ if __name__ == '__main__':
     X, y = make_Xy()
     if False:
         find_best_features(X, y)
-    if True:
+    if False:
         (X_train, y_train), (X_test, y_test) = resample(X, y, sample_fraction=1.0)
         results = []
         for k in range(1, 11):
             # chi2                10: [24478, 3527]  [0.8236972232788132, 0.8460899883778848, 0.8236972232788131]
             # f_classif           10: [24478, 1631]  [0.8236021300874857, 0.8453522300958731, 0.8236021300874857]
-             # f_classif          10: [24478, 1631]  [0.8225561049828832, 0.8473244968090329, 0.8225561049828833]  XGBoost
+            # f_classif          10: [24478, 1631]  [0.8225561049828832, 0.8473244968090329, 0.8225561049828833]  XGBoost
             # mutual_info_classif 10: [24478, 3533]  [0.8235070368961582, 0.8458983726336766, 0.8235070368961582]
             shape, score, columns = show_scores_feature(X_train, y_train, X_test, y_test, chi2, k=k)
             results.append((k, shape, score, columns))
@@ -240,9 +306,39 @@ if __name__ == '__main__':
             print('%4d: %-20s %g' % (k, d_col, d_f1))
             last_f1 = f1
             last_col = col
+    if True:
+        # X = X[X.columns[:5]]
+        beam_size = 3
+        max_items = -1
+        (X_train, y_train), (X_test, y_test) = resample(X, y, sample_fraction=1.0)
+        m_scores = beam_search_feature(X_train, y_train, X_test, y_test, beam_size=3, max_items=-1)
+        save_pickle('m_scores.pkl', m_scores)
+
+        print('*' * 80)
+        print('beam_size=%d, max_items=%d' % (beam_size, max_items))
+        last_f1 = 0
+        for m, cols_scores in m_scores:
+            f1 = cols_scores[0][1][1]
+            print('%3d: f1=%.3f improvement=%+.3f' % (m, f1, f1 - last_f1))
+            last_f1 = f1
+            for i, (c, s) in enumerate(cols_scores[:3]):
+                print('%5d: %s %s' % (i, s, c))
     if False:
         columns = ['Parent Region', 'Reseller Tier', 'resellerDiscountPercentage', 'type']
         show_splits(X, y, columns)
+
+
+BEAM = """
+  1: f1=0.826 improvement=+0.826
+    0: [0.7898440471662229, 0.8260937991816178, 0.7898440471662229] ('Customer Country',)
+    1: [0.6237162419170788, 0.7017411622823547, 0.6237162419170788] ('address1',)
+    2: [0.6201027006466338, 0.6967741935483871, 0.6201027006466338] ('organizationName',)
+  2: f1=0.847 improvement=+0.021
+    0: [0.8222708254089007, 0.8473911978443701, 0.8222708254089007] ('Customer Country', 'address1')
+    1: [0.8224610117915557, 0.8468039714449823, 0.8224610117915558] ('Customer Country', 'Reseller Name')
+    2: [0.8214149866869532, 0.846643802057815, 0.8214149866869533] ('Customer Country', 'lastName')
+  3: f1=0.848 improvement=+0.000
+"""
 
 OLD = """
     chi2 k=1 [0.8970740548938374, 0.9027332566618542, 0.8970740548938374]
