@@ -19,51 +19,53 @@ SEED = 234
 SUBMISSION_DIR = 'submissions'
 
 data_dir = expanduser('~/data/toxic/')
-train = pd.read_csv(join(data_dir, 'train.csv'))
-test = pd.read_csv(join(data_dir, 'test.csv'))
-subm = pd.read_csv(join(data_dir, 'sample_submission.csv'))
-print('train,test,subm:', train.shape, test.shape, subm.shape)
 
-if N_SAMPLES > 0:
-    train = train[:N_SAMPLES]
-    test = test[:N_SAMPLES]
+if __name__ == '__main__':
+    train = pd.read_csv(join(data_dir, 'train.csv'))
+    test = pd.read_csv(join(data_dir, 'test.csv'))
+    subm = pd.read_csv(join(data_dir, 'sample_submission.csv'))
+    print('train,test,subm:', train.shape, test.shape, subm.shape)
 
-random.seed(SEED)
-np.random.seed(SEED)
+    if N_SAMPLES > 0:
+        train = train[:N_SAMPLES]
+        test = test[:N_SAMPLES]
 
-# ## Looking at the data
-#
-# The training data contains a row per comment, with an id, the text of the comment, and 6 different
-# labels that we'll try to predict.
-if VERBOSE:
-    print(train.head())
+    random.seed(SEED)
+    np.random.seed(SEED)
 
-    # Here's a couple of examples of comments, one toxic, and one with no labels.
-    print(train['comment_text'][0])
-    print(train['comment_text'][2])
+    # ## Looking at the data
+    #
+    # The training data contains a row per comment, with an id, the text of the comment, and 6 different
+    # labels that we'll try to predict.
+    if VERBOSE:
+        print(train.head())
 
-    # The length of the comments varies a lot.
-    lens = train.comment_text.str.len()
-    print(lens.mean(), lens.std(), lens.max())
+        # Here's a couple of examples of comments, one toxic, and one with no labels.
+        print(train['comment_text'][0])
+        print(train['comment_text'][2])
 
-if GRAPHS:
-    lens.hist()
-    plt.show()
+        # The length of the comments varies a lot.
+        lens = train.comment_text.str.len()
+        print(lens.mean(), lens.std(), lens.max())
 
-# We'll create a list of all the labels to predict, and we'll also create a 'none' label so we can
-# see how many comments have no labels. We can then summarize the dataset.
-label_cols = ['toxic', 'severe_toxic', 'obscene', 'threat', 'insult', 'identity_hate']
-train['none'] = 1 - train[label_cols].max(axis=1)
-if VERBOSE:
-    print('-' * 80)
-    print('train')
-    print(train.describe())
+    if GRAPHS:
+        lens.hist()
+        plt.show()
 
-print('train=%d test=%d (%.1f%%)' % (len(train), len(test), 100.0 * len(test) / len(train)))
+    # We'll create a list of all the labels to predict, and we'll also create a 'none' label so we can
+    # see how many comments have no labels. We can then summarize the dataset.
+    label_cols = ['toxic', 'severe_toxic', 'obscene', 'threat', 'insult', 'identity_hate']
+    train['none'] = 1 - train[label_cols].max(axis=1)
+    if VERBOSE:
+        print('-' * 80)
+        print('train')
+        print(train.describe())
 
-# There are a few empty comments that we need to get rid of, otherwise sklearn will complain.
-train[COMMENT].fillna("unknown", inplace=True)
-test[COMMENT].fillna("unknown", inplace=True)
+    print('train=%d test=%d (%.1f%%)' % (len(train), len(test), 100.0 * len(test) / len(train)))
+
+    # There are a few empty comments that we need to get rid of, otherwise sklearn will complain.
+    train[COMMENT].fillna("unknown", inplace=True)
+    test[COMMENT].fillna("unknown", inplace=True)
 
 seed_delta = 1
 
@@ -88,8 +90,8 @@ def split_data(df, frac):
     return train, test
 
 
-def make_submission(new_clf, submission_name):
-    clf = new_clf()
+def make_submission(get_clf, submission_name):
+    clf = get_clf()
     clf.fit(train)
     preds = clf.predict(test)
 
@@ -108,10 +110,10 @@ def label_score(auc):
                               for j, col in enumerate(label_cols)])
 
 
-def _evaluate(new_clf, i):
+def _evaluate(get_clf, i):
     train_part, test_part = split_data(train, 0.7)
 
-    clf = new_clf()
+    clf = get_clf()
     clf.fit(train_part)
     preds = clf.predict(test_part)
 
@@ -125,10 +127,10 @@ def _evaluate(new_clf, i):
     return auc
 
 
-def evaluate(new_clf, n=5):
+def evaluate(get_clf, n=5):
     auc = np.zeros((n, len(label_cols)), dtype=np.float64)
     for i in range(n):
-        auc[i, :] = _evaluate(new_clf, i)
+        auc[i, :] = _evaluate(get_clf, i)
     mean_auc = auc.mean(axis=0)
 
     print('-' * 110)

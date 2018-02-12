@@ -6,15 +6,15 @@ from framework import label_cols, evaluate, make_submission
 from clf_glove_nb_spacy import ClfGloveNBSpacy
 
 
-def new_clf():
-    return ClfGloveNBSpacy(label_cols, n_gram=2)
+def get_clf():
+    return ClfGloveNBSpacy(n_gram=2)
 
 
 if False:
     make_submission(clf, 'submissionxxx.csv')
 
 if True:
-    evaluate(new_clf, n=4)
-    # evaluate(new_clf)
-    # evaluate(new_clf)
-    # evaluate(new_clf)
+    evaluate(get_clf, n=4)
+    # evaluate(get_clf)
+    # evaluate(get_clf)
+    # evaluate(get_clf)

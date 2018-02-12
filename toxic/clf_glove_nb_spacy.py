@@ -5,6 +5,7 @@ import numpy as np
 from sklearn.linear_model import LogisticRegression
 import time
 from utils import COMMENT
+from framework import label_cols
 from spacy_glue import SpacyCache
 
 if False:
@@ -56,7 +57,7 @@ def fit_model(x, y):
 
 class ClfGloveNBSpacy:
 
-    def __init__(self, label_cols, n_gram):
+    def __init__(self, n_gram):
         self.label_cols = label_cols
         self.n_gram = n_gram
 

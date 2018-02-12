@@ -15,10 +15,10 @@
     [Naive Bayes video](https://youtu.be/37sFIak42Sc?t=3745).
 """
 import numpy as np
-from sklearn.linear_model import LogisticRegression
 from sklearn.feature_extraction.text import TfidfVectorizer
 import time
 from utils import COMMENT
+from framework import label_cols
 
 
 # ## Building the model
@@ -28,14 +28,6 @@ from utils import COMMENT
 import re
 import string
 from spacy_glue import SpacyCache
-
-
-# do_spacy = False
-
-
-# def set_spacy_tokenization(on):
-#     global do_spacy
-#     do_spacy = on
 
 
 def get_tokenizer(do_spacy):
@@ -80,8 +72,8 @@ def pr(y_i, x, y):
     """
         y_i:  0 or 1
         y: the y vector
-        returns: 1 x m vector  (x is an n x m vector)
-                 y_pred[1:m]
+        returns: 1 x model vector  (x is an n x model vector)
+                 y_pred[1:model]
                  y_pred[j] = sum p[:,j] / sum(p[:,:]) where p = x[y == y_i]
 
     """
@@ -89,28 +81,28 @@ def pr(y_i, x, y):
     return (x_i.sum(0) + 1) / (x_i.sum() + 1)
 
 
-# Fit a model for one dependent at a time:
-def get_mdl(x, y):
-    y = y.values
-    r = np.log(pr(1, x, y) / pr(0, x, y))
-    m = LogisticRegression(C=4, dual=True)
-    x_nb = x.multiply(r)
-    print('** x y r x_nb:', x.shape, y.shape, r.shape, x_nb.shape)
-    return m.fit(x_nb, y), r
-
-
 class ClfTfidfNB:
 
-    def __init__(self, label_cols, do_spacy):
+    def __init__(self, get_est, do_spacy):
         self.label_cols = label_cols
+        self.get_est = get_est
         print('TfidfVectorizer')
         t0 = time.clock()
         self.vec = TfidfVectorizer(ngram_range=(1, 2), tokenizer=get_tokenizer(do_spacy),
                min_df=3, max_df=0.9, strip_accents='unicode', use_idf=1,
                smooth_idf=1, sublinear_tf=1)
         print('TfidfVectorizer took %.1f seconds' % (time.clock() - t0))
-        self.m = {}
+        self.model = {}
         self.r = {}
+
+    # Fit a model for one dependent at a time:
+    def get_model(self, x, y):
+        y = y.values
+        r = np.log(pr(1, x, y) / pr(0, x, y))
+        model = self.get_est()
+        x_nb = x.multiply(r)
+        # print('** x y r x_nb:', x.shape, y.shape, r.shape, x_nb.shape)
+        return model.fit(x_nb, y), r
 
     def fit(self, train):
         print('fit_transform')
@@ -119,15 +111,13 @@ class ClfTfidfNB:
         print('fit_transform took %.1f seconds' % (time.clock() - t0))
         for i, j in enumerate(self.label_cols):
             print('fit', j)
-            self.m[j], self.r[j] = get_mdl(x, train[j])
+            self.model[j], self.r[j] = self.get_model(x, train[j])
 
     def predict(self, test):
         test_x = self.vec.transform(test[COMMENT])
         preds = np.zeros((len(test), len(self.label_cols)))
         for i, j in enumerate(self.label_cols):
             print('predict', j)
-            m, r = self.m[j], self.r[j]
-            preds[:, i] = m.predict_proba(test_x.multiply(r))[:, 1]
+            model, r = self.model[j], self.r[j]
+            preds[:, i] = model.predict_proba(test_x.multiply(r))[:, 1]
         return preds
-
-
