@@ -35,10 +35,10 @@ from keras.layers import Bidirectional, GlobalMaxPool1D
 from keras.models import Model
 from keras import initializers, regularizers, constraints, optimizers, layers, callbacks
 import keras.backend as K
-import logging
 from sklearn.metrics import roc_auc_score
 from keras.callbacks import Callback
 from sklearn.model_selection import train_test_split
+from utils import dim
 from framework import SUBMISSION_DIR, my_shuffle
 
 
@@ -70,11 +70,10 @@ if False:
     max_features = 10000
     print('train,test,subm:', train.shape, test.shape, subm.shape)
 
-
-list_sentences_train = train["comment_text"].fillna("_na_").values
-list_classes = ["toxic", "severe_toxic", "obscene", "threat", "insult", "identity_hate"]
+list_sentences_train = train['comment_text'].fillna('_na_').values
+list_classes = ['toxic', 'severe_toxic', 'obscene', 'threat', 'insult', 'identity_hate']
 y = train[list_classes].values
-list_sentences_test = test["comment_text"].fillna("_na_").values
+list_sentences_test = test['comment_text'].fillna('_na_').values
 
 # Standard keras preprocessing, to turn each comment into a list of word indexes of equal length
 # (with truncation or padding as needed).
@@ -82,8 +81,13 @@ tokenizer = Tokenizer(num_words=max_features)
 tokenizer.fit_on_texts(list(list_sentences_train))
 list_tokenized_train = tokenizer.texts_to_sequences(list_sentences_train)
 list_tokenized_test = tokenizer.texts_to_sequences(list_sentences_test)
-X_t = pad_sequences(list_tokenized_train, maxlen=maxlen)
-X_te = pad_sequences(list_tokenized_test, maxlen=maxlen)
+X_train = pad_sequences(list_tokenized_train, maxlen=maxlen)
+X_test = pad_sequences(list_tokenized_test, maxlen=maxlen)
+
+print('list_sentences_train:', type(list_sentences_test[0]), len(list_sentences_test))
+print('list_tokenized_train:', type(list_tokenized_train[0]), len(list_tokenized_train),
+                               len(list_tokenized_train[0]))
+print('X_train:', dim(X_train))
 
 
 def get_coefs(word, *arr):
@@ -149,13 +153,11 @@ model = Model(inputs=inp, outputs=x)
 def loss(y_true, y_pred):
      return K.binary_crossentropy(y_true, y_pred)
 
+
 model.compile(loss=loss, optimizer='nadam', metrics=['accuracy'])
 
 
 # Now we're ready to fit out model! Use `validation_split` when for hyperparams tuning
-
-# In[ ]:
-
 
 def schedule(ind):
     a = [0.002, 0.003, 0.000]
@@ -163,16 +165,17 @@ def schedule(ind):
 
 
 lr = callbacks.LearningRateScheduler(schedule)
-[X_train, X_val, y_train, y_val] = train_test_split(X_t, y, train_size=0.95)
+[X_train, X_val, y_train, y_val] = train_test_split(X_train, y, train_size=0.95)
 
 ra_val = RocAucEvaluation(validation_data=(X_val, y_val), interval=1)
 
-model.fit(X_train, y_train, batch_size=64, epochs=3, validation_data=(X_val, y_val), callbacks=[lr, ra_val])
-#model.fit(X_t, y, batch_size=64, epochs=3, callbacks=[lr])
+model.fit(X_train, y_train, batch_size=64, epochs=3,
+          validation_data=(X_val, y_val), callbacks=[lr, ra_val])
+#model.fit(X_train, y, batch_size=64, epochs=3, callbacks=[lr])
 
 
 # And finally, get predictions for the test set and prepare a submission CSV:
-y_test = model.predict([X_te], batch_size=1024, verbose=1)
+y_test = model.predict([X_test], batch_size=1024, verbose=1)
 submission_path = join(SUBMISSION_DIR, 'LSTM-submission.csv')
 
 subm[list_classes] = y_test

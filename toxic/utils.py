@@ -9,6 +9,10 @@ import os
 COMMENT = 'comment_text'
 
 
+def dim(x):
+    return list(x.shape)
+
+
 def load_json(path, default=None):
     if default is not None and not os.path.exists(path):
         return default

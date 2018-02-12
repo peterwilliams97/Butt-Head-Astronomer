@@ -20,6 +20,7 @@ if MAKE_SUBMISSION:
 if TRAIN or PREDICT:
     TOKENIZE = True
 
+
 def get_model():
     """Bi-di LSTM with some attention (return_sequences=True)
     """
@@ -84,4 +85,3 @@ if MAKE_SUBMISSION:
     submission[list_classes] = y_test
     os.makedirs(SUBMISSION_DIR, exist_ok=True)
     submission.to_csv(submission_path, index=False)
-
