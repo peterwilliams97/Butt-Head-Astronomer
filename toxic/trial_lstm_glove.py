@@ -117,10 +117,9 @@ for word, i in word_index.items():
         embedding_matrix[i] = embedding_vector
 
 
-# ROC AUC for CV in Keras see for details: https://gist.github.com/smly/d29d079100f8d81b905e
-
-
 class RocAucEvaluation(Callback):
+    """ROC AUC for CV in Keras see for details: https://gist.github.com/smly/d29d079100f8d81b905e
+    """
     def __init__(self, validation_data=(), interval=1):
         super(Callback, self).__init__()
 
@@ -136,26 +135,33 @@ class RocAucEvaluation(Callback):
 
 # Bidirectional LSTM with half-size embedding with two fully connected layers
 print('maxlen, [max_features, embed_size], tembedding_matrix', maxlen, [max_features, embed_size],
-    embedding_matrix.shape)
+      embedding_matrix.shape)
 print('embedding_matrix', embedding_matrix.shape)
-inp = Input(shape=(maxlen,))
-x = Embedding(max_features, embed_size, weights=[embedding_matrix], trainable=True)(inp)
-x = Bidirectional(LSTM(50, return_sequences=True, dropout=0.1, recurrent_dropout=0.1))(x)
-x = GlobalMaxPool1D()(x)
-x = BatchNormalization()(x)
-x = Dense(50, activation="relu")(x)
-#x = BatchNormalization()(x)
-x = Dropout(0.1)(x)
-x = Dense(6, activation="sigmoid")(x)
-model = Model(inputs=inp, outputs=x)
 
 
-def loss(y_true, y_pred):
-     return K.binary_crossentropy(y_true, y_pred)
+def get_model():
+    """Bi-di LSTM with some attention (return_sequences=True)
+    """
+    inp = Input(shape=(maxlen,))
+    x = Embedding(max_features, embed_size, weights=[embedding_matrix], trainable=True)(inp)
+    x = Bidirectional(LSTM(50, return_sequences=True, dropout=0.1, recurrent_dropout=0.1))(x)
+    x = GlobalMaxPool1D()(x)
+    x = BatchNormalization()(x)
+    x = Dense(50, activation="relu")(x)
+    #x = BatchNormalization()(x)
+    x = Dropout(0.1)(x)
+    x = Dense(6, activation="sigmoid")(x)
+    model = Model(inputs=inp, outputs=x)
+
+    def loss(y_true, y_pred):
+         return K.binary_crossentropy(y_true, y_pred)
+
+    model.compile(loss=loss, optimizer='nadam', metrics=['accuracy'])
+
+    return model
 
 
-model.compile(loss=loss, optimizer='nadam', metrics=['accuracy'])
-
+model = get_model()
 
 # Now we're ready to fit out model! Use `validation_split` when for hyperparams tuning
 

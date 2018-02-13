@@ -16,11 +16,13 @@ VERBOSE = False
 GRAPHS = False
 N_SAMPLES = -1  # > 0 for testing
 SEED = 234
+
 SUBMISSION_DIR = 'submissions'
-
 data_dir = expanduser('~/data/toxic/')
+label_cols = ['toxic', 'severe_toxic', 'obscene', 'threat', 'insult', 'identity_hate']
 
-if __name__ == '__main__':
+
+def load_data(remove_unknowns=True):
     train = pd.read_csv(join(data_dir, 'train.csv'))
     test = pd.read_csv(join(data_dir, 'test.csv'))
     subm = pd.read_csv(join(data_dir, 'sample_submission.csv'))
@@ -33,39 +35,15 @@ if __name__ == '__main__':
     random.seed(SEED)
     np.random.seed(SEED)
 
-    # ## Looking at the data
-    #
-    # The training data contains a row per comment, with an id, the text of the comment, and 6 different
-    # labels that we'll try to predict.
-    if VERBOSE:
-        print(train.head())
-
-        # Here's a couple of examples of comments, one toxic, and one with no labels.
-        print(train['comment_text'][0])
-        print(train['comment_text'][2])
-
-        # The length of the comments varies a lot.
-        lens = train.comment_text.str.len()
-        print(lens.mean(), lens.std(), lens.max())
-
-    if GRAPHS:
-        lens.hist()
-        plt.show()
-
-    # We'll create a list of all the labels to predict, and we'll also create a 'none' label so we can
-    # see how many comments have no labels. We can then summarize the dataset.
-    label_cols = ['toxic', 'severe_toxic', 'obscene', 'threat', 'insult', 'identity_hate']
-    train['none'] = 1 - train[label_cols].max(axis=1)
-    if VERBOSE:
-        print('-' * 80)
-        print('train')
-        print(train.describe())
-
     print('train=%d test=%d (%.1f%%)' % (len(train), len(test), 100.0 * len(test) / len(train)))
 
     # There are a few empty comments that we need to get rid of, otherwise sklearn will complain.
-    train[COMMENT].fillna("unknown", inplace=True)
-    test[COMMENT].fillna("unknown", inplace=True)
+    if remove_unknowns:
+        train[COMMENT].fillna("unknown", inplace=True)
+        test[COMMENT].fillna("unknown", inplace=True)
+
+    return train, test, subm
+
 
 seed_delta = 1
 
@@ -90,7 +68,8 @@ def split_data(df, frac):
     return train, test
 
 
-def make_submission(get_clf, submission_name):
+def make_submission(get_clf, submission_name, remove_unknowns=True):
+    train, test, subm = load_data(remove_unknowns)
     clf = get_clf()
     clf.fit(train)
     preds = clf.predict(test)
@@ -110,7 +89,7 @@ def label_score(auc):
                               for j, col in enumerate(label_cols)])
 
 
-def _evaluate(get_clf, i):
+def _evaluate(get_clf, train, i):
     train_part, test_part = split_data(train, 0.7)
 
     clf = get_clf()
@@ -127,10 +106,11 @@ def _evaluate(get_clf, i):
     return auc
 
 
-def evaluate(get_clf, n=5):
+def evaluate(get_clf, n=5, remove_unknowns=True):
+    train, _, _ = load_data()
     auc = np.zeros((n, len(label_cols)), dtype=np.float64)
     for i in range(n):
-        auc[i, :] = _evaluate(get_clf, i)
+        auc[i, :] = _evaluate(get_clf, train, i)
     mean_auc = auc.mean(axis=0)
 
     print('-' * 110)
@@ -146,3 +126,32 @@ def evaluate(get_clf, n=5):
     ))
     return auc
 
+
+if __name__ == '__main__':
+    train, test, subm = load_data()
+    # ## Looking at the data
+    #
+    # The training data contains a row per comment, with an id, the text of the comment, and 6 different
+    # labels that we'll try to predict.
+    if VERBOSE:
+        print(train.head())
+
+        # Here's a couple of examples of comments, one toxic, and one with no labels.
+        print(train['comment_text'][0])
+        print(train['comment_text'][2])
+
+        # The length of the comments varies a lot.
+        lens = train.comment_text.str.len()
+        print(lens.mean(), lens.std(), lens.max())
+
+    if GRAPHS:
+        lens.hist()
+        plt.show()
+
+    # We'll create a list of all the labels to predict, and we'll also create a 'none' label so we can
+    # see how many comments have no labels. We can then summarize the dataset.
+    train['none'] = 1 - train[label_cols].max(axis=1)
+    if VERBOSE:
+        print('-' * 80)
+        print('train')
+        print(train.describe())
