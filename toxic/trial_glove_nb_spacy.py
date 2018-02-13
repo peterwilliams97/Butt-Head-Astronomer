@@ -2,7 +2,7 @@
 """
     Framework for evaluating and submitting models to Kaggle Toxic Comment challenge
 """
-from framework import label_cols, evaluate, make_submission
+from framework import LABEL_COLS, evaluate, make_submission
 from clf_glove_nb_spacy import ClfGloveNBSpacy
 
 

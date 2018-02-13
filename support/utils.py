@@ -8,7 +8,7 @@ import numpy as np
 import pandas as pd
 
 
-data_dir = os.path.expanduser('~/data/support-predictions/')
+DATA_DIR = os.path.expanduser('~/data/support-predictions/')
 ORDERS_NAME = 'quote-order'
 ORDERS_LOCAL_PATH = '%s.pkl' % ORDERS_NAME
 

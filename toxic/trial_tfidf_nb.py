@@ -11,15 +11,15 @@ from clf_tfidf_nb import ClfTfidfNB
 def get_clf():
     def get_est():
         # return XGBClassifier()
-        return LogisticRegression(C=8, dual=True)
+        return LogisticRegression(C=4, dual=True)
 
     return ClfTfidfNB(get_est, do_spacy=False)
 
 
-if False:
-    make_submission(get_clf, 'submissionxxx.csv')
-
 if True:
+    make_submission(get_clf, 'tfidf_nb.csv')
+
+if False:
     evaluate(get_clf)
 
 """

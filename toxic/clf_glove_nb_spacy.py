@@ -5,7 +5,7 @@ import numpy as np
 from sklearn.linear_model import LogisticRegression
 import time
 from utils import COMMENT
-from framework import label_cols
+from framework import LABEL_COLS
 from spacy_glue import SpacyCache
 
 if False:
@@ -58,7 +58,7 @@ def fit_model(x, y):
 class ClfGloveNBSpacy:
 
     def __init__(self, n_gram):
-        self.label_cols = label_cols
+        self.LABEL_COLS = LABEL_COLS
         self.n_gram = n_gram
 
         self.spacy_cache = SpacyCache()
@@ -116,15 +116,15 @@ class ClfGloveNBSpacy:
         train_tokens = self.tokenize_df(train)
         print('train_tokens: %1.f sec %.2f sec / token' % (time.clock() - t0, (time.clock() - t0) / len(train_tokens)))
         x = self.compute_ngram_matrix(train_tokens)
-        for i, col in enumerate(self.label_cols):
+        for i, col in enumerate(self.LABEL_COLS):
             self.m[col] = fit_model(x, train[col])
 
     def predict(self, test):
-        label_cols = self.label_cols
-        preds = np.zeros((len(test), len(label_cols)))
+        LABEL_COLS = self.LABEL_COLS
+        preds = np.zeros((len(test), len(LABEL_COLS)))
         test_tokens = self.tokenize_df(test)
         test_x = self.compute_ngram_matrix(test_tokens)
-        for i, col in enumerate(self.label_cols):
+        for i, col in enumerate(self.LABEL_COLS):
             # print('fit', i, col)
             m = self.m[col]
             preds[:, i] = m.predict_proba(test_x)[:, 1]

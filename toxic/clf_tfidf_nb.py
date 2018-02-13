@@ -18,7 +18,7 @@ import numpy as np
 from sklearn.feature_extraction.text import TfidfVectorizer
 import time
 from utils import COMMENT
-from framework import label_cols
+from framework import LABEL_COLS
 
 
 # ## Building the model
@@ -84,7 +84,7 @@ def pr(y_i, x, y):
 class ClfTfidfNB:
 
     def __init__(self, get_est, do_spacy):
-        self.label_cols = label_cols
+        self.LABEL_COLS = LABEL_COLS
         self.get_est = get_est
         print('TfidfVectorizer')
         t0 = time.clock()
@@ -109,14 +109,14 @@ class ClfTfidfNB:
         t0 = time.clock()
         x = self.vec.fit_transform(train[COMMENT])
         print('fit_transform took %.1f seconds' % (time.clock() - t0))
-        for i, j in enumerate(self.label_cols):
+        for i, j in enumerate(self.LABEL_COLS):
             print('fit', j)
             self.model[j], self.r[j] = self.get_model(x, train[j])
 
     def predict(self, test):
         test_x = self.vec.transform(test[COMMENT])
-        preds = np.zeros((len(test), len(self.label_cols)))
-        for i, j in enumerate(self.label_cols):
+        preds = np.zeros((len(test), len(self.LABEL_COLS)))
+        for i, j in enumerate(self.LABEL_COLS):
             print('predict', j)
             model, r = self.model[j], self.r[j]
             preds[:, i] = model.predict_proba(test_x.multiply(r))[:, 1]

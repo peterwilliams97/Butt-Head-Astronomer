@@ -51,8 +51,8 @@ if False:
 
 # We'll create a list of all the labels to predict, and we'll also create a 'none' label so we can
 # see how many comments have no labels. We can then summarize the dataset.
-label_cols = ['toxic', 'severe_toxic', 'obscene', 'threat', 'insult', 'identity_hate']
-train['none'] = 1 - train[label_cols].max(axis=1)
+LABEL_COLS = ['toxic', 'severe_toxic', 'obscene', 'threat', 'insult', 'identity_hate']
+train['none'] = 1 - train[LABEL_COLS].max(axis=1)
 train.describe()
 
 print('train=%d test=%d (%.1f%%)' % (len(train), len(test), 100.0 * len(test) / len(train)))
@@ -141,9 +141,9 @@ def get_mdl(y):
     return m.fit(x_nb, y), r
 
 
-preds = np.zeros((len(test), len(label_cols)))
+preds = np.zeros((len(test), len(LABEL_COLS)))
 
-for i, j in enumerate(label_cols):
+for i, j in enumerate(LABEL_COLS):
     print('fit', j)
     m, r = get_mdl(train[j])
     preds[:, i] = m.predict_proba(test_x.multiply(r))[:, 1]
@@ -152,5 +152,5 @@ print()
 
 # And finally, create the submission file.
 submid = pd.DataFrame({'id': subm["id"]})
-submission = pd.concat([submid, pd.DataFrame(preds, columns=label_cols)], axis=1)
+submission = pd.concat([submid, pd.DataFrame(preds, columns=LABEL_COLS)], axis=1)
 submission.to_csv('submission001.csv', index=False)

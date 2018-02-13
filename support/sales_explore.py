@@ -9,7 +9,7 @@ from pprint import pprint
 import numpy as np
 import pandas as pd
 from datetime import timedelta
-from utils import (save_json, load_json, ORDERS_NAME, ORDERS_LOCAL_PATH, data_dir,
+from utils import (save_json, load_json, ORDERS_NAME, ORDERS_LOCAL_PATH, DATA_DIR,
     convert_categoricals, compute_categoricals)
 
 
@@ -94,7 +94,7 @@ if not exists(ORDERS_LOCAL_PATH) or FORCE_READ or APPLY_CATEGORICALS:
     bad_int_cols = ['endCustomerId', 'originalEndCustomerId']
     single_val_cols = ['Reseller Enabled/Disabled', 'exportedToNetSuite']
 
-    orders = pd.read_csv(join(data_dir, '%s.csv' % ORDERS_NAME), parse_dates=['dateCreated'],
+    orders = pd.read_csv(join(DATA_DIR, '%s.csv' % ORDERS_NAME), parse_dates=['dateCreated'],
                          encoding='latin-1', error_bad_lines=False)
     print('%s: %s' % (ORDERS_NAME, list(orders.shape)))
     for col in int_cols:
