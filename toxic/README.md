@@ -24,6 +24,10 @@ TODO
 Higher dropout. Validation loss is minimizing in 1st or 2nd epoch
 SpaCY embeddings
 Embedding width > 50
+Twitter embeddings
+Change probability clipping
 Early stopping based on ROC
 Select classifier based on column
 Try xgboost
+character embeddings
+data augmentation

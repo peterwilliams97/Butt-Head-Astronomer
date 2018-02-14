@@ -100,6 +100,7 @@ def label_score(auc):
 
 
 def _evaluate(get_clf, train, i):
+    print('_evaluate %3d %s' % (i, '-' * 66))
     train_part, test_part = split_data(train, 0.7)
 
     clf = get_clf()
@@ -116,11 +117,8 @@ def _evaluate(get_clf, train, i):
     return auc
 
 
-def evaluate(get_clf, n=1):
-    train, _, _ = load_data()
-    auc = np.zeros((n, len(LABEL_COLS)), dtype=np.float64)
-    for i in range(n):
-        auc[i, :] = _evaluate(get_clf, train, i)
+def show_auc(auc):
+    n = auc.shape[0]
     mean_auc = auc.mean(axis=0)
 
     print('-' * 110)
@@ -134,6 +132,27 @@ def evaluate(get_clf, n=1):
          mean_auc.max() - mean_auc.min(),
          100.0 * (mean_auc.max() - mean_auc.min()) / mean_auc.mean()
     ))
+
+
+def evaluate(get_clf, n=1):
+    train, _, _ = load_data()
+    auc = np.zeros((n, len(LABEL_COLS)), dtype=np.float64)
+    for i in range(n):
+        auc[i, :] = _evaluate(get_clf, train, i)
+        show_auc(auc[:i + 1, :])
+    # mean_auc = auc.mean(axis=0)
+
+    # print('-' * 110)
+    # for i in range(n):
+    #     print('%5d: auc=%.3f %s' % (i, auc[i].mean(), label_score(auc[i])))
+    # print('%5s: auc=%.3f %s' % ('Mean', mean_auc.mean(), label_score(mean_auc)))
+    # print('-' * 110)
+    # print('auc=%.3f +- %.3f (%.0f%%) range=%.3f (%.0f%%)' % (
+    #      mean_auc.mean(), mean_auc.std(),
+    #      100.0 * mean_auc.std() / mean_auc.mean(),
+    #      mean_auc.max() - mean_auc.min(),
+    #      100.0 * (mean_auc.max() - mean_auc.min()) / mean_auc.mean()
+    # ))
     print('program=%s' % sys.argv[0])
     return auc
 
