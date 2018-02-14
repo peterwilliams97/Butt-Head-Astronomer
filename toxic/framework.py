@@ -4,6 +4,7 @@
 """
 import numpy as np
 import pandas as pd
+import tensorflow as tf
 import os
 import random
 import sys
@@ -28,6 +29,7 @@ seed_delta = 1
 def seed_random(seed=SEED):
     random.seed(seed)
     np.random.seed(seed)
+    tf.set_random_seed(seed)
 
 
 def my_shuffle(indexes):
@@ -114,7 +116,7 @@ def _evaluate(get_clf, train, i):
     return auc
 
 
-def evaluate(get_clf, n=5):
+def evaluate(get_clf, n=1):
     train, _, _ = load_data()
     auc = np.zeros((n, len(LABEL_COLS)), dtype=np.float64)
     for i in range(n):

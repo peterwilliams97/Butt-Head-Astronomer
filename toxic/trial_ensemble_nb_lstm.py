@@ -43,7 +43,7 @@ print('Saved to %s' % ensemble_path)
 
 """
     Your Best Entry
-    You advanced 444 places on the leaderboard!
+    You advanced 444 places on the leaderboard! (661 out of 2017: 33%)
     Your submission scored 0.9808, which is an improvement of your previous score of 0.9772. Great job!
     Tweet this!
 """

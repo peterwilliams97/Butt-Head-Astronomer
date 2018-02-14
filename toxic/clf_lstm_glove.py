@@ -34,6 +34,7 @@ from keras.layers import Dense, Input, LSTM, Embedding, Dropout, BatchNormalizat
 from keras.layers import Bidirectional, GlobalMaxPool1D
 from keras.models import Model
 from keras import callbacks
+from keras.callbacks import EarlyStopping, ModelCheckpoint
 import keras.backend as K
 from sklearn.metrics import roc_auc_score
 from keras.callbacks import Callback
@@ -41,9 +42,28 @@ from sklearn.model_selection import train_test_split
 from framework import MODEL_DIR, LABEL_COLS, df_to_sentences
 
 
+GLOVE_SIZES = (50, 100, 200, 300)
 # Glove dimension 50
 EMBEDDING_DIR = expanduser('~/data/glove.6B')
-EMBEDDING_PATH = join(EMBEDDING_DIR, 'glove.6B.50d.txt')
+
+
+def get_glove_path(embed_size):
+    assert embed_size in GLOVE_SIZES, (embed_size, GLOVE_SIZES)
+    return join(EMBEDDING_DIR, 'glove.6B.%dd.txt' % embed_size)
+
+
+if True:
+    for embed_size in GLOVE_SIZES:
+        embeddings_path = get_glove_path(embed_size)
+        assert os.path.exists(embeddings_path), embeddings_path
+
+
+def get_embeddings_index(embed_size):
+    embeddings_path = get_glove_path(embed_size)
+    with open(embeddings_path) as f:
+        embeddings_index = dict(get_coefs(*o.strip().split()) for o in f)
+    return embeddings_index
+    # embeddings_index = dict(get_coefs(*o.strip().split()) for o in open(EMBEDDING_PATH))
 
 
 def get_coefs(word, *arr):
@@ -66,11 +86,15 @@ class RocAucEvaluation(Callback):
         if epoch % self.interval == 0:
             y_pred = self.model.predict(self.X_val, verbose=0)
             score = roc_auc_score(self.y_val, y_pred)
-            print("\n ROC-AUC - epoch: {:d} - score: {:.6f}".format(epoch, score))
+            print(' - ROC-AUC - epoch: {:d} - score: {:.6f}'.format(epoch, score))
 
 
 def get_embeddings(tokenizer, embed_size, max_features):
-    embeddings_index = dict(get_coefs(*o.strip().split()) for o in open(EMBEDDING_PATH))
+    """
+        Returns: embedding matrix n_words x embed_size
+    """
+    # embeddings_index = dict(get_coefs(*o.strip().split()) for o in open(EMBEDDING_PATH))
+    embeddings_index = get_embeddings_index(embed_size)
 
     # Use these vectors to create our embedding matrix, with random initialization for words
     # that aren't in GloVe. We'll use the same mean and stdev of embeddings the GloVe has when
@@ -92,7 +116,7 @@ def get_embeddings(tokenizer, embed_size, max_features):
     return embedding_matrix
 
 
-def get_model(tokenizer, embed_size, maxlen, max_features):
+def get_model(tokenizer, embed_size, maxlen, max_features, dropout=0.1):
     """Bi-di LSTM with some attention (return_sequences=True)
     """
     embedding_matrix = get_embeddings(tokenizer, embed_size, max_features)
@@ -103,26 +127,22 @@ def get_model(tokenizer, embed_size, maxlen, max_features):
 
     inp = Input(shape=(maxlen,))
     x = Embedding(max_features, embed_size, weights=[embedding_matrix], trainable=True)(inp)
-    x = Bidirectional(LSTM(50, return_sequences=True, dropout=0.1, recurrent_dropout=0.1))(x)
+    x = Bidirectional(LSTM(50, return_sequences=True, dropout=dropout, recurrent_dropout=dropout))(x)
     x = GlobalMaxPool1D()(x)
     x = BatchNormalization()(x)
     x = Dense(50, activation="relu")(x)
     #x = BatchNormalization()(x)
-    x = Dropout(0.1)(x)
+    x = Dropout(dropout)(x)
     x = Dense(6, activation="sigmoid")(x)
     model = Model(inputs=inp, outputs=x)
 
     def loss(y_true, y_pred):
          return K.binary_crossentropy(y_true, y_pred)
 
+    # Add AUC to metrics !@#$
     model.compile(loss=loss, optimizer='nadam', metrics=['accuracy'])
 
     return model
-
-
-# def df_to_sentences(df):
-#     assert not any(df['comment_text'].isnull())
-#     return df['comment_text'].fillna('_na_').values
 
 
 def train_tokenizer(train, max_features):
@@ -140,35 +160,61 @@ def tokenize(tokenizer, df, maxlen):
 
 class ClfLstmGlove:
 
-    def __init__(self, embed_size=50, maxlen=100, max_features=20000):
+    def __init__(self, embed_size=50, maxlen=100, max_features=20000, dropout=0.1, epochs=3, batch_size=64,
+                learning_rate=[0.002, 0.003, 0.000]):
+        """
+            embed_size: Size of embedding vectors
+            maxlen: Max length of comment text
+            max_features: Maximum vocabulary size
+        """
         self.embed_size = embed_size
         self.maxlen = maxlen
         self.max_features = max_features
+        self.dropout = dropout
+        self.epochs = epochs
+        self.batch_size = batch_size
+        self.learning_rate = learning_rate
+
         os.makedirs(MODEL_DIR, exist_ok=True)
         model_name = 'lstm_glove_weights_%3d_%3d_%4d.hdf5' % (embed_size, maxlen, max_features)
         self.model_path = os.path.join(MODEL_DIR, model_name)
 
-    def fit(self, train, batch_size=64, epochs=3):
+        self.description = ', '.join('%s=%s' % (k, v) for k, v in sorted(self.__dict__.items()))
+
+    def __repr__(self):
+        return 'ClfLstmGlove(%s)' % self.description
+
+    def fit(self, train):
         # Now we're ready to fit out model! Use `validation_split` when for hyperparams tuning
         self.tokenizer = train_tokenizer(train, self.max_features)
-        self.model = get_model(self.tokenizer, self.embed_size, self.maxlen, self.max_features)
+        self.model = get_model(self.tokenizer, self.embed_size, self.maxlen, self.max_features, self.dropout)
 
-        def schedule(ind):
-            a = [0.002, 0.003, 0.000]
-            return a[ind]
+        checkpoint = ModelCheckpoint(self.model_path, monitor='val_loss', verbose=1,
+            save_best_only=True, mode='min')
+        early = EarlyStopping(monitor='val_loss', mode='min', patience=3)
 
-        lr = callbacks.LearningRateScheduler(schedule)
+        def schedule(epoch):
+            n = epoch // len(self.learning_rate)
+            m = epoch % len(self.learning_rate)
+            fac = 0.5 ** n
+            lr = self.learning_rate[m] * fac
+            print('^^^ epoch=%d n=%d m=%d fac=%.3f lr=%.5f' % (epoch, n, m, fac, lr))
+            return lr
+
+        lr = callbacks.LearningRateScheduler(schedule, verbose=1)
 
         y_train = train[LABEL_COLS].values
         X_train = tokenize(self.tokenizer, train, maxlen=self.maxlen)
         X_train, X_val, y_train, y_val = train_test_split(X_train, y_train, train_size=0.95)
         ra_val = RocAucEvaluation(validation_data=(X_val, y_val), interval=1)
 
-        self.model.fit(X_train, y_train, batch_size=batch_size, epochs=epochs,
-                       validation_data=(X_val, y_val), callbacks=[lr, ra_val])
+        callback_list = [lr, ra_val, checkpoint, early]
+
+        self.model.fit(X_train, y_train, batch_size=self.batch_size, epochs=self.epochs,
+                       validation_data=(X_val, y_val), callbacks=callback_list)
 
     def predict(self, test):
-        # And finally, get predictions for the test set and prepare a submission CSV:
+        self.model.load_weights(self.model_path)
         X_test = tokenize(self.tokenizer, test, maxlen=self.maxlen)
         y_test = self.model.predict([X_test], batch_size=1024, verbose=1)
         return y_test

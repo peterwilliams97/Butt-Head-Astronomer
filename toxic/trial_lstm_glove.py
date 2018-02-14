@@ -6,18 +6,35 @@ from framework import evaluate, make_submission
 from clf_lstm_glove import ClfLstmGlove
 
 
+# Classifier parameters
+embed_size = 50
+maxlen = 100
+max_features = 20000
+epochs = 40
+# learning_rate = [0.010, 0.008, 0.005, 0.002, 0.003, 0.000]
+
+submission_name = 'lstm_glove_%3d_%3d_%4d.csv' % (embed_size, maxlen, max_features)
+
+
 def get_clf():
-    return ClfLstmGlove()
+    return ClfLstmGlove(embed_size=embed_size, maxlen=maxlen, max_features=max_features, epochs=epochs)
 
 
+print(get_clf())
 if False:
-    make_submission(get_clf, 'lstm_glove.csv', remove_unknowns=False)
+    make_submission(get_clf, submission_name)
 
 if True:
-    evaluate(get_clf)
+    evaluate(get_clf, n=5)
 
+
+print('embed_size, maxlen, max_features =', embed_size, maxlen, max_features)
+print(get_clf())
 
 """
+    embed_size = 50
+    maxlen = 100
+    max_features = 20000
     --------------------------------------------------------------------------------------------------------------
         0: auc=0.979 (toxic:0.974, severe_toxic:0.987, obscene:0.986, threat:0.969, insult:0.982, identity_hate:0.977)
         1: auc=0.982 (toxic:0.973, severe_toxic:0.985, obscene:0.987, threat:0.984, insult:0.982, identity_hate:0.978)
@@ -25,6 +42,13 @@ if True:
         3: auc=0.981 (toxic:0.974, severe_toxic:0.987, obscene:0.987, threat:0.979, insult:0.982, identity_hate:0.979)
         4: auc=0.982 (toxic:0.975, severe_toxic:0.987, obscene:0.985, threat:0.983, insult:0.982, identity_hate:0.982)
      Mean: auc=0.981 (toxic:0.974, severe_toxic:0.987, obscene:0.987, threat:0.979, insult:0.982, identity_hate:0.979)
+        0: auc=0.982 (toxic:0.976, severe_toxic:0.988, obscene:0.988, threat:0.981, insult:0.983, identity_hate:0.978)
+        1: auc=0.984 (toxic:0.975, severe_toxic:0.987, obscene:0.988, threat:0.990, insult:0.983, identity_hate:0.979)
     --------------------------------------------------------------------------------------------------------------
     auc=0.981 +- 0.004 (0%) range=0.013 (1%)
+
+    embed_size = 300
+    maxlen = 100
+    max_features = 20000
+       0: auc=0.980 (toxic:0.973, severe_toxic:0.987, obscene:0.986, threat:0.978, insult:0.980, identity_hate:0.978)
 """

@@ -25,11 +25,6 @@ def get_model(embed_size, maxlen, max_features):
     return model
 
 
-# def df_to_sentences(df):
-#     assert not any(df['comment_text'].isnull())
-#     return df['comment_text'].fillna('_na_').values
-
-
 def train_tokenizer(train, max_features):
     sentences = df_to_sentences(train)
     tokenizer = text.Tokenizer(num_words=max_features)
