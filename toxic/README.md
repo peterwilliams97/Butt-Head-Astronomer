@@ -1,0 +1,29 @@
+SUBMISSION
+----------
+https://medium.com/@nokkk/make-your-kaggle-submissions-with-kaggle-official-api-f49093c04f8a
+
+kaggle competitions submissions -c jigsaw-toxic-comment-classification-challenge
+
+https://www.google.com.au/search?q=kaggle+web+text+classification
+
+
+Architecture
+------------
+All classifier classes  must provide two methods.
+
+    def fit(self, train):
+
+    def predict(self, test):
+
+
+### Examples
+ClfGloveNBSpacy clf_glove_nb_spacy.py
+
+TODO
+====
+Higher dropout. Validation loss is minimizing in 1st or 2nd epoch
+SpaCY embeddings
+Embedding width > 50
+Early stopping based on ROC
+Select classifier based on column
+Try xgboost

@@ -176,7 +176,7 @@ class ClfLstmGlove:
         self.learning_rate = learning_rate
 
         os.makedirs(MODEL_DIR, exist_ok=True)
-        model_name = 'lstm_glove_weights_%3d_%3d_%4d.hdf5' % (embed_size, maxlen, max_features)
+        model_name = 'lstm_glove_weights_%03d_%03d_%04d.hdf5' % (embed_size, maxlen, max_features)
         self.model_path = os.path.join(MODEL_DIR, model_name)
 
         self.description = ', '.join('%s=%s' % (k, v) for k, v in sorted(self.__dict__.items()))
