@@ -17,9 +17,9 @@ from utils import dim
 from framework import SUBMISSION_DIR, LABEL_COLS
 
 
-lstm_path = join(SUBMISSION_DIR, 'lstm_glove.csv')
+lstm_path = join(SUBMISSION_DIR, 'lstm_glove_ 50_100_20000_0.100.csv')
 nb_path = join(SUBMISSION_DIR, 'tfidf_nb.csv')
-ensemble_path = join(SUBMISSION_DIR, 'ensemble_nb_lstm.csv')
+ensemble_path = join(SUBMISSION_DIR, 'ensemble_nb_lstm_glove_50_100_20000_0.100.csv')
 
 lstm = pd.read_csv(lstm_path)
 nb = pd.read_csv(nb_path)
@@ -42,8 +42,20 @@ ensemble.to_csv(ensemble_path, index=False)
 print('Saved to %s' % ensemble_path)
 
 """
+
+    lstm_path = join(SUBMISSION_DIR, 'lstm_glove.csv')
+    nb_path = join(SUBMISSION_DIR, 'tfidf_nb.csv')
+    ensemble_path = join(SUBMISSION_DIR, 'ensemble_nb_lstm.csv')
+
     Your Best Entry
     You advanced 444 places on the leaderboard! (661 out of 2017: 33%)
     Your submission scored 0.9808, which is an improvement of your previous score of 0.9772. Great job!
     Tweet this!
+    -------------------------------------------------------
+
+    lstm_path = join(SUBMISSION_DIR, 'lstm_glove_ 50_100_20000_0.100.csv')
+    nb_path = join(SUBMISSION_DIR, 'tfidf_nb.csv')
+    ensemble_path = join(SUBMISSION_DIR, 'ensemble_nb_lstm_glove_50_100_20000_0.100.csv')
+
+    Your submission scored 0.9807, which is not an improvement of your best score. Keep trying
 """

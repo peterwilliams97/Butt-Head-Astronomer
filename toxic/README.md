@@ -21,9 +21,15 @@ ClfGloveNBSpacy clf_glove_nb_spacy.py
 
 TODO
 ====
-Higher dropout. Validation loss is minimizing in 1st or 2nd epoch
+Higher dropout. Validation loss is minimizing in 1st or 2nd epoch  How to do dropout for LSTM? Smerity?
 SpaCY embeddings
 Embedding width > 50
+Twitter embeddings
+Change probability clipping
 Early stopping based on ROC
 Select classifier based on column
 Try xgboost
+character embeddings
+data augmentation https://arxiv.org/pdf/1502.01710.pdf
+stratify keras validation split
+use 2 validation sets and average

@@ -99,7 +99,8 @@ class RocAucEvaluation(Callback):
         if epoch % self.interval == 0:
             y_pred = self.model.predict(self.X_val, verbose=0)
             score = roc_auc_score(self.y_val, y_pred)
-            print(' - ROC-AUC - epoch: {:d} - score: {:.6f}'.format(epoch, score))
+            print('\n ROC-AUC - epoch: {:d} - score: {:.6f}'.format(epoch, score))
+            logs['val_auc'] = score
 
 
 def get_embeddings(tokenizer, embed_name, embed_size, max_features):
@@ -200,14 +201,9 @@ class ClfLstmGlove:
         return 'ClfLstmGlove(%s)' % self.description
 
     def fit(self, train):
-        # Now we're ready to fit out model! Use `validation_split` when for hyperparams tuning
         self.tokenizer = train_tokenizer(train, self.max_features)
         self.model = get_model(self.tokenizer, self.embed_name, self.embed_size, self.maxlen,
             self.max_features, self.dropout)
-
-        checkpoint = ModelCheckpoint(self.model_path, monitor='val_loss', verbose=1,
-            save_best_only=True, mode='min')
-        early = EarlyStopping(monitor='val_loss', mode='min', patience=3)
 
         def schedule(epoch):
             n = epoch // len(self.learning_rate)
@@ -217,19 +213,22 @@ class ClfLstmGlove:
             print('^^^ epoch=%d n=%d m=%d fac=%.3f lr=%.5f' % (epoch, n, m, fac, lr))
             return lr
 
-        lr = callbacks.LearningRateScheduler(schedule, verbose=1)
-
         y_train = train[LABEL_COLS].values
         X_train = tokenize(self.tokenizer, train, maxlen=self.maxlen)
-        X_train, X_val, y_train, y_val = train_test_split(X_train, y_train, train_size=0.95)
-        ra_val = RocAucEvaluation(validation_data=(X_val, y_val), interval=1)
 
+        X_train, X_val, y_train, y_val = train_test_split(X_train, y_train, test_size=0.05)
+        checkpoint = ModelCheckpoint(self.model_path, monitor='val_auc', verbose=1,
+            save_best_only=True, mode='max')
+        early = EarlyStopping(monitor='val_auc', mode='max', patience=len(self.learning_rate))
+        ra_val = RocAucEvaluation(validation_data=(X_val, y_val), interval=1)
+        lr = callbacks.LearningRateScheduler(schedule, verbose=1)
         callback_list = [lr, ra_val, checkpoint, early]
 
         self.model.fit(X_train, y_train, batch_size=self.batch_size, epochs=self.epochs,
                        validation_data=(X_val, y_val), callbacks=callback_list)
 
     def predict(self, test):
+        print('loading model weights %s' % self.model_path)
         self.model.load_weights(self.model_path)
         X_test = tokenize(self.tokenizer, test, maxlen=self.maxlen)
         y_test = self.model.predict([X_test], batch_size=1024, verbose=1)

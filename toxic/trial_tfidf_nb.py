@@ -16,11 +16,11 @@ def get_clf():
     return ClfTfidfNB(get_est, do_spacy=False)
 
 
-if True:
+if False:
     make_submission(get_clf, 'tfidf_nb.csv')
 
-if False:
-    evaluate(get_clf)
+if True:
+    evaluate(get_clf, n=5)
 
 """
     LogisticRegression regex tokenization
