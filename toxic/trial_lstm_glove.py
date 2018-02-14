@@ -27,10 +27,10 @@ def get_clf():
 
 
 print(get_clf())
-if False:
+if True:
     make_submission(get_clf, submission_name)
 
-if True:
+if False:
     evaluate(get_clf, n=5)
 
 
