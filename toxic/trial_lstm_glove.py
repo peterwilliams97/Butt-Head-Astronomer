@@ -11,8 +11,6 @@ embed_size = 50
 maxlen = 100
 max_features = 20000
 epochs = 40
-# learning_rate = [0.010, 0.008, 0.005, 0.002, 0.003, 0.000]
-# learning_rate = [0.002, 0.003, 0.000]
 learning_rate = [0.007, 0.005, 0.002, 0.003, 0.000]
 dropout = 0.1
 
@@ -38,6 +36,14 @@ print('embed_size, maxlen, max_features =', embed_size, maxlen, max_features)
 print(get_clf())
 
 """
+    embed_size = 50
+    maxlen = 100
+    max_features = 20000
+    epochs = 40
+    learning_rate = [0.007, 0.005, 0.002, 0.003, 0.000]
+    dropout = 0.1
+    lstm_glove_ 50_100_20000_0.100.csv ****
+
     embed_size = 50
     maxlen = 100
     max_features = 20000
