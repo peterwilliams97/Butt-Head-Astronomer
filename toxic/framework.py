@@ -8,10 +8,10 @@ import tensorflow as tf
 import os
 import random
 import sys
-from os.path import expanduser, join
+from os.path import join
 from sklearn.metrics import roc_auc_score
 import matplotlib.pyplot as plt
-from utils import COMMENT
+from utils import COMMENT, DATA_ROOT
 
 
 VERBOSE = False
@@ -21,7 +21,7 @@ SEED = 234
 
 SUBMISSION_DIR = 'submissions'
 MODEL_DIR = 'models'
-DATA_DIR = expanduser('~/data/toxic/')
+TOXIC_DATA_DIR = join(DATA_ROOT, 'toxic')
 LABEL_COLS = ['toxic', 'severe_toxic', 'obscene', 'threat', 'insult', 'identity_hate']
 seed_delta = 1
 
@@ -43,9 +43,9 @@ def my_shuffle(indexes):
 
 
 def load_data():
-    train = pd.read_csv(join(DATA_DIR, 'train.csv'))
-    test = pd.read_csv(join(DATA_DIR, 'test.csv'))
-    subm = pd.read_csv(join(DATA_DIR, 'sample_submission.csv'))
+    train = pd.read_csv(join(TOXIC_DATA_DIR, 'train.csv'))
+    test = pd.read_csv(join(TOXIC_DATA_DIR, 'test.csv'))
+    subm = pd.read_csv(join(TOXIC_DATA_DIR, 'sample_submission.csv'))
     print('train,test,subm:', train.shape, test.shape, subm.shape)
 
     if N_SAMPLES > 0:

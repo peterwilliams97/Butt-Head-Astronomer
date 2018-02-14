@@ -17,7 +17,8 @@ submission_name = 'lstm_glove_%3d_%3d_%4d.csv' % (embed_size, maxlen, max_featur
 
 
 def get_clf():
-    return ClfLstmGlove(embed_size=embed_size, maxlen=maxlen, max_features=max_features, epochs=epochs)
+    return ClfLstmGlove(embed_name='twitter', embed_size=embed_size, maxlen=maxlen,
+        max_features=max_features, epochs=epochs)
 
 
 print(get_clf())
