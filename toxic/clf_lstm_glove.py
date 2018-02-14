@@ -26,7 +26,7 @@
     Thanks to (https://www.kaggle.com/CVxTz/keras-bidirectional-lstm-baseline-lb-0-051)
 """
 import os
-from os.path import expanduser, join
+from os.path import join
 import numpy as np
 from keras.preprocessing import text
 from keras.preprocessing import sequence
@@ -40,36 +40,49 @@ from sklearn.metrics import roc_auc_score
 from keras.callbacks import Callback
 from sklearn.model_selection import train_test_split
 from framework import MODEL_DIR, LABEL_COLS, df_to_sentences
+from utils import DATA_ROOT
 
+
+GLOVE_SETS = {
+    'twitter': ('glove.twitter.27B', tuple([25, 50, 100, 200])),
+    '6B': ('glove.6B', tuple([50, 100, 200, 300])),
+    # '840B': ('glove.840B.300d', tuple([300]))
+}
 
 GLOVE_SIZES = (50, 100, 200, 300)
 # Glove dimension 50
-EMBEDDING_DIR = expanduser('~/data/glove.6B')
+EMBEDDING_DIR = join(DATA_ROOT, 'glove.6B')
 
 
-def get_glove_path(embed_size):
-    assert embed_size in GLOVE_SIZES, (embed_size, GLOVE_SIZES)
-    return join(EMBEDDING_DIR, 'glove.6B.%dd.txt' % embed_size)
+def get_embedding_path(embed_name, embed_size):
+    glove_name, glove_sizes = GLOVE_SETS[embed_name]
+    assert embed_size in glove_sizes, (embed_name, embed_size, glove_sizes)
+    embedding_dir = join(DATA_ROOT, glove_name)
+    assert os.path.exists(embedding_dir), embedding_dir
+    embedding_path = join(embedding_dir, '%s.%dd.txt' % (glove_name, embed_size))
+    assert os.path.exists(embedding_path), embedding_path
+    return embedding_path
 
 
 if True:
-    for embed_size in GLOVE_SIZES:
-        embeddings_path = get_glove_path(embed_size)
-        assert os.path.exists(embeddings_path), embeddings_path
-
-
-def get_embeddings_index(embed_size):
-    embeddings_path = get_glove_path(embed_size)
-    with open(embeddings_path) as f:
-        embeddings_index = dict(get_coefs(*o.strip().split()) for o in f)
-    return embeddings_index
-    # embeddings_index = dict(get_coefs(*o.strip().split()) for o in open(EMBEDDING_PATH))
+    for embed_name, (glove_name, glove_sizes) in GLOVE_SETS.items():
+        for embed_size in glove_sizes:
+            embeddings_path = get_embedding_path(embed_name, embed_size)
+            assert os.path.exists(embeddings_path), embeddings_path
 
 
 def get_coefs(word, *arr):
     """Read the glove word vectors (space delimited strings) into a dictionary from word->vector.
     """
     return word, np.asarray(arr, dtype='float32')
+
+
+def get_embeddings_index(embed_name, embed_size):
+    assert embed_name in GLOVE_SETS, embed_name
+    embeddings_path = get_embedding_path(embed_name, embed_size)
+    with open(embeddings_path, 'rb') as f:
+        embeddings_index = dict(get_coefs(*o.strip().split()) for o in f)
+    return embeddings_index
 
 
 class RocAucEvaluation(Callback):
@@ -90,12 +103,11 @@ class RocAucEvaluation(Callback):
             logs['val_auc'] = score
 
 
-def get_embeddings(tokenizer, embed_size, max_features):
+def get_embeddings(tokenizer, embed_name, embed_size, max_features):
+    """Returns: embedding matrix n_words x embed_size
     """
-        Returns: embedding matrix n_words x embed_size
-    """
-    # embeddings_index = dict(get_coefs(*o.strip().split()) for o in open(EMBEDDING_PATH))
-    embeddings_index = get_embeddings_index(embed_size)
+    assert embed_name in GLOVE_SETS, embed_name
+    embeddings_index = get_embeddings_index(embed_name, embed_size)
 
     # Use these vectors to create our embedding matrix, with random initialization for words
     # that aren't in GloVe. We'll use the same mean and stdev of embeddings the GloVe has when
@@ -117,10 +129,11 @@ def get_embeddings(tokenizer, embed_size, max_features):
     return embedding_matrix
 
 
-def get_model(tokenizer, embed_size, maxlen, max_features, dropout=0.1):
+def get_model(tokenizer, embed_name, embed_size, maxlen, max_features, dropout):
     """Bi-di LSTM with some attention (return_sequences=True)
     """
-    embedding_matrix = get_embeddings(tokenizer, embed_size, max_features)
+    assert embed_name in GLOVE_SETS, embed_name
+    embedding_matrix = get_embeddings(tokenizer, embed_name, embed_size, max_features)
     # Bidirectional LSTM with half-size embedding with two fully connected layers
     print('maxlen, [max_features, embed_size], tembedding_matrix', maxlen, [max_features, embed_size],
           embedding_matrix.shape)
@@ -138,7 +151,7 @@ def get_model(tokenizer, embed_size, maxlen, max_features, dropout=0.1):
     model = Model(inputs=inp, outputs=x)
 
     def loss(y_true, y_pred):
-         return K.binary_crossentropy(y_true, y_pred)
+        return K.binary_crossentropy(y_true, y_pred)
 
     # Add AUC to metrics !@#$
     model.compile(loss=loss, optimizer='nadam', metrics=['accuracy'])
@@ -161,13 +174,15 @@ def tokenize(tokenizer, df, maxlen):
 
 class ClfLstmGlove:
 
-    def __init__(self, embed_size=50, maxlen=100, max_features=20000, dropout=0.1, epochs=3, batch_size=64,
-        learning_rate=[0.002, 0.003, 0.000]):
+    def __init__(self, embed_name='6B', embed_size=50, maxlen=100, max_features=20000, dropout=0.1,
+        epochs=3, batch_size=64, learning_rate=[0.002, 0.003, 0.000]):
         """
             embed_size: Size of embedding vectors
             maxlen: Max length of comment text
             max_features: Maximum vocabulary size
         """
+        assert embed_name in GLOVE_SETS, embed_name
+        self.embed_name = embed_name
         self.embed_size = embed_size
         self.maxlen = maxlen
         self.max_features = max_features
@@ -187,7 +202,8 @@ class ClfLstmGlove:
 
     def fit(self, train):
         self.tokenizer = train_tokenizer(train, self.max_features)
-        self.model = get_model(self.tokenizer, self.embed_size, self.maxlen, self.max_features, self.dropout)
+        self.model = get_model(self.tokenizer, self.embed_name, self.embed_size, self.maxlen,
+            self.max_features, self.dropout)
 
         def schedule(epoch):
             n = epoch // len(self.learning_rate)

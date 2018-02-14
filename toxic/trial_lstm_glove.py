@@ -25,13 +25,11 @@ def get_clf():
 
 
 print(get_clf())
-if True:
+if False:
     make_submission(get_clf, submission_name)
 
-if False:
+if True:
     evaluate(get_clf, n=5)
-
-
 print('embed_size, maxlen, max_features =', embed_size, maxlen, max_features)
 print(get_clf())
 

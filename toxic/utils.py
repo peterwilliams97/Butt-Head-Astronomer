@@ -6,7 +6,15 @@ import pickle
 import os
 
 
+def is_windows():
+    return os.name == 'nt'
+
+
 COMMENT = 'comment_text'
+DATA_ROOT = 'd:\\data' if is_windows() else '~/data'
+DATA_ROOT = os.path.expanduser(DATA_ROOT)
+
+assert os.path.exists(DATA_ROOT), DATA_ROOT
 
 
 def dim(x):
