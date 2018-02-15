@@ -7,32 +7,51 @@ from clf_lstm_glove import ClfLstmGlove
 
 
 # Classifier parameters
-embed_size = 50
+embed_name = '840B'
+embed_size = 300
 maxlen = 100
 max_features = 20000
 epochs = 40
-learning_rate = [0.007, 0.007, 0.005, 0.002, 0.003, 0.000]
+learning_rate = [# 0.007, 0.007, 0.005,
+                 0.002, 0.003, 0.000]
 dropout = 0.1
 
-submission_name = 'lstm_glove_%03d_%03d_%04d_%.3f.csv' % (embed_size, maxlen, max_features,
-    dropout)
+submission_name = 'lstm_glove_%s_%3d_%3d_%4d_%.3f.csv' % (embed_name, embed_size, maxlen,
+    max_features, dropout)
 
 
 def get_clf():
-    return ClfLstmGlove(embed_size=embed_size, maxlen=maxlen, max_features=max_features,
-            dropout=dropout,
-            epochs=epochs, learning_rate=learning_rate)
+    return ClfLstmGlove(embed_name=embed_name, embed_size=embed_size, maxlen=maxlen,
+        max_features=max_features, dropout=dropout, epochs=epochs, learning_rate=learning_rate)
 
 
 print(get_clf())
-if False:
-    make_submission(get_clf, submission_name)
 if True:
-    evaluate(get_clf, n=1)
+    make_submission(get_clf, submission_name)
+else:
+    evaluate(get_clf, n=3)
+
 print('embed_size, maxlen, max_features =', embed_size, maxlen, max_features)
 print(get_clf())
 
 """
+           auc=0.979 (toxic:0.973, severe_toxic:0.989, obscene:0.986, threat:0.970, insult:0.981, identity_hate:0.973)
+    --------------------------------------------------------------------------------------------------------------
+        0: auc=0.976 (toxic:0.972, severe_toxic:0.989, obscene:0.986, threat:0.963, insult:0.980, identity_hate:0.967)
+        1: auc=0.979 (toxic:0.970, severe_toxic:0.986, obscene:0.987, threat:0.975, insult:0.981, identity_hate:0.972)
+        2: auc=0.981 (toxic:0.972, severe_toxic:0.989, obscene:0.987, threat:0.982, insult:0.982, identity_hate:0.976)
+        3: auc=0.979 (toxic:0.970, severe_toxic:0.987, obscene:0.987, threat:0.980, insult:0.980, identity_hate:0.969)
+        4: auc=0.978 (toxic:0.972, severe_toxic:0.987, obscene:0.984, threat:0.980, insult:0.980, identity_hate:0.968)
+     Mean: auc=0.979 (toxic:0.971, severe_toxic:0.988, obscene:0.986, threat:0.976, insult:0.981, identity_hate:0.971)
+    --------------------------------------------------------------------------------------------------------------
+    auc=0.979 +- 0.007 (1%) range=0.017 (2%)
+    program=.\trial_lstm_glove.py
+    embed_size, maxlen, max_features = 50 100 20000
+    ClfLstmGlove(batch_size=64, dropout=0.1, embed_name=twitter, embed_size=50, epochs=40,
+                 learning_rate=[0.002, 0.003, 0.0], max_features=20000, maxlen=100,
+                 model_path=models\lstm_glove_weights_050_100_20000.hdf5)
+    ================================================================================================
+
     embed_size = 50
     maxlen = 100
     max_features = 20000
@@ -63,4 +82,5 @@ print(get_clf())
     maxlen = 100
     max_features = 20000
        0: auc=0.980 (toxic:0.973, severe_toxic:0.987, obscene:0.986, threat:0.978, insult:0.980, identity_hate:0.978)
+
 """

@@ -17,7 +17,7 @@ from utils import dim
 from framework import SUBMISSION_DIR, LABEL_COLS
 
 
-lstm_path = join(SUBMISSION_DIR, 'lstm_glove_ 50_100_20000_0.100.csv')
+lstm_path = join(SUBMISSION_DIR, 'lstm_glove_840B_300_100_20000_0.100.csv')
 nb_path = join(SUBMISSION_DIR, 'tfidf_nb.csv')
 ensemble_path = join(SUBMISSION_DIR, 'ensemble_nb_lstm_glove_50_100_20000_0.100.csv')
 
@@ -36,12 +36,17 @@ for i in 0, 1:
     assert lstm.shape[i] == nb.shape[i]
     assert lstm.shape[i] == ensemble.shape[i]
 
-
 # And finally, create our CSV.
 ensemble.to_csv(ensemble_path, index=False)
 print('Saved to %s' % ensemble_path)
+print('=' * 80)
 
 """
+    ClfLstmGlove(batch_size=64, dropout=0.1, embed_name=840B, embed_size=300, epochs=40,
+    learning_rate=[0.002, 0.003, 0.0], max_features=20000, maxlen=100)
+
+    Your submission scored 0.9806, which is not an improvement of your best score. Keep trying!
+    ============================================================================
 
     lstm_path = join(SUBMISSION_DIR, 'lstm_glove.csv')
     nb_path = join(SUBMISSION_DIR, 'tfidf_nb.csv')
