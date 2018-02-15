@@ -152,7 +152,7 @@ def get_model(tokenizer, embed_name, embed_size, maxlen, max_features, dropout):
 
     inp = Input(shape=(maxlen,))
     x = Embedding(max_features, embed_size, weights=[embedding_matrix], trainable=True)(inp)
-    x = Bidirectional(LSTM(50, return_sequences=True, dropout=dropout, recurrent_dropout=dropout))(x)
+    x = Bidirectional(LSTM(100, return_sequences=True, dropout=dropout, recurrent_dropout=dropout))(x)
     x = GlobalMaxPool1D()(x)
     x = BatchNormalization()(x)
     x = Dense(50, activation="relu")(x)

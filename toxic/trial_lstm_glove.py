@@ -16,7 +16,7 @@ learning_rate = [# 0.007, 0.007, 0.005,
                  0.002, 0.003, 0.000]
 dropout = 0.1
 
-submission_name = 'lstm_glove_%s_%3d_%3d_%4d_%.3f.csv' % (embed_name, embed_size, maxlen,
+submission_name = 'lstm_glove_%s_%3d_%3d_%4d_%.3f.XXXX.csv' % (embed_name, embed_size, maxlen,
     max_features, dropout)
 
 
@@ -26,7 +26,7 @@ def get_clf():
 
 
 print(get_clf())
-if True:
+if False:
     make_submission(get_clf, submission_name)
 else:
     evaluate(get_clf, n=3)
