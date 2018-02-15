@@ -29,6 +29,7 @@ if False:
     make_submission(get_clf, submission_name)
 else:
     evaluate(get_clf, n=3)
+
 print('embed_size, maxlen, max_features =', embed_size, maxlen, max_features)
 print(get_clf())
 
@@ -44,8 +45,9 @@ print(get_clf())
     auc=0.979 +- 0.007 (1%) range=0.017 (2%)
     program=.\trial_lstm_glove.py
     embed_size, maxlen, max_features = 50 100 20000
-    ClfLstmGlove(batch_size=64, dropout=0.1, embed_name=twitter, embed_size=50, epochs=40, learning_rate=[0.002, 0.003, 0.0], max_features=20000, maxlen=100, model_path=model
-    s\lstm_glove_weights_050_100_20000.hdf5)
+    ClfLstmGlove(batch_size=64, dropout=0.1, embed_name=twitter, embed_size=50, epochs=40,
+                 learning_rate=[0.002, 0.003, 0.0], max_features=20000, maxlen=100,
+                 model_path=models\lstm_glove_weights_050_100_20000.hdf5)
     ================================================================================================
 
     embed_size = 50
