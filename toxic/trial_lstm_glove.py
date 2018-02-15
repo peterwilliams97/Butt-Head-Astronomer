@@ -7,29 +7,28 @@ from clf_lstm_glove import ClfLstmGlove
 
 
 # Classifier parameters
+embed_name = 'twitter'
 embed_size = 50
 maxlen = 100
 max_features = 20000
 epochs = 40
-learning_rate = [0.007, 0.005, 0.002, 0.003, 0.000]
+learning_rate = [0.007, 0.007, 0.005, 0.002, 0.003, 0.000]
 dropout = 0.1
 
-submission_name = 'lstm_glove_%3d_%3d_%4d_%.3f.csv' % (embed_size, maxlen, max_features,
-    dropout)
+submission_name = 'lstm_glove_%s_%3d_%3d_%4d_%.3f.csv' % (embed_name, embed_size, maxlen,
+    max_features, dropout)
 
 
 def get_clf():
-    return ClfLstmGlove(embed_size=embed_size, maxlen=maxlen, max_features=max_features,
-            dropout=dropout,
-            epochs=epochs, learning_rate=learning_rate)
+    return ClfLstmGlove(embed_name=embed_name, embed_size=embed_size, maxlen=maxlen,
+        max_features=max_features, dropout=dropout, epochs=epochs, learning_rate=learning_rate)
 
 
 print(get_clf())
 if False:
     make_submission(get_clf, submission_name)
-
-if True:
-    evaluate(get_clf, n=5)
+else:
+    evaluate(get_clf, n=3)
 print('embed_size, maxlen, max_features =', embed_size, maxlen, max_features)
 print(get_clf())
 
