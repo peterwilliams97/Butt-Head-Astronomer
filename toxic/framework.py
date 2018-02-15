@@ -10,6 +10,7 @@ import random
 import sys
 from os.path import join
 from sklearn.metrics import roc_auc_score
+from sklearn.model_selection import train_test_split
 import matplotlib.pyplot as plt
 from utils import COMMENT, DATA_ROOT
 
@@ -68,24 +69,51 @@ def df_to_sentences(df):
     return df['comment_text'].fillna('_na_').values
 
 
+def show_values(name, df):
+    return False
+    print('~' * 80)
+    print('%10s: %6d rows' % (name, len(df)))
+    for i, col in enumerate(LABEL_COLS):
+        print('%3d: %s' % (i, col))
+        print(df[col].value_counts())
+
+
+def df_split(df, frac):
+    test_size = 1.0 - frac
+    y = df[LABEL_COLS].values
+    X = list(df.index)
+    X_train, X_val, y_train, y_val = train_test_split(X, y, test_size=test_size, stratify=y)
+    train = df.loc[X_train]
+    test = df.loc[y_train]
+    return train, test
+
+
 def split_data(df, frac):
+    show_values('df', df)
+
     indexes = list(df.index)
     my_shuffle(indexes)
     n = int(len(df) * frac)
     train = df.loc[indexes[:n]]
     test = df.loc[indexes[n:]]
+    # train, test = df_split(df, frac)
+
+    show_values('train', train)
+    show_values('test', test)
+    # assert False
     print('split_data: %.2f of %d: train=%d test=%d' % (frac, len(df), len(train), len(test)))
     return train, test
 
 
 def make_submission(get_clf, submission_name):
+    submission_path = join(SUBMISSION_DIR, submission_name)
+    assert not os.path.exists(submission_path), submission_path
+    os.makedirs(SUBMISSION_DIR, exist_ok=True)
+
     train, test, subm = load_data()
     clf = get_clf()
     clf.fit(train)
     preds = clf.predict(test)
-
-    os.makedirs(SUBMISSION_DIR, exist_ok=True)
-    submission_path = join(SUBMISSION_DIR, submission_name)
 
     # And finally, create the submission file.
     submid = pd.DataFrame({'id': subm['id']})
@@ -95,8 +123,7 @@ def make_submission(get_clf, submission_name):
 
 
 def label_score(auc):
-    return '(%s)' % ', '.join(['%s:%.3f' % (col, auc[j])
-                              for j, col in enumerate(LABEL_COLS)])
+    return '(%s)' % ', '.join(['%s:%.3f' % (col, auc[j]) for j, col in enumerate(LABEL_COLS)])
 
 
 def _evaluate(get_clf, train, i):

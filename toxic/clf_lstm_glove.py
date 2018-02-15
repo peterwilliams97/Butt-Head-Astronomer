@@ -39,8 +39,9 @@ import keras.backend as K
 from sklearn.metrics import roc_auc_score
 from keras.callbacks import Callback
 from sklearn.model_selection import train_test_split
+from functools import partial
 from framework import MODEL_DIR, LABEL_COLS, df_to_sentences
-from utils import DATA_ROOT
+from utils import DATA_ROOT, dim
 
 
 GLOVE_SETS = {
@@ -172,6 +173,22 @@ def tokenize(tokenizer, df, maxlen):
     return sequence.pad_sequences(tokens, maxlen=maxlen)
 
 
+def lr_schedule(epoch, learning_rate):
+    n = epoch // len(learning_rate)
+    m = epoch % len(learning_rate)
+    fac = 0.5 ** n
+    lr = learning_rate[m] * fac
+    print('^^^ epoch=%d n=%d m=%d fac=%.3f lr=%.5f' % (epoch, n, m, fac, lr))
+    return lr
+
+
+def get_model_path(model_name, fold):
+    return os.path.join(MODEL_DIR, '%s_%d.hdf5' % (model_name, fold))
+
+
+n_folds = 2
+
+
 class ClfLstmGlove:
 
     def __init__(self, embed_name='6B', embed_size=50, maxlen=100, max_features=20000, dropout=0.1,
@@ -192,8 +209,7 @@ class ClfLstmGlove:
         self.learning_rate = learning_rate
 
         os.makedirs(MODEL_DIR, exist_ok=True)
-        model_name = 'lstm_glove_weights_%03d_%03d_%04d.hdf5' % (embed_size, maxlen, max_features)
-        self.model_path = os.path.join(MODEL_DIR, model_name)
+        self.model_name = 'lstm_glove_weights_%03d_%03d_%04d' % (embed_size, maxlen, max_features)
 
         self.description = ', '.join('%s=%s' % (k, v) for k, v in sorted(self.__dict__.items()))
 
@@ -205,22 +221,22 @@ class ClfLstmGlove:
         self.model = get_model(self.tokenizer, self.embed_name, self.embed_size, self.maxlen,
             self.max_features, self.dropout)
 
-        def schedule(epoch):
-            n = epoch // len(self.learning_rate)
-            m = epoch % len(self.learning_rate)
-            fac = 0.5 ** n
-            lr = self.learning_rate[m] * fac
-            print('^^^ epoch=%d n=%d m=%d fac=%.3f lr=%.5f' % (epoch, n, m, fac, lr))
-            return lr
+        y_train0 = train[LABEL_COLS].values
+        X_train0 = tokenize(self.tokenizer, train, maxlen=self.maxlen)
 
-        y_train = train[LABEL_COLS].values
-        X_train = tokenize(self.tokenizer, train, maxlen=self.maxlen)
+        for fold in range(n_folds):
+            X_train, X_val, y_train, y_val = train_test_split(X_train0, y_train0, test_size=0.05)
+            self.fit_fold(X_train, X_val, y_train, y_val, fold=fold)
 
-        X_train, X_val, y_train, y_val = train_test_split(X_train, y_train, test_size=0.05)
-        checkpoint = ModelCheckpoint(self.model_path, monitor='val_auc', verbose=1,
+    def fit_fold(self, X_train, X_val, y_train, y_val, fold):
+        print('fitting %d of %d folds X_train=%s X_val=%s' % (fold, n_folds, dim(X_train), dim(X_val)))
+        model_path = get_model_path(self.model_name, fold)
+
+        checkpoint = ModelCheckpoint(model_path, monitor='val_auc', verbose=1,
             save_best_only=True, mode='max')
         early = EarlyStopping(monitor='val_auc', mode='max', patience=len(self.learning_rate))
         ra_val = RocAucEvaluation(validation_data=(X_val, y_val), interval=1)
+        schedule = partial(lr_schedule, learning_rate=self.learning_rate)
         lr = callbacks.LearningRateScheduler(schedule, verbose=1)
         callback_list = [lr, ra_val, checkpoint, early]
 
@@ -228,8 +244,17 @@ class ClfLstmGlove:
                        validation_data=(X_val, y_val), callbacks=callback_list)
 
     def predict(self, test):
-        print('loading model weights %s' % self.model_path)
-        self.model.load_weights(self.model_path)
         X_test = tokenize(self.tokenizer, test, maxlen=self.maxlen)
+        y_test_folds = [self.predict_fold(X_test, fold=fold) for fold in range(n_folds)]
+        y0 = y_test_folds[0]
+        y_test = np.zeros((n_folds, y0.shape[0], y0.shape[1]), dtype=y0.dtype)
+        for fold in range(n_folds):
+            y_test[fold, :, :] = y_test_folds[fold]
+        return y_test.mean(axis=0)
+
+    def predict_fold(self, X_test, fold):
+        model_path = get_model_path(self.model_name, fold)
+        print('loading model weights %s' % model_path)
+        self.model.load_weights(model_path)
         y_test = self.model.predict([X_test], batch_size=1024, verbose=1)
         return y_test

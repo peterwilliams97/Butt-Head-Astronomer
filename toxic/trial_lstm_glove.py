@@ -11,10 +11,10 @@ embed_size = 50
 maxlen = 100
 max_features = 20000
 epochs = 40
-learning_rate = [0.007, 0.005, 0.002, 0.003, 0.000]
+learning_rate = [0.007, 0.007, 0.005, 0.002, 0.003, 0.000]
 dropout = 0.1
 
-submission_name = 'lstm_glove_%3d_%3d_%4d_%.3f.csv' % (embed_size, maxlen, max_features,
+submission_name = 'lstm_glove_%03d_%03d_%04d_%.3f.csv' % (embed_size, maxlen, max_features,
     dropout)
 
 
@@ -27,9 +27,8 @@ def get_clf():
 print(get_clf())
 if False:
     make_submission(get_clf, submission_name)
-
 if True:
-    evaluate(get_clf, n=5)
+    evaluate(get_clf, n=1)
 print('embed_size, maxlen, max_features =', embed_size, maxlen, max_features)
 print(get_clf())
 
