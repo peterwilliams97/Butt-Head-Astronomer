@@ -7,12 +7,13 @@ from clf_lstm_glove import ClfLstmGlove
 
 
 # Classifier parameters
-embed_name = 'twitter'
-embed_size = 50
+embed_name = '840B'
+embed_size = 300
 maxlen = 100
 max_features = 20000
 epochs = 40
-learning_rate = [0.007, 0.007, 0.005, 0.002, 0.003, 0.000]
+learning_rate = [# 0.007, 0.007, 0.005,
+                 0.002, 0.003, 0.000]
 dropout = 0.1
 
 submission_name = 'lstm_glove_%s_%3d_%3d_%4d_%.3f.csv' % (embed_name, embed_size, maxlen,
@@ -25,7 +26,7 @@ def get_clf():
 
 
 print(get_clf())
-if False:
+if True:
     make_submission(get_clf, submission_name)
 else:
     evaluate(get_clf, n=3)
@@ -34,6 +35,7 @@ print('embed_size, maxlen, max_features =', embed_size, maxlen, max_features)
 print(get_clf())
 
 """
+           auc=0.979 (toxic:0.973, severe_toxic:0.989, obscene:0.986, threat:0.970, insult:0.981, identity_hate:0.973)
     --------------------------------------------------------------------------------------------------------------
         0: auc=0.976 (toxic:0.972, severe_toxic:0.989, obscene:0.986, threat:0.963, insult:0.980, identity_hate:0.967)
         1: auc=0.979 (toxic:0.970, severe_toxic:0.986, obscene:0.987, threat:0.975, insult:0.981, identity_hate:0.972)
