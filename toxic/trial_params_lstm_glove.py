@@ -123,5 +123,5 @@ list_list = [
 ]
 
 xprint_init(submission_name)
-beam_search(list_list, beam_size=3, n=1)
+beam_search(list_list, beam_size=5, n=1)
 xprint('$' * 80)
