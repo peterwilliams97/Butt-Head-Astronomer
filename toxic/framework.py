@@ -12,7 +12,7 @@ from os.path import join
 from sklearn.metrics import roc_auc_score
 from sklearn.model_selection import train_test_split
 # import matplotlib.pyplot as plt
-from utils import COMMENT, DATA_ROOT, dim
+from utils import COMMENT, DATA_ROOT, dim, xprint
 
 
 VERBOSE = False
@@ -47,7 +47,7 @@ def load_data():
     train = pd.read_csv(join(TOXIC_DATA_DIR, 'train.csv'))
     test = pd.read_csv(join(TOXIC_DATA_DIR, 'test.csv'))
     subm = pd.read_csv(join(TOXIC_DATA_DIR, 'sample_submission.csv'))
-    print('train,test,subm:', train.shape, test.shape, subm.shape)
+    xprint('train,test,subm:', train.shape, test.shape, subm.shape)
 
     if N_SAMPLES > 0:
         train = train[:N_SAMPLES]
@@ -55,7 +55,7 @@ def load_data():
 
     seed_random()
 
-    print('train=%d test=%d (%.1f%%)' % (len(train), len(test), 100.0 * len(test) / len(train)))
+    xprint('train=%d test=%d (%.1f%%)' % (len(train), len(test), 100.0 * len(test) / len(train)))
 
     # There are a few empty comments that we need to get rid of, otherwise sklearn will complain.
     train[COMMENT].fillna('_na_', inplace=True)
@@ -99,12 +99,12 @@ def split_data(df, frac):
 
     show_values('train', train)
     show_values('test', test)
-    print('split_data: %.2f of %d: train=%d test=%d' % (frac, len(df), len(train), len(test)))
+    xprint('split_data: %.2f of %d: train=%d test=%d' % (frac, len(df), len(train), len(test)))
     return train, test
 
 
 def make_submission(get_clf, submission_name):
-    submission_path = join(SUBMISSION_DIR, submission_name)
+    submission_path = join(SUBMISSION_DIR, '%s.csv' % submission_name)
     assert not os.path.exists(submission_path), submission_path
     os.makedirs(SUBMISSION_DIR, exist_ok=True)
 
@@ -117,7 +117,7 @@ def make_submission(get_clf, submission_name):
     submid = pd.DataFrame({'id': subm['id']})
     submission = pd.concat([submid, pd.DataFrame(preds, columns=LABEL_COLS)], axis=1)
     submission.to_csv(submission_path, index=False)
-    print('Saved in %s' % submission_path)
+    xprint('Saved in %s' % submission_path)
 
 
 def label_score(auc):
@@ -130,7 +130,7 @@ def describe(y):
     """
     MEASURES = ['min', 'mean', 'max']
     stats = np.zeros((3, len(LABEL_COLS)), dtype=np.float64)
-    print('stats=%s' % dim(stats))
+    xprint('stats=%s' % dim(stats))
     for j, col in enumerate(LABEL_COLS):
         stats[0, j] = y[:, j].min()
         stats[1, j] = y[:, j].mean()
@@ -138,7 +138,7 @@ def describe(y):
 
     def draw(name, vals, sep='|'):
         vals = ['%12s' % v for v in ([name] + vals)]
-        print((' %s ' % sep).join(vals))
+        xprint((' %s ' % sep).join(vals))
 
     def draw_bar():
         bar = '-' * 12
@@ -161,7 +161,7 @@ if False:
 
 
 def _evaluate(get_clf, train, i, frac):
-    print('_evaluate %3d %s' % (i, '-' * 66))
+    xprint('_evaluate %3d %s' % (i, '-' * 66))
     train_part, test_part = split_data(train, frac)
 
     clf = get_clf()
@@ -174,7 +174,7 @@ def _evaluate(get_clf, train, i, frac):
         y_pred = preds[:, j]
         auc[j] = roc_auc_score(y_true, y_pred)
     mean_auc = auc.mean()
-    print('%5d: auc=%.3f %s' % (i, mean_auc, label_score(auc)))
+    xprint('%5d: auc=%.3f %s' % (i, mean_auc, label_score(auc)))
     describe(preds)
     return auc
 
@@ -183,12 +183,12 @@ def show_auc(auc):
     n = auc.shape[0]
     mean_auc = auc.mean(axis=0)
 
-    print('-' * 110)
+    xprint('-' * 110)
     for i in range(n):
         print('%5d: auc=%.3f %s' % (i, auc[i].mean(), label_score(auc[i])))
-    print('%5s: auc=%.3f %s' % ('Mean', mean_auc.mean(), label_score(mean_auc)))
-    print('-' * 110)
-    print('auc=%.3f +- %.3f (%.0f%%) range=%.3f (%.0f%%)' % (
+    xprint('%5s: auc=%.3f %s' % ('Mean', mean_auc.mean(), label_score(mean_auc)))
+    xprint('-' * 110)
+    xprint('auc=%.3f +- %.3f (%.0f%%) range=%.3f (%.0f%%)' % (
          mean_auc.mean(), mean_auc.std(),
          100.0 * mean_auc.std() / mean_auc.mean(),
          mean_auc.max() - mean_auc.min(),
@@ -202,7 +202,7 @@ def evaluate(get_clf, n=1, frac=0.7):
     for i in range(n):
         auc[i, :] = _evaluate(get_clf, train, i, frac)
         show_auc(auc[:i + 1, :])
-    print('program=%s' % sys.argv[0])
+    xprint('program=%s' % sys.argv[0])
     return auc
 
 

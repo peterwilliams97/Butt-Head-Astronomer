@@ -42,7 +42,7 @@ from keras.callbacks import Callback
 from sklearn.model_selection import train_test_split
 from functools import partial
 from framework import MODEL_DIR, LABEL_COLS, df_to_sentences
-from utils import DATA_ROOT, dim
+from utils import DATA_ROOT, dim, xprint
 
 
 GLOVE_SETS = {
@@ -85,7 +85,7 @@ def get_embeddings_index(embed_name, embed_size):
     if embeddings_index is None:
         assert embed_name in GLOVE_SETS, embed_name
         embeddings_path = get_embedding_path(embed_name, embed_size)
-        print('get_embeddings_index: embeddings_path=%s' % embeddings_path)
+        xprint('get_embeddings_index: embeddings_path=%s' % embeddings_path)
         embeddings_index = {}
         with open(embeddings_path, 'rb') as f:
             t0 = time.clock()
@@ -94,7 +94,7 @@ def get_embeddings_index(embed_name, embed_size):
                 embeddings_index[parts[0]] = np.asarray(parts[1:], dtype='float32')
                 if (i + 1) % 200000 == 0:
                     print('%7d embeddings %4.1f sec' % (i + 1, time.clock() - t0))
-        print('%7d embeddings %4.1f sec' % (len(embeddings_index), time.clock() - t0))
+        xprint('%7d embeddings %4.1f sec' % (len(embeddings_index), time.clock() - t0))
     return embeddings_index
 
 
@@ -112,7 +112,7 @@ class RocAucEvaluation(Callback):
         if epoch % self.interval == 0:
             y_pred = self.model.predict(self.X_val, verbose=0)
             score = roc_auc_score(self.y_val, y_pred)
-            print('\n ROC-AUC - epoch: {:d} - score: {:.6f}'.format(epoch, score))
+            xprint('\n ROC-AUC - epoch: {:d} - score: {:.6f}'.format(epoch, score))
             logs['val_auc'] = score
 
 
@@ -127,7 +127,7 @@ def get_embeddings(tokenizer, embed_name, embed_size, max_features):
     # generating the random init.
     all_embs = np.stack(embeddings_index.values())
     emb_mean, emb_std = all_embs.mean(), all_embs.std()
-    print('emb_mean=%.3f emb_std=%.3f' % (emb_mean, emb_std))
+    xprint('emb_mean=%.3f emb_std=%.3f' % (emb_mean, emb_std))
 
     word_index = tokenizer.word_index
     nb_words = min(max_features, len(word_index))
@@ -148,9 +148,9 @@ def get_model(tokenizer, embed_name, embed_size, maxlen, max_features, dropout):
     assert embed_name in GLOVE_SETS, embed_name
     embedding_matrix = get_embeddings(tokenizer, embed_name, embed_size, max_features)
     # Bidirectional LSTM with half-size embedding with two fully connected layers
-    print('maxlen=%d [max_features, embed_size]=%s, embedding_matrix%s' % (maxlen,
+    xprint('maxlen=%d [max_features, embed_size]=%s, embedding_matrix%s' % (maxlen,
         [max_features, embed_size], dim(embedding_matrix)))
-    print('embedding_matrix', dim(embedding_matrix))
+    xprint('embedding_matrix', dim(embedding_matrix))
 
     inp = Input(shape=(maxlen,))
     x = Embedding(max_features, embed_size, weights=[embedding_matrix], trainable=True)(inp)
@@ -243,8 +243,8 @@ class ClfLstmGlove:
             self.fit_fold(X_train, X_val, y_train, y_val, fold=fold)
 
     def fit_fold(self, X_train, X_val, y_train, y_val, fold):
-        print('"' * 80)
-        print('fitting %d of %d folds X_train=%s X_val=%s' % (fold, n_folds, dim(X_train), dim(X_val)))
+        xprint('"' * 80)
+        xprint('fitting %d of %d folds X_train=%s X_val=%s' % (fold, n_folds, dim(X_train), dim(X_val)))
         model_path = get_model_path(self.model_name, fold)
 
         checkpoint = ModelCheckpoint(model_path, monitor='val_auc', verbose=1,
@@ -269,7 +269,7 @@ class ClfLstmGlove:
 
     def predict_fold(self, X_test, fold):
         model_path = get_model_path(self.model_name, fold)
-        print('loading model weights %s' % model_path)
+        # print('loading model weights %s' % model_path)
         self.model.load_weights(model_path)
         y_test = self.model.predict([X_test], batch_size=1024, verbose=1)
         return y_test

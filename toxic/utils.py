@@ -4,6 +4,7 @@
 import json
 import pickle
 import os
+import datetime
 
 
 def is_windows():
@@ -13,8 +14,43 @@ def is_windows():
 COMMENT = 'comment_text'
 DATA_ROOT = 'd:\\data' if is_windows() else '~/data'
 DATA_ROOT = os.path.expanduser(DATA_ROOT)
+LOG_DIR = 'logs'
 
 assert os.path.exists(DATA_ROOT), DATA_ROOT
+
+
+xprint_f = None
+xprint_path = None
+
+
+def xprint_init(name):
+    global xprint_f, xprint_path
+
+    os.makedirs(LOG_DIR, exist_ok=True)
+    path = os.path.join(LOG_DIR, '%s.log' % name)
+    # assert not os.path.exists(path), path
+    xprint_path = path
+
+    if xprint_f is not None:
+        xprint_f.close()
+
+    xprint_f = open(xprint_path, 'at')
+    assert xprint_f, xprint_path
+
+    now = datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+    xprint('@' * 80)
+    xprint('Starting log: %s %r %r' % (now, name, xprint_path))
+
+
+def xprint(*args):
+    print(*args)
+    print(*args, file=xprint_f)
+    xprint_f.flush()
+
+
+if False:
+    xprint_init('blah')
+    xprint('What do you think of htis')
 
 
 def dim(x):
@@ -62,3 +98,4 @@ def save_pickle(path, obj):
     with open(temp_pickle, 'wb') as f:
         pickle.dump(obj, f)
     os.renames(temp_pickle, path)
+

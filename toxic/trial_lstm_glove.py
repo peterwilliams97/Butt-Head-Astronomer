@@ -2,6 +2,7 @@
 """
     Another Keras solution to Kaggle Toxic Comment challenge
 """
+from utils import xprint_init, xprint
 from framework import evaluate, make_submission
 from clf_lstm_glove import ClfLstmGlove
 
@@ -16,8 +17,9 @@ learning_rate = [# 0.007, 0.007, 0.005,
                  0.002, 0.003, 0.000]
 dropout = 0.1
 
-submission_name = 'lstm_glove_%s_%3d_%3d_%4d_%.3f.XXXX.csv' % (embed_name, embed_size, maxlen,
+submission_name = 'lstm_glove_%s_%3d_%3d_%4d_%.3f.XXXX' % (embed_name, embed_size, maxlen,
     max_features, dropout)
+
 
 
 def get_clf():
@@ -25,15 +27,16 @@ def get_clf():
         max_features=max_features, dropout=dropout, epochs=epochs, learning_rate=learning_rate)
 
 
-print(get_clf())
+xprint_init(submission_name)
+xprint(get_clf())
 if False:
     make_submission(get_clf, submission_name)
 else:
     evaluate(get_clf, n=3)
 
-print('embed_size, maxlen, max_features =', embed_size, maxlen, max_features)
-print(get_clf())
-print('=' * 80)
+xprint('embed_size, maxlen, max_features =', embed_size, maxlen, max_features)
+xprint(get_clf())
+xprint('=' * 80)
 
 """
 --------------------------------------------------------------------------------------------------------------
