@@ -148,6 +148,7 @@ def get_model(n_hidden, tokenizer, embed_name, embed_size, maxlen, max_features,
     """
     assert embed_name in GLOVE_SETS, embed_name
     embedding_matrix = get_embeddings(tokenizer, embed_name, embed_size, max_features)
+    assert embedding_matrix.shape[0] <= max_features
     # Bidirectional LSTM with half-size embedding with two fully connected layers
     xprint('maxlen=%d [max_features, embed_size]=%s, embedding_matrix%s' % (maxlen,
         [max_features, embed_size], dim(embedding_matrix)))

@@ -7,7 +7,7 @@ from framework import evaluate, seed_random, auc_score
 from clf_lstm_glove import ClfLstmGlove, valid_embedding
 
 
-epochs = 40
+epochs = 1
 submission_name = 'lstm_glove_explore'
 
 
@@ -76,13 +76,17 @@ def beam_search(list_list, beam_size=3, n=1):
                 if not valid_embedding_params(*params):
                     continue
                 print('###', len(params), params)
-                auc, desc = get_auc(i, params, n)
+                try:
+                    auc, desc = get_auc(i, params, n)
+                except Exception as e:
+                    print('&&&', e)
+                    continue
                 score, col_scores = auc_score(auc)
                 scores.append((score, col_scores, params, desc))
                 params_auc[params] = col_scores
                 i += 1
         scores.sort(key=lambda x: (-x[0], x[1:]))
-        beam = [params for _, params in scores[:beam_size]]
+        beam = [params for _, _, params, _ in scores[:beam_size]]
         xprint('!' * 80)
         with open('all.results.txt', 'wt') as f:
             for i, (score, col_scores, params, desc) in enumerate(scores):
@@ -95,7 +99,7 @@ def beam_search(list_list, beam_size=3, n=1):
 # n_hidden, dropout, max_features, learning_rate
 n_hidden_list = [50, 100, 200, 75]
 dropout_list = [0.1, 0.2, 0.15, 0.3]
-max_features_list = [20000, 40000, 80000]
+max_features_list = [20000, 30000]  # , 40000] # 80000]
 learning_rate_list = [
     (0.002, 0.003, 0.000),
     (0.002, 0.002, 0.002, 0.003, 0.000),
