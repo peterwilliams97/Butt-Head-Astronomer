@@ -70,7 +70,7 @@ def get_embedding_path(embed_name, embed_size):
     return embedding_path
 
 
-if True:
+if False:
     for embed_name, (glove_name, glove_sizes) in GLOVE_SETS.items():
         for embed_size in glove_sizes:
             embeddings_path = get_embedding_path(embed_name, embed_size)
@@ -78,10 +78,19 @@ if True:
 
 
 embeddings_index = None
+embeddings_name = None
+embedddings_size = None
 
 
 def get_embeddings_index(embed_name, embed_size):
-    global embeddings_index
+    global embeddings_index, embeddings_name, embedddings_size
+
+    if embeddings_name != embed_name or embedddings_size != embed_size:
+        if embeddings_index is not None:
+            del embeddings_index
+            embeddings_index = None
+        embeddings_name = embed_name
+        embedddings_size = embed_size
 
     if embeddings_index is None:
         assert embed_name in GLOVE_SETS, embed_name
@@ -97,6 +106,14 @@ def get_embeddings_index(embed_name, embed_size):
                     print('%7d embeddings %4.1f sec' % (i + 1, time.clock() - t0))
         xprint('%7d embeddings %4.1f sec' % (len(embeddings_index), time.clock() - t0))
     return embeddings_index
+
+
+if False:
+    for embed_name, (glove_name, glove_sizes) in GLOVE_SETS.items():
+        for embed_size in glove_sizes:
+            ei = get_embeddings_index(embed_name, embed_size)
+            assert ei
+
 
 
 class RocAucEvaluation(Callback):

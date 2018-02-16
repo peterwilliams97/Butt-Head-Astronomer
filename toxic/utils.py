@@ -44,6 +44,8 @@ def xprint_init(name):
 
 def xprint(*args):
     print(*args)
+    if xprint_f is None:
+        return
     print(*args, file=xprint_f)
     xprint_f.flush()
 
