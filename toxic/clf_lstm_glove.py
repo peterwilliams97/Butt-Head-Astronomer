@@ -26,6 +26,7 @@
     Thanks to (https://www.kaggle.com/CVxTz/keras-bidirectional-lstm-baseline-lb-0-051)
 """
 import os
+import time
 from os.path import join
 import numpy as np
 from keras.preprocessing import text
@@ -72,17 +73,18 @@ if True:
             assert os.path.exists(embeddings_path), embeddings_path
 
 
-def get_coefs(word, *arr):
-    """Read the glove word vectors (space delimited strings) into a dictionary from word->vector.
-    """
-    return word, np.asarray(arr, dtype='float32')
-
-
 def get_embeddings_index(embed_name, embed_size):
     assert embed_name in GLOVE_SETS, embed_name
     embeddings_path = get_embedding_path(embed_name, embed_size)
+    embeddings_index = {}
     with open(embeddings_path, 'rb') as f:
-        embeddings_index = dict(get_coefs(*o.strip().split()) for o in f)
+        t0 = time.clock()
+        for i, line in enumerate(f):
+            parts = line.strip().split()
+            embeddings_index[parts[0]] = np.asarray(parts[1:], dtype='float32')
+            if (i + 1) % 200000 == 0:
+                print('%7d embeddings %.1f sec' % (i + 1, time.clock() - t0))
+    print('%7d embeddings %.1f sec' % (len(embeddings_index), time.clock() - t0))
     return embeddings_index
 
 
@@ -115,7 +117,7 @@ def get_embeddings(tokenizer, embed_name, embed_size, max_features):
     # generating the random init.
     all_embs = np.stack(embeddings_index.values())
     emb_mean, emb_std = all_embs.mean(), all_embs.std()
-    print('emb_mean,emb_std:', emb_mean, emb_std)
+    print('emb_mean=%.3f emb_std=%.3f' % (emb_mean, emb_std))
 
     word_index = tokenizer.word_index
     nb_words = min(max_features, len(word_index))
@@ -136,9 +138,9 @@ def get_model(tokenizer, embed_name, embed_size, maxlen, max_features, dropout):
     assert embed_name in GLOVE_SETS, embed_name
     embedding_matrix = get_embeddings(tokenizer, embed_name, embed_size, max_features)
     # Bidirectional LSTM with half-size embedding with two fully connected layers
-    print('maxlen, [max_features, embed_size], tembedding_matrix', maxlen, [max_features, embed_size],
-          embedding_matrix.shape)
-    print('embedding_matrix', embedding_matrix.shape)
+    print('maxlen=%d [max_features, embed_size]=%s, embedding_matrix%s' % (maxlen,
+        [max_features, embed_size], dim(embedding_matrix)))
+    print('embedding_matrix', dim(embedding_matrix))
 
     inp = Input(shape=(maxlen,))
     x = Embedding(max_features, embed_size, weights=[embedding_matrix], trainable=True)(inp)
@@ -174,6 +176,8 @@ def tokenize(tokenizer, df, maxlen):
 
 
 def lr_schedule(epoch, learning_rate):
+    m = min(len(learning_rate) - 1, epoch)
+    return learning_rate[m]
     n = epoch // len(learning_rate)
     m = epoch % len(learning_rate)
     fac = 0.5 ** n
@@ -225,7 +229,7 @@ class ClfLstmGlove:
         X_train0 = tokenize(self.tokenizer, train, maxlen=self.maxlen)
 
         for fold in range(n_folds):
-            X_train, X_val, y_train, y_val = train_test_split(X_train0, y_train0, test_size=0.05)
+            X_train, X_val, y_train, y_val = train_test_split(X_train0, y_train0, test_size=0.1)
             self.fit_fold(X_train, X_val, y_train, y_val, fold=fold)
 
     def fit_fold(self, X_train, X_val, y_train, y_val, fold):

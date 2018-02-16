@@ -41,3 +41,5 @@ use 2 validation sets and average XX
 increase validation set size for better stopping
 train:test => 80:20
 try turning off trainable embeddings
+multitask learning
+transfer learning (jhoward)

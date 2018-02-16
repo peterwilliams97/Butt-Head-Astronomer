@@ -12,7 +12,7 @@ from os.path import join
 from sklearn.metrics import roc_auc_score
 from sklearn.model_selection import train_test_split
 import matplotlib.pyplot as plt
-from utils import COMMENT, DATA_ROOT
+from utils import COMMENT, DATA_ROOT, dim
 
 
 VERBOSE = False
@@ -126,6 +126,41 @@ def label_score(auc):
     return '(%s)' % ', '.join(['%s:%.3f' % (col, auc[j]) for j, col in enumerate(LABEL_COLS)])
 
 
+def describe(y):
+    """Return table of values
+        min, mean, max
+    """
+    MEASURES = ['min', 'mean', 'max']
+    stats = np.zeros((3, len(LABEL_COLS)), dtype=np.float64)
+    print('stats=%s' % dim(stats))
+    for j, col in enumerate(LABEL_COLS):
+        stats[0, j] = y[:, j].min()
+        stats[1, j] = y[:, j].mean()
+        stats[2, j] = y[:, j].max()
+
+    def draw(name, vals, sep='|'):
+        vals = ['%12s' % v for v in ([name] + vals)]
+        print((' %s ' % sep).join(vals))
+
+    def draw_bar():
+        bar = '-' * 12
+        draw(bar, [bar] * len(LABEL_COLS), sep='+')
+
+    draw_bar()
+    draw('', LABEL_COLS)
+    draw_bar()
+    for i, measure in enumerate(MEASURES):
+        draw(measure, ['%10.4f' % z for z in stats[i, :]])
+    draw_bar()
+
+
+if False:
+    y = np.random.uniform(low=-1.0, high=1.0, size=(1000, len(LABEL_COLS)))
+    print('y=%s' % dim(y))
+    describe(y)
+    assert False
+
+
 def _evaluate(get_clf, train, i):
     print('_evaluate %3d %s' % (i, '-' * 66))
     train_part, test_part = split_data(train, 0.7)
@@ -141,6 +176,7 @@ def _evaluate(get_clf, train, i):
         auc[j] = roc_auc_score(y_true, y_pred)
     mean_auc = auc.mean()
     print('%5d: auc=%.3f %s' % (i, mean_auc, label_score(auc)))
+    describe(preds)
     return auc
 
 
