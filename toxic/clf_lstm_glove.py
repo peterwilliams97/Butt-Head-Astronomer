@@ -51,9 +51,10 @@ GLOVE_SETS = {
     '840B': ('glove.840B.300d', tuple([300]))
 }
 
-GLOVE_SIZES = (50, 100, 200, 300)
-# Glove dimension 50
-EMBEDDING_DIR = join(DATA_ROOT, 'glove.6B')
+
+def valid_embedding(embed_name, embed_size):
+    _, glove_sizes = GLOVE_SETS[embed_name]
+    return embed_size in glove_sizes
 
 
 def get_embedding_path(embed_name, embed_size):
@@ -142,7 +143,7 @@ def get_embeddings(tokenizer, embed_name, embed_size, max_features):
     return embedding_matrix
 
 
-def get_model(tokenizer, embed_name, embed_size, maxlen, max_features, dropout):
+def get_model(n_hidden, tokenizer, embed_name, embed_size, maxlen, max_features, dropout):
     """Bi-di LSTM with some attention (return_sequences=True)
     """
     assert embed_name in GLOVE_SETS, embed_name
@@ -154,7 +155,7 @@ def get_model(tokenizer, embed_name, embed_size, maxlen, max_features, dropout):
 
     inp = Input(shape=(maxlen,))
     x = Embedding(max_features, embed_size, weights=[embedding_matrix], trainable=True)(inp)
-    x = Bidirectional(LSTM(100, return_sequences=True, dropout=dropout, recurrent_dropout=dropout))(x)
+    x = Bidirectional(LSTM(n_hidden, return_sequences=True, dropout=dropout, recurrent_dropout=dropout))(x)
     x = GlobalMaxPool1D()(x)
     x = BatchNormalization()(x)
     x = Dense(50, activation="relu")(x)
@@ -200,19 +201,17 @@ def get_model_path(model_name, fold):
     return os.path.join(MODEL_DIR, '%s_%d.hdf5' % (model_name, fold))
 
 
-n_folds = 2
-
-
 class ClfLstmGlove:
 
-    def __init__(self, embed_name='6B', embed_size=50, maxlen=100, max_features=20000, dropout=0.1,
-        epochs=3, batch_size=64, learning_rate=[0.002, 0.003, 0.000]):
+    def __init__(self, n_hidden=50, embed_name='6B', embed_size=50, maxlen=100, max_features=20000, dropout=0.1,
+        epochs=3, batch_size=64, learning_rate=[0.002, 0.003, 0.000], n_folds=2):
         """
             embed_size: Size of embedding vectors
             maxlen: Max length of comment text
             max_features: Maximum vocabulary size
         """
         assert embed_name in GLOVE_SETS, embed_name
+        self.n_hidden = n_hidden
         self.embed_name = embed_name
         self.embed_size = embed_size
         self.maxlen = maxlen
@@ -221,6 +220,7 @@ class ClfLstmGlove:
         self.epochs = epochs
         self.batch_size = batch_size
         self.learning_rate = learning_rate
+        self.n_folds = n_folds
 
         self.description = ', '.join('%s=%s' % (k, v) for k, v in sorted(self.__dict__.items()))
 
@@ -232,19 +232,19 @@ class ClfLstmGlove:
 
     def fit(self, train):
         self.tokenizer = train_tokenizer(train, self.max_features)
-        self.model = get_model(self.tokenizer, self.embed_name, self.embed_size, self.maxlen,
+        self.model = get_model(self.n_hidden, self.tokenizer, self.embed_name, self.embed_size, self.maxlen,
             self.max_features, self.dropout)
 
         y_train0 = train[LABEL_COLS].values
         X_train0 = tokenize(self.tokenizer, train, maxlen=self.maxlen)
 
-        for fold in range(n_folds):
+        for fold in range(self.n_folds):
             X_train, X_val, y_train, y_val = train_test_split(X_train0, y_train0, test_size=0.1)
             self.fit_fold(X_train, X_val, y_train, y_val, fold=fold)
 
     def fit_fold(self, X_train, X_val, y_train, y_val, fold):
         xprint('"' * 80)
-        xprint('fitting %d of %d folds X_train=%s X_val=%s' % (fold, n_folds, dim(X_train), dim(X_val)))
+        xprint('fitting %d of %d folds X_train=%s X_val=%s' % (fold, self.n_folds, dim(X_train), dim(X_val)))
         model_path = get_model_path(self.model_name, fold)
 
         checkpoint = ModelCheckpoint(model_path, monitor='val_auc', verbose=1,
@@ -260,10 +260,10 @@ class ClfLstmGlove:
 
     def predict(self, test):
         X_test = tokenize(self.tokenizer, test, maxlen=self.maxlen)
-        y_test_folds = [self.predict_fold(X_test, fold=fold) for fold in range(n_folds)]
+        y_test_folds = [self.predict_fold(X_test, fold=fold) for fold in range(self.n_folds)]
         y0 = y_test_folds[0]
-        y_test = np.zeros((n_folds, y0.shape[0], y0.shape[1]), dtype=y0.dtype)
-        for fold in range(n_folds):
+        y_test = np.zeros((self.n_folds, y0.shape[0], y0.shape[1]), dtype=y0.dtype)
+        for fold in range(self.n_folds):
             y_test[fold, :, :] = y_test_folds[fold]
         return y_test.mean(axis=0)
 

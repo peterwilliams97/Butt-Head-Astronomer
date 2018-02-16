@@ -17,7 +17,7 @@ from utils import COMMENT, DATA_ROOT, dim, xprint
 
 VERBOSE = False
 GRAPHS = False
-N_SAMPLES = -1  # > 0 for testing
+N_SAMPLES = 10000 # > 0 for testing
 SEED = 234
 
 SUBMISSION_DIR = 'submissions'
@@ -177,6 +177,11 @@ def _evaluate(get_clf, train, i, frac):
     xprint('%5d: auc=%.3f %s' % (i, mean_auc, label_score(auc)))
     describe(preds)
     return auc
+
+
+def auc_score(auc):
+    mean_auc = auc.mean(axis=0)
+    return mean_auc.mean(), mean_auc
 
 
 def show_auc(auc):
