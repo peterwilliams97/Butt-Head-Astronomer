@@ -7,7 +7,7 @@ from framework import evaluate, seed_random, auc_score
 from clf_lstm_glove import ClfLstmGlove, valid_embedding
 
 
-epochs = 1
+epochs = 40
 submission_name = 'lstm_glove_explore'
 
 
@@ -66,7 +66,7 @@ def beam_search(list_list, beam_size=3, n=1):
     beam = [tuple()]
     params_auc = {}
 
-    i = 0
+    trial = 0
     for k, klist in enumerate(list_list):
         for bval in beam:
             for kval in klist:
@@ -77,14 +77,15 @@ def beam_search(list_list, beam_size=3, n=1):
                     continue
                 print('###', len(params), params)
                 try:
-                    auc, desc = get_auc(i, params, n)
+                    auc, desc = get_auc(trial, params, n)
                 except Exception as e:
                     print('&&&', e)
                     continue
+                print('^^^ trial %d' % trial)
                 score, col_scores = auc_score(auc)
                 scores.append((score, col_scores, params, desc))
                 params_auc[params] = col_scores
-                i += 1
+                trial += 1
         scores.sort(key=lambda x: (-x[0], x[1:]))
         beam = [params for _, _, params, _ in scores[:beam_size]]
         xprint('!' * 80)
