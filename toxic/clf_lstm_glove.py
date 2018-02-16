@@ -48,7 +48,7 @@ from utils import DATA_ROOT, dim
 GLOVE_SETS = {
     'twitter': ('glove.twitter.27B', tuple([25, 50, 100, 200])),
     '6B': ('glove.6B', tuple([50, 100, 200, 300])),
-    # '840B': ('glove.840B.300d', tuple([300]))
+    '840B': ('glove.840B.300d', tuple([300]))
 }
 
 GLOVE_SIZES = (50, 100, 200, 300)
@@ -61,7 +61,10 @@ def get_embedding_path(embed_name, embed_size):
     assert embed_size in glove_sizes, (embed_name, embed_size, glove_sizes)
     embedding_dir = join(DATA_ROOT, glove_name)
     assert os.path.exists(embedding_dir), embedding_dir
-    embedding_path = join(embedding_dir, '%s.%dd.txt' % (glove_name, embed_size))
+    if embed_name == '840B':
+        embedding_path = join(embedding_dir, '%s.txt' % glove_name)
+    else:
+        embedding_path = join(embedding_dir, '%s.%dd.txt' % (glove_name, embed_size))
     assert os.path.exists(embedding_path), embedding_path
     return embedding_path
 
@@ -73,18 +76,25 @@ if True:
             assert os.path.exists(embeddings_path), embeddings_path
 
 
+embeddings_index = None
+
+
 def get_embeddings_index(embed_name, embed_size):
-    assert embed_name in GLOVE_SETS, embed_name
-    embeddings_path = get_embedding_path(embed_name, embed_size)
-    embeddings_index = {}
-    with open(embeddings_path, 'rb') as f:
-        t0 = time.clock()
-        for i, line in enumerate(f):
-            parts = line.strip().split()
-            embeddings_index[parts[0]] = np.asarray(parts[1:], dtype='float32')
-            if (i + 1) % 200000 == 0:
-                print('%7d embeddings %.1f sec' % (i + 1, time.clock() - t0))
-    print('%7d embeddings %.1f sec' % (len(embeddings_index), time.clock() - t0))
+    global embeddings_index
+
+    if embeddings_index is None:
+        assert embed_name in GLOVE_SETS, embed_name
+        embeddings_path = get_embedding_path(embed_name, embed_size)
+        print('get_embeddings_index: embeddings_path=%s' % embeddings_path)
+        embeddings_index = {}
+        with open(embeddings_path, 'rb') as f:
+            t0 = time.clock()
+            for i, line in enumerate(f):
+                parts = line.strip().split()
+                embeddings_index[parts[0]] = np.asarray(parts[1:], dtype='float32')
+                if (i + 1) % 200000 == 0:
+                    print('%7d embeddings %4.1f sec' % (i + 1, time.clock() - t0))
+        print('%7d embeddings %4.1f sec' % (len(embeddings_index), time.clock() - t0))
     return embeddings_index
 
 
@@ -144,7 +154,7 @@ def get_model(tokenizer, embed_name, embed_size, maxlen, max_features, dropout):
 
     inp = Input(shape=(maxlen,))
     x = Embedding(max_features, embed_size, weights=[embedding_matrix], trainable=True)(inp)
-    x = Bidirectional(LSTM(50, return_sequences=True, dropout=dropout, recurrent_dropout=dropout))(x)
+    x = Bidirectional(LSTM(100, return_sequences=True, dropout=dropout, recurrent_dropout=dropout))(x)
     x = GlobalMaxPool1D()(x)
     x = BatchNormalization()(x)
     x = Dense(50, activation="relu")(x)
@@ -178,12 +188,12 @@ def tokenize(tokenizer, df, maxlen):
 def lr_schedule(epoch, learning_rate):
     m = min(len(learning_rate) - 1, epoch)
     return learning_rate[m]
-    n = epoch // len(learning_rate)
-    m = epoch % len(learning_rate)
-    fac = 0.5 ** n
-    lr = learning_rate[m] * fac
-    print('^^^ epoch=%d n=%d m=%d fac=%.3f lr=%.5f' % (epoch, n, m, fac, lr))
-    return lr
+    # n = epoch // len(learning_rate)
+    # m = epoch % len(learning_rate)
+    # fac = 0.5 ** n
+    # lr = learning_rate[m] * fac
+    # # print('^^^ epoch=%d n=%d m=%d fac=%.3f lr=%.5f' % (epoch, n, m, fac, lr))
+    # return lr
 
 
 def get_model_path(model_name, fold):
@@ -212,10 +222,10 @@ class ClfLstmGlove:
         self.batch_size = batch_size
         self.learning_rate = learning_rate
 
+        self.description = ', '.join('%s=%s' % (k, v) for k, v in sorted(self.__dict__.items()))
+
         os.makedirs(MODEL_DIR, exist_ok=True)
         self.model_name = 'lstm_glove_weights_%03d_%03d_%04d' % (embed_size, maxlen, max_features)
-
-        self.description = ', '.join('%s=%s' % (k, v) for k, v in sorted(self.__dict__.items()))
 
     def __repr__(self):
         return 'ClfLstmGlove(%s)' % self.description
@@ -233,6 +243,7 @@ class ClfLstmGlove:
             self.fit_fold(X_train, X_val, y_train, y_val, fold=fold)
 
     def fit_fold(self, X_train, X_val, y_train, y_val, fold):
+        print('"' * 80)
         print('fitting %d of %d folds X_train=%s X_val=%s' % (fold, n_folds, dim(X_train), dim(X_val)))
         model_path = get_model_path(self.model_name, fold)
 

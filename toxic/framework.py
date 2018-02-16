@@ -11,7 +11,7 @@ import sys
 from os.path import join
 from sklearn.metrics import roc_auc_score
 from sklearn.model_selection import train_test_split
-import matplotlib.pyplot as plt
+# import matplotlib.pyplot as plt
 from utils import COMMENT, DATA_ROOT, dim
 
 
@@ -96,11 +96,9 @@ def split_data(df, frac):
     n = int(len(df) * frac)
     train = df.loc[indexes[:n]]
     test = df.loc[indexes[n:]]
-    # train, test = df_split(df, frac)
 
     show_values('train', train)
     show_values('test', test)
-    # assert False
     print('split_data: %.2f of %d: train=%d test=%d' % (frac, len(df), len(train), len(test)))
     return train, test
 
@@ -161,9 +159,10 @@ if False:
     assert False
 
 
-def _evaluate(get_clf, train, i):
+
+def _evaluate(get_clf, train, i, frac):
     print('_evaluate %3d %s' % (i, '-' * 66))
-    train_part, test_part = split_data(train, 0.7)
+    train_part, test_part = split_data(train, frac)
 
     clf = get_clf()
     clf.fit(train_part)
@@ -197,11 +196,11 @@ def show_auc(auc):
     ))
 
 
-def evaluate(get_clf, n=1):
+def evaluate(get_clf, n=1, frac=0.7):
     train, _, _ = load_data()
     auc = np.zeros((n, len(LABEL_COLS)), dtype=np.float64)
     for i in range(n):
-        auc[i, :] = _evaluate(get_clf, train, i)
+        auc[i, :] = _evaluate(get_clf, train, i, frac)
         show_auc(auc[:i + 1, :])
     print('program=%s' % sys.argv[0])
     return auc

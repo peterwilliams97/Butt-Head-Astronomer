@@ -7,30 +7,30 @@ from clf_lstm_glove import ClfLstmGlove
 
 
 # Classifier parameters
-embed_size = 50
+embed_name = '840B'
+embed_size = 300
 maxlen = 100
 max_features = 20000
-epochs = 3
-learning_rate = [
-    # 0.007, 0.007, 0.005,
-     0.002, 0.003, 0.000]
+epochs = 40
+learning_rate = [# 0.007, 0.007, 0.005,
+                 0.002, 0.003, 0.000]
 dropout = 0.1
 
-submission_name = 'lstm_glove_%03d_%03d_%04d_%.3f.csv' % (embed_size, maxlen, max_features,
-    dropout)
+submission_name = 'lstm_glove_%s_%3d_%3d_%4d_%.3f.XXXX.csv' % (embed_name, embed_size, maxlen,
+    max_features, dropout)
 
 
 def get_clf():
-    return ClfLstmGlove(embed_size=embed_size, maxlen=maxlen, max_features=max_features,
-            dropout=dropout,
-            epochs=epochs, learning_rate=learning_rate)
+    return ClfLstmGlove(embed_name=embed_name, embed_size=embed_size, maxlen=maxlen,
+        max_features=max_features, dropout=dropout, epochs=epochs, learning_rate=learning_rate)
 
 
 print(get_clf())
 if False:
     make_submission(get_clf, submission_name)
-if True:
+else:
     evaluate(get_clf, n=3)
+
 print('embed_size, maxlen, max_features =', embed_size, maxlen, max_features)
 print(get_clf())
 print('=' * 80)
@@ -83,4 +83,5 @@ auc=0.978 +- 0.007 (1%) range=0.017 (2%)
     maxlen = 100
     max_features = 20000
        0: auc=0.980 (toxic:0.973, severe_toxic:0.987, obscene:0.986, threat:0.978, insult:0.980, identity_hate:0.978)
+
 """
