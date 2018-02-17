@@ -2,13 +2,14 @@
 """
     Another Keras solution to Kaggle Toxic Comment challenge
 """
+import time
 from utils import xprint_init, xprint
-from framework import evaluate, seed_random, auc_score
+from framework import Evaluator, seed_random, auc_score
 from clf_lstm_glove import ClfLstmGlove, valid_embedding
 
 
 epochs = 40
-submission_name = 'lstm_glove_explore'
+submission_name = 'lstm_glove_explore1'
 
 
 def valid_embedding_params(n_hidden, dropout, max_features, learning_rate, maxlen, n_folds, embed_name,
@@ -17,7 +18,7 @@ def valid_embedding_params(n_hidden, dropout, max_features, learning_rate, maxle
     return valid_embedding(embed_name, embed_size)
 
 
-def evaluate_params(i, n_hidden, dropout, max_features, learning_rate, maxlen, n_folds, embed_name,
+def evaluate_params(evaluator, trial, n_hidden, dropout, max_features, learning_rate, maxlen, n_folds, embed_name,
     embed_size, n=1):
 
     def get_clf():
@@ -27,23 +28,23 @@ def evaluate_params(i, n_hidden, dropout, max_features, learning_rate, maxlen, n
 
     xprint('#' * 80)
     xprint(get_clf())
-    seed_random(seed=i + 1000)
+    seed_random(seed=trial + 1000)
 
     xprint('evaluate_params(n_hidden=%d, dropout=%.3f, max_features=%d, learning_rate=%s' % (
         n_hidden, dropout, max_features, learning_rate))
     xprint(get_clf())
 
-    auc = evaluate(get_clf, n=n)
+    ok, auc = evaluator.evaluate(get_clf)
     xprint('=' * 80)
-    return auc, str(get_clf())
+    return ok, auc, str(get_clf())
 
 
-def get_auc(i, params, n):
+def get_auc(evaluator, trial, params):
     n_hidden, dropout, max_features, learning_rate, maxlen, n_folds, embed_name, embed_size = params
     print('$$', n_hidden, dropout, max_features, learning_rate, maxlen, n_folds, embed_name, embed_size)
     assert isinstance(max_features, int), max_features
-    return evaluate_params(i, n_hidden, dropout, max_features, learning_rate, maxlen, n_folds,
-        embed_name, embed_size, n=n)
+    return evaluate_params(evaluator, trial, n_hidden, dropout, max_features, learning_rate, maxlen, n_folds,
+        embed_name, embed_size)
 
 
 def blend(bval, k, kval):
@@ -58,15 +59,43 @@ def blend(bval, k, kval):
     return params
 
 
+scores_t0 = time.clock()
+scores_len = 0
+
+
+def show_scores(scores, force=False):
+    global scores_t0, scores_len
+
+    if not force:
+        if not scores or len(scores) == scores_len:
+            return
+        if time.clock() < scores_t0 + 60.0:
+            return
+    scores_t0 = time.clock()
+    scores_len = len(scores)
+
+    scores.sort(key=lambda x: (-x[0], x[2]))
+    xprint('!' * 80)
+    with open('all.results.txt', 'wt') as f:
+        for i, (score, col_scores, params, desc) in enumerate(scores):
+            if i < 10:
+                xprint('%4d: auc=%.3f %s %s %s' % (i, score, col_scores, params, desc))
+            print('%4d: auc=%.3f %s %s %s' % (i, score, col_scores, params, desc), file=f)
+
+
 def beam_search(list_list, beam_size=3, n=1):
     xprint('-' * 80)
     xprint('beam_search:')
+
+    evaluator = Evaluator(n=n)
 
     scores = []
     beam = [tuple()]
     params_auc = {}
 
     trial = 0
+    t0 = time.clock()
+
     for k, klist in enumerate(list_list):
         for bval in beam:
             for kval in klist:
@@ -76,24 +105,19 @@ def beam_search(list_list, beam_size=3, n=1):
                 if not valid_embedding_params(*params):
                     continue
                 print('###', len(params), params)
-                try:
-                    auc, desc = get_auc(trial, params, n)
-                except Exception as e:
-                    print('&&&', e)
+                ok, auc, desc = get_auc(evaluator, trial, params)
+                if not ok:
+                    print('&&& Exception in classifier')
                     continue
-                print('^^^ trial %d' % trial)
+                print('^^^ trial=%d duration=%.1f sec' % (trial, time.clock() - t0))
                 score, col_scores = auc_score(auc)
                 scores.append((score, col_scores, params, desc))
                 params_auc[params] = col_scores
                 trial += 1
-        scores.sort(key=lambda x: (-x[0], x[1:]))
+                show_scores(scores)
+        scores.sort(key=lambda x: (-x[0], x[2]))
         beam = [params for _, _, params, _ in scores[:beam_size]]
-        xprint('!' * 80)
-        with open('all.results.txt', 'wt') as f:
-            for i, (score, col_scores, params, desc) in enumerate(scores):
-                if i < 10:
-                    xprint('%4d: auc=%.3f %s %s %s' % (i, score, col_scores, params, desc))
-                print('%4d: auc=%.3f %s %s %s' % (i, score, col_scores, params, desc), file=f)
+        show_scores(scores, force=True)
         xprint(k, '|' * 80)
 
 

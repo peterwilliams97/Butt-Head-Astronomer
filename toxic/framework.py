@@ -88,11 +88,20 @@ def df_split(df, frac):
     return train, test
 
 
-def split_data(df, frac):
-    show_values('df', df)
+def make_shuffled_indexes(df, n):
 
     indexes = list(df.index)
-    my_shuffle(indexes)
+    shuffled_indexes = []
+    for i in range(n):
+        my_shuffle(indexes)
+        shuffled_indexes.append(indexes[:])
+    assert len(shuffled_indexes) == n
+    return shuffled_indexes
+
+
+def split_data(df, indexes, frac):
+    show_values('df', df)
+
     n = int(len(df) * frac)
     train = df.loc[indexes[:n]]
     test = df.loc[indexes[n:]]
@@ -159,26 +168,6 @@ if False:
     assert False
 
 
-
-def _evaluate(get_clf, train, i, frac):
-    xprint('_evaluate %3d %s' % (i, '-' * 66))
-    train_part, test_part = split_data(train, frac)
-
-    clf = get_clf()
-    clf.fit(train_part)
-    preds = clf.predict(test_part)
-
-    auc = np.zeros(len(LABEL_COLS), dtype=np.float64)
-    for j, col in enumerate(LABEL_COLS):
-        y_true = test_part[col]
-        y_pred = preds[:, j]
-        auc[j] = roc_auc_score(y_true, y_pred)
-    mean_auc = auc.mean()
-    xprint('%5d: auc=%.3f %s' % (i, mean_auc, label_score(auc)))
-    describe(preds)
-    return auc
-
-
 def auc_score(auc):
     mean_auc = auc.mean(axis=0)
     return mean_auc.mean(), mean_auc
@@ -201,14 +190,48 @@ def show_auc(auc):
     ))
 
 
-def evaluate(get_clf, n=1, frac=0.7):
-    train, _, _ = load_data()
-    auc = np.zeros((n, len(LABEL_COLS)), dtype=np.float64)
-    for i in range(n):
-        auc[i, :] = _evaluate(get_clf, train, i, frac)
-        show_auc(auc[:i + 1, :])
-    xprint('program=%s' % sys.argv[0])
-    return auc
+class Evaluator:
+
+    def __init__(self, n=1, frac=0.8):
+        self.n = n
+        self.frac = frac
+        self.train, _, _ = load_data()
+        self.shuffled_indexes = make_shuffled_indexes(self.train, self.n)
+        assert len(self.shuffled_indexes) == n, (len(self.shuffled_indexes))
+
+    def evaluate(self, get_clf):
+        auc = np.zeros((self.n, len(LABEL_COLS)), dtype=np.float64)
+        for i in range(self.n):
+            ok, auc[i, :] = self._evaluate(get_clf, i)
+            if not ok:
+                return ok, auc
+            show_auc(auc[:i + 1, :])
+        xprint('program=%s' % sys.argv[0])
+        return True, auc
+
+    def _evaluate(self, get_clf, i):
+        xprint('_evaluate %3d %s' % (i, '-' * 66))
+        assert 0 <= i < len(self.shuffled_indexes), (i, self.n, len(self.shuffled_indexes))
+        train_part, test_part = split_data(self.train, self.shuffled_indexes[i], self.frac)
+
+        auc = np.zeros(len(LABEL_COLS), dtype=np.float64)
+
+        try:
+            clf = get_clf()
+            clf.fit(train_part)
+            preds = clf.predict(test_part)
+        except Exception as e:
+            xprint('!!! _evaluate, exception=%s' % e)
+            return False, auc
+
+        for j, col in enumerate(LABEL_COLS):
+            y_true = test_part[col]
+            y_pred = preds[:, j]
+            auc[j] = roc_auc_score(y_true, y_pred)
+        mean_auc = auc.mean()
+        xprint('%5d: auc=%.3f %s' % (i, mean_auc, label_score(auc)))
+        describe(preds)
+        return True, auc
 
 
 if __name__ == '__main__':

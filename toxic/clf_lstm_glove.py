@@ -115,7 +115,6 @@ if False:
             assert ei
 
 
-
 class RocAucEvaluation(Callback):
     """ROC AUC for CV in Keras see for details: https://gist.github.com/smly/d29d079100f8d81b905e
     """
