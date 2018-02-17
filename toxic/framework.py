@@ -112,23 +112,6 @@ def split_data(df, indexes, frac):
     return train, test
 
 
-def make_submission(get_clf, submission_name):
-    submission_path = join(SUBMISSION_DIR, '%s.csv' % submission_name)
-    assert not os.path.exists(submission_path), submission_path
-    os.makedirs(SUBMISSION_DIR, exist_ok=True)
-
-    train, test, subm = load_data()
-    clf = get_clf()
-    clf.fit(train)
-    preds = clf.predict(test)
-
-    # And finally, create the submission file.
-    submid = pd.DataFrame({'id': subm['id']})
-    submission = pd.concat([submid, pd.DataFrame(preds, columns=LABEL_COLS)], axis=1)
-    submission.to_csv(submission_path, index=False)
-    xprint('Saved in %s' % submission_path)
-
-
 def label_score(auc):
     return '(%s)' % ', '.join(['%s:%.3f' % (col, auc[j]) for j, col in enumerate(LABEL_COLS)])
 
@@ -176,6 +159,7 @@ def auc_score(auc):
 def show_auc(auc):
     n = auc.shape[0]
     mean_auc = auc.mean(axis=0)
+    auc_mean = auc.mean(axis=1)
 
     xprint('-' * 110)
     for i in range(n):
@@ -183,10 +167,10 @@ def show_auc(auc):
     xprint('%5s: auc=%.3f %s' % ('Mean', mean_auc.mean(), label_score(mean_auc)))
     xprint('-' * 110)
     xprint('auc=%.3f +- %.3f (%.0f%%) range=%.3f (%.0f%%)' % (
-         mean_auc.mean(), mean_auc.std(),
-         100.0 * mean_auc.std() / mean_auc.mean(),
-         mean_auc.max() - mean_auc.min(),
-         100.0 * (mean_auc.max() - mean_auc.min()) / mean_auc.mean()
+         auc_mean.mean(), auc_mean.std(),
+         100.0 * auc_mean.std() / auc_mean.mean(),
+         auc_mean.max() - auc_mean.min(),
+         100.0 * (auc_mean.max() - auc_mean.min()) / auc_mean.mean()
     ))
 
 
@@ -232,6 +216,25 @@ class Evaluator:
         xprint('%5d: auc=%.3f %s' % (i, mean_auc, label_score(auc)))
         describe(preds)
         return True, auc
+
+
+def make_submission(get_clf, submission_name):
+    submission_path = join(SUBMISSION_DIR, '%s.csv' % submission_name)
+    assert not os.path.exists(submission_path), submission_path
+    os.makedirs(SUBMISSION_DIR, exist_ok=True)
+
+    train, test, subm = load_data()
+    clf = get_clf()
+    clf.fit(train)
+    preds = clf.predict(test)
+
+    describe(preds)
+
+    # And finally, create the submission file.
+    submid = pd.DataFrame({'id': subm['id']})
+    submission = pd.concat([submid, pd.DataFrame(preds, columns=LABEL_COLS)], axis=1)
+    submission.to_csv(submission_path, index=False)
+    xprint('Saved in %s' % submission_path)
 
 
 if __name__ == '__main__':
