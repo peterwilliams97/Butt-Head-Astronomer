@@ -9,7 +9,7 @@ from clf_lstm_glove import ClfLstmGlove, valid_embedding
 
 
 epochs = 40
-submission_name = 'lstm_glove_explore1'
+submission_name = 'lstm_glove_explore2'
 
 
 def valid_embedding_params(n_hidden, dropout, max_features, learning_rate, maxlen, n_folds, embed_name,
@@ -120,21 +120,24 @@ def beam_search(list_list, beam_size=3, n=1):
         show_scores(scores, force=True)
         xprint(k, '|' * 80)
 
+ # 0: auc=0.982 [0.97618082 0.98979687 0.98899464 0.97799804 0.98324871 0.97577216] (200, 0.1, 20000, (0.002, 0.003, 0.0, 0.001), 150, 1, '6B', 50) ClfLstmGlove(batch_size=64,
+ # dropout=0.1, embed_name=6B, embed_size=50, epochs=40, learning_rate=(0.002, 0.003, 0.0, 0.001), max_features=20000, maxlen=150, n_folds=1, n_hidden=200)
 
 # n_hidden, dropout, max_features, learning_rate
-n_hidden_list = [50, 100, 200, 75]
-dropout_list = [0.1, 0.2, 0.15, 0.3]
-max_features_list = [20000, 30000]  # , 40000] # 80000]
+n_hidden_list = [200] # , 100, 75, 50]
+dropout_list = [0.1, 0.2] #   0.15]
+max_features_list = [30000, 20000]  # , 40000] # 80000]
 learning_rate_list = [
-    (0.002, 0.003, 0.000),
+    (0.001, 0.001, 0.002, 0.003, 0.000),
+    # (0.002, 0.003, 0.000),
     (0.002, 0.002, 0.002, 0.003, 0.000),
-    (0.002, 0.003, 0.003, 0.003, 0.000),
-    (0.002, 0.003, 0.000, 0.001)
+    # (0.002, 0.003, 0.003, 0.003, 0.000),
+    # (0.002, 0.003, 0.000, 0.001),
 ]
-maxlen_list = [100, 150, 70, 200]
+maxlen_list = [150, 200, 100, 70]
 n_folds_list = [1, 2, 3]
-embed_name_list = ['6B', '840B', 'twitter']
-embed_size_list = [50, 300, 200, 100, 25]
+embed_name_list = ['840B', '6B', 'twitter']
+embed_size_list = [300, 200, 100, 50, 25]
 
 list_list = [
     n_hidden_list,
@@ -148,5 +151,5 @@ list_list = [
 ]
 
 xprint_init(submission_name)
-beam_search(list_list, beam_size=5, n=3)
+beam_search(list_list, beam_size=1, n=1)
 xprint('$' * 80)

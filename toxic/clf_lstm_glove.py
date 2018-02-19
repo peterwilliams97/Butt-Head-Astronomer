@@ -15,7 +15,7 @@
 
     5) Dataset size is small. So you may use some additional datasets and then finetune model
 
-    6) It's hard not to overfit the model and I have n't found yet a good way to solve this problem.
+    6) It's hard not to overfit the model and I haven't found yet a good way to solve this problem.
     BatchNormalization/Dropout don't really help.
     https://www.kaggle.com/c/jigsaw-toxic-comment-classification-challenge/discussion/46494263247
     Maybe Reccurent Batch Normalization can help, but it is'not implemented in keras.
@@ -266,7 +266,7 @@ class ClfLstmGlove:
 
         checkpoint = ModelCheckpoint(model_path, monitor='val_auc', verbose=1,
             save_best_only=True, mode='max')
-        early = EarlyStopping(monitor='val_auc', mode='max', patience=len(self.learning_rate))
+        early = EarlyStopping(monitor='val_auc', mode='max', patience=3)
         ra_val = RocAucEvaluation(validation_data=(X_val, y_val), interval=1)
         schedule = partial(lr_schedule, learning_rate=self.learning_rate)
         lr = callbacks.LearningRateScheduler(schedule, verbose=1)

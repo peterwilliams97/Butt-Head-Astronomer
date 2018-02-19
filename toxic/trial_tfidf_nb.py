@@ -3,8 +3,9 @@
     Framework for evaluating and submitting models to Kaggle Toxic Comment challenge
 """
 from sklearn.linear_model import LogisticRegression
-from xgboost import XGBClassifier
-from framework import evaluate, make_submission
+# from xgboost import XGBClassifier
+from utils import xprint_init
+from framework import Evaluator, make_submission
 from clf_tfidf_nb import ClfTfidfNB
 
 
@@ -16,11 +17,13 @@ def get_clf():
     return ClfTfidfNB(get_est, do_spacy=False)
 
 
+submission_name = 'tfidf_nb'
+xprint_init(submission_name)
 if False:
-    make_submission(get_clf, 'tfidf_nb.csv')
-
-if True:
-    evaluate(get_clf, n=5)
+    make_submission(get_clf, submission_name)
+else:
+    evaluator = Evaluator(n=3)
+    evaluator.evaluate(get_clf)
 
 """
     LogisticRegression regex tokenization

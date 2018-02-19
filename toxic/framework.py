@@ -161,7 +161,7 @@ def show_auc(auc):
     mean_auc = auc.mean(axis=0)
     auc_mean = auc.mean(axis=1)
 
-    xprint('-' * 110)
+    xprint('-' * 110, 'n=%d' % n)
     for i in range(n):
         print('%5d: auc=%.3f %s' % (i, auc[i].mean(), label_score(auc[i])))
     xprint('%5s: auc=%.3f %s' % ('Mean', mean_auc.mean(), label_score(mean_auc)))
@@ -172,6 +172,46 @@ def show_auc(auc):
          auc_mean.max() - auc_mean.min(),
          100.0 * (auc_mean.max() - auc_mean.min()) / auc_mean.mean()
     ))
+
+
+def cmt(row, m=120):
+    text = row['comment_text'].strip()
+    return '%3d %s' % (len(text), text[:m].replace('\n', ' '))
+
+
+def show_best_worst(test, pred, n=20, m=100):
+    pred_df = pd.DataFrame(pred, index=test.index, columns=['%s_pred' % col for col in LABEL_COLS])
+    test_pred = pd.concat([test, pred_df], axis=1)
+    print('test=%s pred=%s test_pred=%s' % (dim(test), dim(pred), dim(test_pred)))
+    assert len(test) == len(pred) == len(test_pred)
+
+    xprint('$' * 80)
+    xprint('Best and worst predictions')
+    for j, col in enumerate(LABEL_COLS):
+        print('%2d: %-10s: %s' % (j, col, '`' * 80))
+        col_pred = '%s_pred' % col
+        test_pred.sort_values(col_pred, ascending=True, inplace=True)
+        is_0 = test_pred[test_pred[col] == 0]
+        is_1 = test_pred[test_pred[col] == 1]
+        print('col=%s is_0=%d is_1=%d=%.1f%% ' % (col, len(is_0), len(is_1),
+            100.0 * len(is_1) / len(test)))
+        assert len(is_0) + len(is_1) == len(test_pred)
+        # Best is_0, is_1
+        xprint('Is 0. Predicted ~0. Good.', col)
+        for i in range(min(len(is_0), n)):
+            xprint('%4d: %.3f %s' % (i, is_0.iloc[i][col_pred], cmt(is_0.iloc[i])))
+        xprint('Is 1. Predicted ~1. Good.', col)
+        for i in range(min(len(is_1), n)):
+            k = len(is_1) - 1 - i
+            xprint('%4d: %.3f %s' % (i, is_1.iloc[k][col_pred], cmt(is_1.iloc[k])))
+        # Worst is_0, is_1
+        xprint('Is 1. Predicted ~0. BAD.', col)
+        for i in range(min(len(is_1), n)):
+            xprint('%4d: %.3f %s' % (i, is_1.iloc[i][col_pred], cmt(is_1.iloc[i])))
+        xprint('Is 0. Predicted ~1. BAD.', col)
+        for i in range(min(len(is_0), n)):
+            k = len(is_0) - 1 - i
+            xprint('%4d: %.3f %s' % (i, is_0.iloc[k][col_pred], cmt(is_0.iloc[k])))
 
 
 class Evaluator:
@@ -194,27 +234,39 @@ class Evaluator:
         return True, auc
 
     def _evaluate(self, get_clf, i):
-        xprint('_evaluate %3d %s' % (i, '-' * 66))
+        xprint('_evaluate %3d of %d  %s' % (i, self.n, '-' * 66))
         assert 0 <= i < len(self.shuffled_indexes), (i, self.n, len(self.shuffled_indexes))
         train_part, test_part = split_data(self.train, self.shuffled_indexes[i], self.frac)
 
+        CLIPS = [0.0, 1.0e-6, 1.0e-5, 1.0e-4, 1.0e-3, 1.0e-2, 0.1, 0.2, 0.3, 0.5, 0.8, 0.9]
         auc = np.zeros(len(LABEL_COLS), dtype=np.float64)
 
         try:
             clf = get_clf()
             clf.fit(train_part)
-            preds = clf.predict(test_part)
+            pred = clf.predict(test_part)
         except Exception as e:
             xprint('!!! _evaluate, exception=%s' % e)
             return False, auc
 
+        for k, delta in enumerate(CLIPS):
+            auc = np.zeros(len(LABEL_COLS), dtype=np.float64)
+            for j, col in enumerate(LABEL_COLS):
+                y_true = test_part[col]
+                y_pred = np.clip(pred[:, j], 0.0, 1.0 - delta)
+                auc[j] = roc_auc_score(y_true, y_pred)
+            mean_auc = auc.mean()
+            xprint('%5d: %d: delta=%6g auc=%.5f %s' % (i, k, delta, mean_auc, label_score(auc)))
+
+        auc = np.zeros(len(LABEL_COLS), dtype=np.float64)
         for j, col in enumerate(LABEL_COLS):
             y_true = test_part[col]
-            y_pred = preds[:, j]
+            y_pred = pred[:, j]
             auc[j] = roc_auc_score(y_true, y_pred)
         mean_auc = auc.mean()
         xprint('%5d: auc=%.3f %s' % (i, mean_auc, label_score(auc)))
-        describe(preds)
+        describe(pred)
+        show_best_worst(test_part, pred)
         return True, auc
 
 
@@ -226,13 +278,13 @@ def make_submission(get_clf, submission_name):
     train, test, subm = load_data()
     clf = get_clf()
     clf.fit(train)
-    preds = clf.predict(test)
+    pred = clf.predict(test)
 
-    describe(preds)
+    describe(pred)
 
     # And finally, create the submission file.
     submid = pd.DataFrame({'id': subm['id']})
-    submission = pd.concat([submid, pd.DataFrame(preds, columns=LABEL_COLS)], axis=1)
+    submission = pd.concat([submid, pd.DataFrame(pred, columns=LABEL_COLS)], axis=1)
     submission.to_csv(submission_path, index=False)
     xprint('Saved in %s' % submission_path)
 
