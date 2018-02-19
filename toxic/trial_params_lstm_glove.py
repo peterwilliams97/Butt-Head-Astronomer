@@ -76,7 +76,7 @@ def show_scores(scores, force=False):
 
     scores.sort(key=lambda x: (-x[0], x[2]))
     xprint('!' * 80)
-    with open('all.results.txt', 'wt') as f:
+    with open('all.results3.txt', 'wt') as f:
         for i, (score, col_scores, params, desc) in enumerate(scores):
             if i < 10:
                 xprint('%4d: auc=%.3f %s %s %s' % (i, score, col_scores, params, desc))
@@ -124,9 +124,9 @@ def beam_search(list_list, beam_size=3, n=1):
  # dropout=0.1, embed_name=6B, embed_size=50, epochs=40, learning_rate=(0.002, 0.003, 0.0, 0.001), max_features=20000, maxlen=150, n_folds=1, n_hidden=200)
 
 # n_hidden, dropout, max_features, learning_rate
-n_hidden_list = [200] # , 100, 75, 50]
-dropout_list = [0.1, 0.2] #   0.15]
-max_features_list = [30000, 20000]  # , 40000] # 80000]
+n_hidden_list = [200]  # , 100, 75, 50]
+dropout_list = [0.1, 0.2]  #   0.15]
+max_features_list = [30000]  # , 20000]  # , 40000] # 80000]
 learning_rate_list = [
     (0.001, 0.001, 0.002, 0.003, 0.000),
     # (0.002, 0.003, 0.000),
@@ -134,7 +134,7 @@ learning_rate_list = [
     # (0.002, 0.003, 0.003, 0.003, 0.000),
     # (0.002, 0.003, 0.000, 0.001),
 ]
-maxlen_list = [150, 200, 100, 70]
+maxlen_list = [150, 200]  # , 100, 70]
 n_folds_list = [1, 2, 3]
 embed_name_list = ['840B', '6B', 'twitter']
 embed_size_list = [300, 200, 100, 50, 25]
