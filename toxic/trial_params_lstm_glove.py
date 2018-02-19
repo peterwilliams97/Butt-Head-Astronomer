@@ -9,7 +9,7 @@ from clf_lstm_glove import ClfLstmGlove, valid_embedding
 
 
 epochs = 40
-submission_name = 'lstm_glove_explore2'
+submission_name = 'lstm_glove_explore3'
 
 
 def valid_embedding_params(n_hidden, dropout, max_features, learning_rate, maxlen, n_folds, embed_name,
