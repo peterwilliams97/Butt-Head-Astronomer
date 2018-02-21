@@ -1,6 +1,6 @@
 # coding: utf-8
 """
-    Another Keras solution to Kaggle Toxic Comment challenge
+    Parameter search of Keras solution to Kaggle Toxic Comment challenge
 """
 import time
 from utils import xprint_init, xprint

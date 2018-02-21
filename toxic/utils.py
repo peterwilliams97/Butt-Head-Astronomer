@@ -5,6 +5,7 @@ import json
 import pickle
 import os
 import datetime
+import keras.backend as K
 
 
 def is_windows():
@@ -55,8 +56,22 @@ if False:
     xprint('What do you think of htis')
 
 
+def _dim(x):
+    try:
+        return '%s:%s' % (list(x.shape), x.dtype)
+    except:
+        pass
+    try:
+        return K.int_shape(x)
+    except:
+        pass
+    return type(x)
+
+
 def dim(x):
-    return list(x.shape)
+    if isinstance(x, (list, tuple)):
+        return '%s:%d %s' % (type(x), len(x), [_dim(z) for z in x[:10]])
+    return _dim(x)
 
 
 def load_json(path, default=None):

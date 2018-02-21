@@ -245,8 +245,10 @@ class Evaluator:
             clf = get_clf()
             clf.fit(train_part)
             pred = clf.predict(test_part)
+            print('!!! pred=%s' % dim(pred))
         except Exception as e:
             xprint('!!! _evaluate, exception=%s' % e)
+            raise
             return False, auc
 
         for k, delta in enumerate(CLIPS):

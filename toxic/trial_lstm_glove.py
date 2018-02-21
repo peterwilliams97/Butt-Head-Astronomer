@@ -21,7 +21,6 @@ submission_name = 'lstm_glove_%s_%3d_%3d_%4d_%.3f.XXXX' % (embed_name, embed_siz
     max_features, dropout)
 
 
-
 def get_clf():
     return ClfLstmGlove(embed_name=embed_name, embed_size=embed_size, maxlen=maxlen,
         max_features=max_features, dropout=dropout, epochs=epochs, learning_rate=learning_rate)
