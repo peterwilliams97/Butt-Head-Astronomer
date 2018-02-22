@@ -29,6 +29,7 @@ TODO
 ====
 http://forums.fast.ai/t/language-model-in-thai/9874
 SpaCy
+https://arxiv.org/abs/1802.00385
 AllenNlp Elmo
 Higher dropout. Validation loss is minimizing in 1st or 2nd epoch
     How to do dropout for LSTM? Smerity?

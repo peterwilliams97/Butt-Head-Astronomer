@@ -5,7 +5,7 @@ from keras.models import Sequential, model_from_json
 from keras.layers import LSTM, Dense, Embedding, Bidirectional
 from keras.layers import TimeDistributed
 from keras.optimizers import Adam
-import keras.backend as K
+# import keras.backend as K
 from spacy.compat import pickle
 import spacy
 
@@ -61,25 +61,25 @@ class SentimentAnalyser(object):
             sentences = []
             for doc in minibatch:
                 sentences.extend(doc.sents)
-                doc.user_data['my_data'] = np.zeros(len(LABEL_COLS), dtype=np.float32)
+                doc.user_data['toxics'] = np.zeros(len(LABEL_COLS), dtype=np.float32)
             Xs = get_features(sentences, self.max_length)
             ys = self._model.predict(Xs)
             # print('pipe: sentences=%s sentences[0]=%s Xs=%s ys=%s' % (
             #     dim(sentences), dim(sentences[0]), dim(Xs), dim(ys)))
             for sent, label in zip(sentences, ys):
                 # print('pipe: sent=%s label=%s' % (sent, label))
-                sent.doc.user_data['my_data'] += label - 0.5
+                sent.doc.user_data['toxics'] += label - 0.5
             for doc in minibatch:
                 yield doc
 
     def set_sentiment(self, doc, y):
         print('set_sentiment: y=%s sentiment=%s' % (y, doc.sentiment))
         # doc.sentiment = float(y[0])
-        doc.user_data['my_data'] = y
+        doc.user_data['toxics'] = y
         assert False
         # Sentiment has a native slot for a single float.
         # For arbitrary data storage, there's:
-        # doc.user_data['my_data'] = y
+        # doc.user_data['toxics'] = y
 
 
 def get_labelled_sentences(docs, doc_labels):
@@ -90,24 +90,6 @@ def get_labelled_sentences(docs, doc_labels):
             sentences.append(sent)
             labels.append(y)
     return sentences, numpy.asarray(labels, dtype='int32')
-
-
-def get_features(docs, max_length):
-    docs = list(docs)
-    Xs = numpy.zeros((len(docs), max_length), dtype='int32')
-    for i, doc in enumerate(docs):
-        j = 0
-        for token in doc:
-            vector_id = token.vocab.vectors.find(key=token.orth)
-            if vector_id >= 0:
-                Xs[i, j] = vector_id
-            else:
-                Xs[i, j] = 0
-            j += 1
-            if j >= max_length:
-                break
-    print('Xs=%s' % dim(Xs))
-    return Xs
 
 
 def do_train(train_texts, train_labels, dev_texts, dev_labels,
@@ -127,11 +109,27 @@ def do_train(train_texts, train_labels, dev_texts, dev_labels,
 
     train_X = get_features(train_docs, lstm_shape['max_length'])
     dev_X = get_features(dev_docs, lstm_shape['max_length'])
-    print('train_X=%s' % dim(train_X))
-    print('dev_X=%s' % (dim(dev_X)))
+    print('do_train: train_X=%s dev_X=%s' % (dim(train_X), dim(dev_X)))
     model.fit(train_X, train_labels, validation_data=(dev_X, dev_labels),
               epochs=epochs, batch_size=batch_size)
     return model
+
+
+def get_features(docs, max_length):
+    docs = list(docs)
+    Xs = numpy.zeros((len(docs), max_length), dtype='int32')
+    for i, doc in enumerate(docs):
+        assert len(doc) <= max_length
+        for j, token in enumerate(doc):
+            vector_id = token.vocab.vectors.find(key=token.orth)
+            if vector_id >= 0:
+                Xs[i, j] = vector_id
+            # else:
+            #     Xs[i, j] = 0
+            if j > max_length:
+                break
+    print('get_features: Xs=%s' % dim(Xs))
+    return Xs
 
 
 def compile_lstm(embeddings, shape, settings):
@@ -165,30 +163,18 @@ def get_embeddings(vocab):
 
 
 def predict(model_dir, texts, max_length=100):
-    def create_pipeline(nlp):
-        '''
-        This could be a lambda, but named functions are easier to read in Python.
-        '''
-        # ['tagger', 'parser', 'ner']
-        return [
-            ('tagger', nlp.tagger),
-            ('parser', nlp.parser),
-            ('sa', SentimentAnalyser.load(model_dir, nlp, max_length=max_length))
-        ]
-
     nlp = spacy.load('en_core_web_lg')
     print('----- pipe_names=%s' % nlp.pipe_names)
-    nlp.pipeline = create_pipeline(nlp)
+    nlp.pipeline = [
+        ('tagger', nlp.tagger),
+        ('parser', nlp.parser),
+        ('sa', SentimentAnalyser.load(model_dir, nlp, max_length=max_length))
+    ]
     print('+++++ pipe_names=%s' % nlp.pipe_names)
 
     y = np.zeros((len(texts), len(LABEL_COLS)), dtype=np.float32)
-    p = nlp.pipe(texts, batch_size=1000, n_threads=n_threads)
-    print('@@@@@@@ p=%s' % p)
-    i = 0
-    for doc in p:
-        y[i, :] = doc.user_data['my_data']
-        i += 1
-
+    for i, doc in enumerate(nlp.pipe(texts, batch_size=1000, n_threads=n_threads)):
+        y[i, :] = doc.user_data['toxics']
     return y
 
 
@@ -218,8 +204,8 @@ def get_model_dir(model_name, fold):
 class ClfSpacy:
 
     def __init__(self, n_hidden=64, max_length=100,  # Shape
-                 dropout=0.5, learn_rate=0.001,  # General NN config
-                 epochs=5, batch_size=100, n_examples=-1):
+        dropout=0.5, learn_rate=0.001,  # General NN config
+        epochs=5, batch_size=100, n_examples=-1):
         """
             embed_size: Size of embedding vectors
             maxlen: Max length of comment text
@@ -244,18 +230,16 @@ class ClfSpacy:
         X_train0 = df_to_sentences(train)
         X_train, X_val, y_train, y_val = train_test_split(X_train0, y_train0, test_size=0.1)
 
-        lstm = do_train(X_train, y_train, X_val, y_val,
-                     {'nr_hidden': self.n_hidden,
+        lstm_shape = {'nr_hidden': self.n_hidden,
                       'max_length': self.max_length,
-                      'nr_class': len(LABEL_COLS)},
-                     {'dropout': self.dropout,
-                      'lr': self.learn_rate},
-                     {},
-                     epochs=self.epochs,
-                     batch_size=self.batch_size)
+                      'nr_class': len(LABEL_COLS)}
+        lstm_settings = {'dropout': self.dropout,
+                         'lr': self.learn_rate}
+        lstm = do_train(X_train, y_train, X_val, y_val, lstm_shape, lstm_settings, {},
+                        epochs=self.epochs, batch_size=self.batch_size)
         weights = lstm.get_weights()
 
-        if True:
+        if False:
             nlp = spacy.load('en_core_web_lg')
             nlp.add_pipe(nlp.create_pipe('sentencizer'))
             embeddings = get_embeddings(nlp.vocab)
