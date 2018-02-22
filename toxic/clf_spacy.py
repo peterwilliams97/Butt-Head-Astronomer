@@ -94,12 +94,14 @@ def get_labelled_sentences(docs, doc_labels):
 
 def do_train(train_texts, train_labels, dev_texts, dev_labels,
     lstm_shape, lstm_settings, lstm_optimizer, batch_size=100, epochs=5, by_sentence=True):
+    """Train a Keras model on the sentences in `train_texts`
+        All the sentences in a text have the text's label
+    """
 
     print("Loading spaCy")
     nlp = spacy.load('en_core_web_lg')
     nlp.add_pipe(nlp.create_pipe('sentencizer'))
-    embeddings = get_embeddings(nlp.vocab)
-    model = compile_lstm(embeddings, lstm_shape, lstm_settings)
+
     print("Parsing texts...")
     train_docs = list(nlp.pipe(train_texts))
     dev_docs = list(nlp.pipe(dev_texts))
@@ -110,6 +112,9 @@ def do_train(train_texts, train_labels, dev_texts, dev_labels,
     train_X = get_features(train_docs, lstm_shape['max_length'])
     dev_X = get_features(dev_docs, lstm_shape['max_length'])
     print('do_train: train_X=%s dev_X=%s' % (dim(train_X), dim(dev_X)))
+
+    embeddings = get_embeddings(nlp.vocab)
+    model = compile_lstm(embeddings, lstm_shape, lstm_settings)
     model.fit(train_X, train_labels, validation_data=(dev_X, dev_labels),
               epochs=epochs, batch_size=batch_size)
     return model
@@ -119,7 +124,6 @@ def get_features(docs, max_length):
     docs = list(docs)
     Xs = numpy.zeros((len(docs), max_length), dtype='int32')
     for i, doc in enumerate(docs):
-        assert len(doc) <= max_length
         for j, token in enumerate(doc):
             vector_id = token.vocab.vectors.find(key=token.orth)
             if vector_id >= 0:

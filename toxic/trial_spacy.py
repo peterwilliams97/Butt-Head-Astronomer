@@ -7,7 +7,6 @@ from framework import Evaluator, seed_random
 from clf_spacy import ClfSpacy
 
 
-epochs = 40
 submission_name = 'spacy_lstm'
 
 
