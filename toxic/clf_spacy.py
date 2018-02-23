@@ -1,6 +1,6 @@
 import random
 import cytoolz
-import numpy
+import numpy as np
 from keras.models import Sequential, model_from_json
 from keras.layers import LSTM, Dense, Embedding, Bidirectional
 from keras.layers import TimeDistributed
@@ -10,7 +10,7 @@ from spacy.compat import pickle
 import spacy
 
 import os
-import numpy as np
+import time
 import multiprocessing
 from framework import MODEL_DIR, LABEL_COLS, df_to_sentences, train_test_split
 from utils import dim, xprint
@@ -89,7 +89,56 @@ def get_labelled_sentences(docs, doc_labels):
         for sent in doc.sents:
             sentences.append(sent)
             labels.append(y)
-    return sentences, numpy.asarray(labels, dtype='int32')
+    return sentences, np.asarray(labels, dtype='int32')
+
+
+def sentence_feature_generator(nlp, max_length, batch_size, texts, labels, name):
+    t0 = time.clock()
+    N = max(1, len(texts) / 5)
+    n = 0
+    k = 0
+
+    i = 0
+    Xs = np.zeros((batch_size, max_length), dtype='int32')
+    ys = np.zeros((batch_size, len(LABEL_COLS)), dtype='int32')
+    while True:
+        for doc, y in zip(nlp.pipe(texts, batch_size=500, n_threads=n_threads), labels):
+            for sent in doc.sents:
+                n += 1
+                for j, token in enumerate(sent):
+                    if j >= max_length:
+                        break
+                    vector_id = token.vocab.vectors.find(key=token.orth)
+                    if vector_id >= 0:
+                        Xs[i, j] = vector_id
+                ys[i, :] = y
+                i += 1
+                if i == batch_size:
+                    # print('#### Xs=%s ys=%s' % (dim(Xs), dim(ys)))
+                    yield Xs, ys
+                    i = 0
+                    Xs = np.zeros((batch_size, max_length), dtype='int32')
+                    ys = np.zeros((batch_size, len(LABEL_COLS)), dtype='int32')
+            k += 1
+            if k % N == 0:
+                dt = time.clock() - t0
+                print('^^^^%5s docs=%7d (%5.1f%%) sents=%8d dt=%4.1f sec %2.1f sents/doc %3.1f docs/sec %3.1f sents/sec' %
+                    (name, k, 100.0 * k / len(texts), n, dt, n / k, k / dt, n / dt))
+
+
+def count_sentences(nlp, texts):
+    t0 = time.clock()
+    N = max(1, len(texts) / 20)
+    n = 0
+    for k, doc in enumerate(nlp.pipe(texts, batch_size=500, n_threads=n_threads)):
+        for _ in doc.sents:
+            n += 1
+        k += 1
+        if k % N == 0 or k == len(texts):
+            dt = time.clock() - t0
+            print('##^^docs=%7d sents=%8d dt=%4.1f sec %2.1f sents/doc %3.1f docs/sec %3.1f sents/sec' %
+                (k, n, dt, n / k, k / dt, n / dt))
+    return n
 
 
 def do_train(train_texts, train_labels, dev_texts, dev_labels,
@@ -103,35 +152,49 @@ def do_train(train_texts, train_labels, dev_texts, dev_labels,
     nlp.add_pipe(nlp.create_pipe('sentencizer'))
 
     print("Parsing texts...")
-    train_docs = list(nlp.pipe(train_texts))
-    dev_docs = list(nlp.pipe(dev_texts))
-    if by_sentence:
-        train_docs, train_labels = get_labelled_sentences(train_docs, train_labels)
-        dev_docs, dev_labels = get_labelled_sentences(dev_docs, dev_labels)
+    # train_docs = list(nlp.pipe(train_texts))
+    # dev_docs = list(nlp.pipe(dev_texts))
+    # if by_sentence:
+    #     train_docs, train_labels = get_labelled_sentences(train_docs, train_labels)
+    #     dev_docs, dev_labels = get_labelled_sentences(dev_docs, dev_labels)
 
-    train_X = get_features(train_docs, lstm_shape['max_length'])
-    dev_X = get_features(dev_docs, lstm_shape['max_length'])
-    print('do_train: train_X=%s dev_X=%s' % (dim(train_X), dim(dev_X)))
+    # train_X = get_features(train_docs, lstm_shape['max_length'])
+    # dev_X = get_features(dev_docs, lstm_shape['max_length'])
+    print('do_train: train_texts=%s dev_texts=%s' % (dim(train_texts), dim(dev_texts)))
+
+    train_gen = sentence_feature_generator(nlp, lstm_shape['max_length'], batch_size,
+        train_texts, train_labels, 'train')
+    dev_gen = sentence_feature_generator(nlp, lstm_shape['max_length'], batch_size,
+        dev_texts, dev_labels, 'dev')
+    steps_per_epoch = count_sentences(nlp, train_texts) // batch_size
+    validation_steps = count_sentences(nlp, dev_texts) // batch_size
+    print('steps_per_epoch=%d train_texts=%d batch_size=%d' % (
+        steps_per_epoch, len(train_texts), batch_size))
+    print('validation_steps=%d dev_texts=%d batch_size=%d' % (
+        validation_steps, len(dev_texts), batch_size))
+    assert steps_per_epoch, (len(train_texts), batch_size)
+    assert validation_steps, (len(dev_texts), batch_size)
 
     embeddings = get_embeddings(nlp.vocab)
     model = compile_lstm(embeddings, lstm_shape, lstm_settings)
-    model.fit(train_X, train_labels, validation_data=(dev_X, dev_labels),
-              epochs=epochs, batch_size=batch_size)
+    model.fit_generator(train_gen, validation_data=dev_gen, steps_per_epoch=steps_per_epoch,
+              validation_steps=validation_steps, epochs=epochs, verbose=2)
     return model
 
 
 def get_features(docs, max_length):
     docs = list(docs)
-    Xs = numpy.zeros((len(docs), max_length), dtype='int32')
+    Xs = np.zeros((len(docs), max_length), dtype='int32')
     for i, doc in enumerate(docs):
         for j, token in enumerate(doc):
+            if j >= max_length:
+                break
             vector_id = token.vocab.vectors.find(key=token.orth)
             if vector_id >= 0:
                 Xs[i, j] = vector_id
             # else:
             #     Xs[i, j] = 0
-            if j > max_length:
-                break
+
     print('get_features: Xs=%s' % dim(Xs))
     return Xs
 
@@ -313,8 +376,8 @@ class ClfSpacy:
 #             dev_texts, dev_labels = zip(*imdb_data[1])
 #         else:
 #             dev_texts, dev_labels = read_data(dev_dir, imdb_data, limit=nr_examples)
-#         train_labels = numpy.asarray(train_labels, dtype='int32')
-#         dev_labels = numpy.asarray(dev_labels, dtype='int32')
+#         train_labels = np.asarray(train_labels, dtype='int32')
+#         dev_labels = np.asarray(dev_labels, dtype='int32')
 #         lstm = train(train_texts, train_labels, dev_texts, dev_labels,
 #                      {'nr_hidden': nr_hidden, 'max_length': max_length, 'nr_class': 1},
 #                      {'dropout': dropout, 'lr': learn_rate},
