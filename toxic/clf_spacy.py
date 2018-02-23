@@ -173,7 +173,7 @@ def sentence_feature_generator(max_length, batch_size, texts_in, labels_in, name
         if n % N == 0:
             dt = max(time.clock() - t0, 1.0)
             print('^^^^%5s %7d (%5.1f%%) sents dt=%4.1f sec %3.1f sents/sec' %
-                (name, n, 100.0 * n / n_sentences, n / dt))
+                (name, n, 100.0 * n / n_sentences, dt, n / dt))
 
 
 def count_sentences(texts_in, batch_size, name):
