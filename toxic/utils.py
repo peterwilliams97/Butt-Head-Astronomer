@@ -3,6 +3,7 @@
 """
 import json
 import pickle
+import gzip
 import os
 import datetime
 import keras.backend as K
@@ -113,6 +114,27 @@ temp_pickle = 'temp.pkl'
 
 def save_pickle(path, obj):
     with open(temp_pickle, 'wb') as f:
+        pickle.dump(obj, f)
+    os.renames(temp_pickle, path)
+
+
+def load_pickle_gzip(path, default=None):
+    if default is not None and not os.path.exists(path):
+        return default
+    try:
+        with gzip.open(path, 'rb') as f:
+            obj = pickle.load(f)
+    except:
+        print('load_pickle failed: path=%r' % path)
+        raise
+    return obj
+
+
+temp_pickle_gzip = 'temp.pkl.gzip'
+
+
+def save_pickle_gzip(path, obj):
+    with gzip.open(temp_pickle, 'wb') as f:
         pickle.dump(obj, f)
     os.renames(temp_pickle, path)
 

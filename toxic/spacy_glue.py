@@ -4,7 +4,7 @@
 import numpy as np
 import os
 import spacy
-from utils import save_json, load_json, save_pickle, load_pickle
+from utils import save_json, load_json, save_pickle, load_pickle, save_pickle_gzip, load_pickle_gzip
 
 
 SPACY_VECTOR_SIZE = 300  # To match SpaCY vectors
@@ -65,8 +65,9 @@ class SpacySentenceCache:
 
     def __init__(self):
         os.makedirs(SPACY_DIR, exist_ok=True)
-        self.text_sents_path = os.path.join(SPACY_DIR, 'sentence.text.tokens.json')
-        self.text_sents = load_json(self.text_sents_path, {})
+        self.text_sents_path = os.path.join(SPACY_DIR, 'sentence.text.tokens.gzip')
+        self.text_sents = load_pickle_gzip(self.text_sents_path, {})
+        print("SpacySentenceCache: path=%s len=%d" % (self.text_sents_path, len(self.text_sents)))
         self.text_sents_len = len(self.text_sents)
         self.nlp = None
         self.n_calls = 0
@@ -84,7 +85,7 @@ class SpacySentenceCache:
             print('_save 1: %7d = %7d + %4d %s' % (len(self.text_sents),
                 self.text_sents_len, len(self.text_sents) - self.text_sents_len,
                 self.text_sents_path))
-            save_json(self.text_sents_path, self.text_sents)
+            save_pickle_gzip(self.text_sents_path, self.text_sents)
             self.text_sents_len = len(self.text_sents)
 
     def sent_id_pipe(self, texts_in):
