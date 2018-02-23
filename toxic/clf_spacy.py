@@ -14,6 +14,7 @@ import time
 import multiprocessing
 from framework import MODEL_DIR, LABEL_COLS, df_to_sentences, train_test_split
 from utils import dim, xprint
+from spacy_glue import SpacySentenceCache
 
 
 n_threads = max(multiprocessing.cpu_count() - 1, 1)
@@ -55,7 +56,7 @@ class SentimentAnalyser(object):
         y = self._model.predict(X)
         self.set_sentiment(doc, y)
 
-    def pipe(self, docs, batch_size=1000, n_threads=2):
+    def pipe(self, docs, batch_size=1000, n_threads=n_threads):
         for minibatch in cytoolz.partition_all(batch_size, docs):
             minibatch = list(minibatch)
             sentences = []
@@ -92,52 +93,112 @@ def get_labelled_sentences(docs, doc_labels):
     return sentences, np.asarray(labels, dtype='int32')
 
 
-def sentence_feature_generator(nlp, max_length, batch_size, texts, labels, name):
+sentence_cache = SpacySentenceCache()
+
+
+class Cycler:
+
+    def __init__(self, texts, batch_size):
+        self.texts = texts
+        self.batch_size = batch_size
+        self.i = 0
+
+    def get(self):
+        # 0 1 2
+        # 0 1
+        # 2 0
+        # 1 2
+        # i + 2 % 4
+        # 0 1    0 + 2 % 3 = :2
+        # 2 0     2 + 2 % 3 = :1
+        i1 = (self.i + self.batch_size) % len(self.texts)
+        # print('&&&& ', dim(self.texts))
+        if self.i < i1:
+            texts = self.texts[self.i:i1]
+        else:
+            # print('&&&1 ', dim(self.texts[self.i:]), dim(self.texts[:i1]))
+            texts = np.concatenate((self.texts[self.i:], self.texts[:i1]))
+        self.i = i1
+        # print('&&&2 ', dim(texts))
+        return texts
+
+
+def sentence_label_generator(texts_in, labels_in, batch_size):
+    print('sentence_label_generator', len(texts_in), len(labels_in), batch_size)
+    sent_labels = []
+
+    texts_cycler = Cycler(texts_in, batch_size)
+    labels_cycler = Cycler(labels_in, batch_size)
+
+    while True:
+        # print('$$$$$', len(sent_labels))
+        texts = texts_cycler.get()
+        # print('$-0', len(texts))
+        labels = labels_cycler.get()
+        # print('$-1', dim(labels))
+        text_sents = sentence_cache.sent_id_pipe(texts)
+        # print('$-2', dim(text_sents))
+        for sents, label in zip(text_sents, labels):
+            # print('$-3', dim(sents), dim(label))
+            for sent in sents:
+                # print('$-4', dim(sent), sent)
+                sent_labels.append((sent, label))
+        while len(sent_labels) >= batch_size:
+            # print('!!!!!')
+            yield sent_labels[:batch_size]
+            sent_labels = sent_labels[batch_size:]
+
+
+def sentence_feature_generator(max_length, batch_size, texts_in, labels_in, name, n_sentences):
     t0 = time.clock()
-    N = max(1, len(texts) / 5)
+    N = max(1, n_sentences / 5)
+    n = 0
+
+    gen = sentence_label_generator(texts_in, labels_in, batch_size)
+
+    while True:
+        # print('SSSSSSS')
+        sent_labels = next(gen)
+        # print('FFFF')
+        Xs = np.zeros((batch_size, max_length), dtype='int32')
+        ys = np.zeros((batch_size, len(LABEL_COLS)), dtype='int32')
+        for i, (sent, y) in enumerate(sent_labels):
+            for j, vector_id in enumerate(sent[:max_length]):
+                if vector_id >= 0:
+                    Xs[i, j] = vector_id
+            ys[i, :] = y
+        # print('#### Xs=%s ys=%s' % (dim(Xs), dim(ys)))
+        yield Xs, ys
+        n += batch_size
+        if n % N == 0:
+            dt = max(time.clock() - t0, 1.0)
+            print('^^^^%5s %7d (%5.1f%%) sents dt=%4.1f sec %3.1f sents/sec' %
+                (name, n, 100.0 * n / n_sentences, n / dt))
+
+
+def count_sentences(texts_in, batch_size, name):
+    t0 = time.clock()
+    N = max(1, len(texts_in) / 5)
     n = 0
     k = 0
+    # for k, doc in enumerate(nlp.pipe(texts, batch_size=500, n_threads=n_threads)):
+    #     for _ in doc.sents:
+    #         n += 1
+    #     k += 1
+    #     if k % N == 0 or k == len(texts):
+    #         dt = time.clock() - t0
+    #         print('##^^docs=%7d sents=%8d dt=%4.1f sec %2.1f sents/doc %3.1f docs/sec %3.1f sents/sec' %
+    #             (k, n, dt, n / k, k / dt, n / dt))
 
-    i = 0
-    Xs = np.zeros((batch_size, max_length), dtype='int32')
-    ys = np.zeros((batch_size, len(LABEL_COLS)), dtype='int32')
-    while True:
-        for doc, y in zip(nlp.pipe(texts, batch_size=500, n_threads=n_threads), labels):
-            for sent in doc.sents:
-                n += 1
-                for j, token in enumerate(sent):
-                    if j >= max_length:
-                        break
-                    vector_id = token.vocab.vectors.find(key=token.orth)
-                    if vector_id >= 0:
-                        Xs[i, j] = vector_id
-                ys[i, :] = y
-                i += 1
-                if i == batch_size:
-                    # print('#### Xs=%s ys=%s' % (dim(Xs), dim(ys)))
-                    yield Xs, ys
-                    i = 0
-                    Xs = np.zeros((batch_size, max_length), dtype='int32')
-                    ys = np.zeros((batch_size, len(LABEL_COLS)), dtype='int32')
-            k += 1
-            if k % N == 0:
-                dt = time.clock() - t0
-                print('^^^^%5s docs=%7d (%5.1f%%) sents=%8d dt=%4.1f sec %2.1f sents/doc %3.1f docs/sec %3.1f sents/sec' %
-                    (name, k, 100.0 * k / len(texts), n, dt, n / k, k / dt, n / dt))
-
-
-def count_sentences(nlp, texts):
-    t0 = time.clock()
-    N = max(1, len(texts) / 20)
-    n = 0
-    for k, doc in enumerate(nlp.pipe(texts, batch_size=500, n_threads=n_threads)):
-        for _ in doc.sents:
-            n += 1
-        k += 1
+    for minibatch in cytoolz.partition_all(batch_size, texts_in):
+        texts = list(minibatch)
+        text_sents = sentence_cache.sent_id_pipe(texts)
+        k += len(text_sents)
+        n += sum(len(sent) for sent in text_sents)
         if k % N == 0 or k == len(texts):
-            dt = time.clock() - t0
-            print('##^^docs=%7d sents=%8d dt=%4.1f sec %2.1f sents/doc %3.1f docs/sec %3.1f sents/sec' %
-                (k, n, dt, n / k, k / dt, n / dt))
+            dt = max(time.clock() - t0, 1.0)
+            print('##^^%5s=%7d sents=%8d dt=%4.1f sec %2.1f sents/doc %3.1f docs/sec %3.1f sents/sec' %
+                (name,k, n, dt, n / k, k / dt, n / dt))
     return n
 
 
@@ -147,9 +208,9 @@ def do_train(train_texts, train_labels, dev_texts, dev_labels,
         All the sentences in a text have the text's label
     """
 
-    print("Loading spaCy")
-    nlp = spacy.load('en_core_web_lg')
-    nlp.add_pipe(nlp.create_pipe('sentencizer'))
+    # print("Loading spaCy")
+    # nlp = spacy.load('en_core_web_lg')
+    # nlp.add_pipe(nlp.create_pipe('sentencizer'))
 
     print("Parsing texts...")
     # train_docs = list(nlp.pipe(train_texts))
@@ -162,12 +223,15 @@ def do_train(train_texts, train_labels, dev_texts, dev_labels,
     # dev_X = get_features(dev_docs, lstm_shape['max_length'])
     print('do_train: train_texts=%s dev_texts=%s' % (dim(train_texts), dim(dev_texts)))
 
-    train_gen = sentence_feature_generator(nlp, lstm_shape['max_length'], batch_size,
-        train_texts, train_labels, 'train')
-    dev_gen = sentence_feature_generator(nlp, lstm_shape['max_length'], batch_size,
-        dev_texts, dev_labels, 'dev')
-    steps_per_epoch = count_sentences(nlp, train_texts) // batch_size
-    validation_steps = count_sentences(nlp, dev_texts) // batch_size
+    n_train_sents = count_sentences(train_texts, batch_size, 'train')
+    n_dev_sents = count_sentences(dev_texts, batch_size, 'dev')
+
+    train_gen = sentence_feature_generator(lstm_shape['max_length'], batch_size,
+        train_texts, train_labels, 'train', n_train_sents)
+    dev_gen = sentence_feature_generator(lstm_shape['max_length'], batch_size,
+        dev_texts, dev_labels, 'dev', n_dev_sents)
+    steps_per_epoch = n_train_sents // batch_size
+    validation_steps = n_dev_sents // batch_size
     print('steps_per_epoch=%d train_texts=%d batch_size=%d' % (
         steps_per_epoch, len(train_texts), batch_size))
     print('validation_steps=%d dev_texts=%d batch_size=%d' % (
@@ -175,10 +239,14 @@ def do_train(train_texts, train_labels, dev_texts, dev_labels,
     assert steps_per_epoch, (len(train_texts), batch_size)
     assert validation_steps, (len(dev_texts), batch_size)
 
+    print("Loading spaCy")
+    nlp = sentence_cache._load_nlp()
     embeddings = get_embeddings(nlp.vocab)
     model = compile_lstm(embeddings, lstm_shape, lstm_settings)
     model.fit_generator(train_gen, validation_data=dev_gen, steps_per_epoch=steps_per_epoch,
               validation_steps=validation_steps, epochs=epochs, verbose=2)
+
+    sentence_cache.flush()
     return model
 
 
