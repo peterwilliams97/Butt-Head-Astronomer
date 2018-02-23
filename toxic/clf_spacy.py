@@ -4,6 +4,7 @@ import numpy as np
 from keras.models import Sequential, model_from_json
 from keras.layers import LSTM, Dense, Embedding, Bidirectional
 from keras.layers import TimeDistributed
+from keras.callbacks import EarlyStopping, ModelCheckpoint
 from keras.optimizers import Adam
 # import keras.backend as K
 from spacy.compat import pickle
@@ -13,7 +14,7 @@ import os
 import time
 import multiprocessing
 from framework import MODEL_DIR, LABEL_COLS, df_to_sentences, train_test_split
-from utils import dim, xprint
+from utils import dim, xprint, RocAucEvaluation
 from spacy_glue import SpacySentenceCache
 
 
@@ -176,6 +177,37 @@ def sentence_feature_generator(max_length, batch_size, texts_in, labels_in, name
                 (name, n, 100.0 * n / n_sentences, dt, n / dt))
 
 
+def make_sentences(max_length, batch_size, texts_in, labels_in, name, n_sentences):
+    t0 = time.clock()
+    N = max(1, n_sentences / 5)
+    n = 0
+
+    Xs = np.zeros((n_sentences, max_length), dtype='int32')
+    ys = np.zeros((n_sentences, len(LABEL_COLS)), dtype='int32')
+    print('make_sentences: Xs=%s ys=%s' % (dim(Xs), dim(ys)))
+
+    gen = sentence_label_generator(texts_in, labels_in, batch_size)
+    while n < n_sentences:
+        # print('SSSSSSS')
+        sent_labels = next(gen)
+        # print('FFFF')
+        m = min(batch_size, n_sentences - n)
+        assert n + m <= n_sentences, (n, m, n_sentences)
+        for i, (sent, y) in enumerate(sent_labels[:m]):
+            assert n + i < n_sentences, (n, i, n_sentences)
+            for j, vector_id in enumerate(sent[:max_length]):
+                if vector_id >= 0:
+                    Xs[n + i, j] = vector_id
+            ys[n + i, :] = y
+        n += batch_size
+        if n % N == 0:
+            dt = max(time.clock() - t0, 1.0)
+            print('^^^^%5s %7d (%5.1f%%) sents dt=%4.1f sec %3.1f sents/sec' %
+                (name, n, 100.0 * n / n_sentences, dt, n / dt))
+
+    return Xs, ys
+
+
 def count_sentences(texts_in, batch_size, name):
     t0 = time.clock()
     N = max(1, len(texts_in) / 5)
@@ -198,12 +230,13 @@ def count_sentences(texts_in, batch_size, name):
         if k % N == 0 or k == len(texts):
             dt = max(time.clock() - t0, 1.0)
             print('##^^%5s=%7d sents=%8d dt=%4.1f sec %2.1f sents/doc %3.1f docs/sec %3.1f sents/sec' %
-                (name,k, n, dt, n / k, k / dt, n / dt))
+                (name, k, n, dt, n / k, k / dt, n / dt))
     return n
 
 
 def do_train(train_texts, train_labels, dev_texts, dev_labels,
-    lstm_shape, lstm_settings, lstm_optimizer, batch_size=100, epochs=5, by_sentence=True):
+    lstm_shape, lstm_settings, lstm_optimizer, batch_size=100, epochs=5, by_sentence=True,
+    model_path=None):
     """Train a Keras model on the sentences in `train_texts`
         All the sentences in a text have the text's label
     """
@@ -226,27 +259,38 @@ def do_train(train_texts, train_labels, dev_texts, dev_labels,
     n_train_sents = count_sentences(train_texts, batch_size, 'train')
     n_dev_sents = count_sentences(dev_texts, batch_size, 'dev')
 
-    train_gen = sentence_feature_generator(lstm_shape['max_length'], batch_size,
+    X_train, y_train = make_sentences(lstm_shape['max_length'], batch_size,
         train_texts, train_labels, 'train', n_train_sents)
-    dev_gen = sentence_feature_generator(lstm_shape['max_length'], batch_size,
+    X_val, y_val = make_sentences(lstm_shape['max_length'], batch_size,
         dev_texts, dev_labels, 'dev', n_dev_sents)
-    steps_per_epoch = n_train_sents // batch_size
-    validation_steps = n_dev_sents // batch_size
-    print('steps_per_epoch=%d train_texts=%d batch_size=%d' % (
-        steps_per_epoch, len(train_texts), batch_size))
-    print('validation_steps=%d dev_texts=%d batch_size=%d' % (
-        validation_steps, len(dev_texts), batch_size))
-    assert steps_per_epoch, (len(train_texts), batch_size)
-    assert validation_steps, (len(dev_texts), batch_size)
+    sentence_cache.flush()
+    # steps_per_epoch = n_train_sents // batch_size
+    # validation_steps = n_dev_sents // batch_size
+    # print('steps_per_epoch=%d train_texts=%d batch_size=%d' % (
+    #     steps_per_epoch, len(train_texts), batch_size))
+    # print('validation_steps=%d dev_texts=%d batch_size=%d' % (
+    #     validation_steps, len(dev_texts), batch_size))
+    # assert steps_per_epoch, (len(train_texts), batch_size)
+    # assert validation_steps, (len(dev_texts), batch_size)
 
     print("Loading spaCy")
     nlp = sentence_cache._load_nlp()
     embeddings = get_embeddings(nlp.vocab)
     model = compile_lstm(embeddings, lstm_shape, lstm_settings)
-    model.fit_generator(train_gen, validation_data=dev_gen, steps_per_epoch=steps_per_epoch,
-              validation_steps=validation_steps, epochs=epochs, verbose=2)
 
-    sentence_cache.flush()
+    ra_val = RocAucEvaluation(validation_data=(X_val, y_val), interval=1, model_path=model_path)
+    # checkpoint = ModelCheckpoint(model_path, monitor='val_auc', verbose=2, save_best_only=True,
+    #     mode='max')
+    early = EarlyStopping(monitor='val_auc', mode='max', patience=3, verbose=2)
+    callback_list = [ra_val, early]
+
+    model.fit(X_train, y_train, batch_size=batch_size, epochs=epochs,
+              validation_data=(X_val, y_val), callbacks=callback_list, verbose=2)
+
+    # model.fit_generator(train_gen, validation_data=dev_gen, steps_per_epoch=steps_per_epoch,
+    #     validation_steps=validation_steps, epochs=epochs, callbacks=callback_list, verbose=2)
+
+
     return model
 
 
@@ -361,6 +405,11 @@ class ClfSpacy:
         return 'ClfSpacy(%s)' % self.description
 
     def fit(self, train):
+        model_dir = get_model_dir(self.model_name, 0)
+        model_path = os.path.join(model_dir, 'model')
+        os.makedirs(model_dir, exist_ok=True)
+        xprint('ClfSpacy.fit: model_dir=%s' % model_dir)
+
         y_train0 = train[LABEL_COLS].values
         X_train0 = df_to_sentences(train)
         X_train, X_val, y_train, y_val = train_test_split(X_train0, y_train0, test_size=0.1)
@@ -371,7 +420,7 @@ class ClfSpacy:
         lstm_settings = {'dropout': self.dropout,
                          'lr': self.learn_rate}
         lstm = do_train(X_train, y_train, X_val, y_val, lstm_shape, lstm_settings, {},
-                        epochs=self.epochs, batch_size=self.batch_size)
+                        epochs=self.epochs, batch_size=self.batch_size, model_path=model_path)
         weights = lstm.get_weights()
 
         if False:
@@ -392,11 +441,8 @@ class ClfSpacy:
             xprint(model.summary())
             print('*' * 80)
 
-        model_dir = get_model_dir(self.model_name, 0)
-        os.makedirs(model_dir, exist_ok=True)
-        xprint('ClfSpacy.fit: model_dir=%s' % model_dir)
-        with open(os.path.join(model_dir, 'model'), 'wb') as f:
-            pickle.dump(weights[1:], f)
+        # with open(os.path.join(model_dir, 'model'), 'wb') as f:
+        #     pickle.dump(weights[1:], f)
         with open(os.path.join(model_dir, 'config.json'), 'wt') as f:
             f.write(lstm.to_json())
 

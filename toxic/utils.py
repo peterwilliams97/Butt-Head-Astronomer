@@ -7,6 +7,8 @@ import gzip
 import os
 import datetime
 import keras.backend as K
+from keras.callbacks import Callback
+from sklearn.metrics import roc_auc_score
 
 
 def is_windows():
@@ -138,3 +140,34 @@ def save_pickle_gzip(path, obj):
         pickle.dump(obj, f)
     os.renames(temp_pickle, path)
 
+
+AUC_DELTA = 0.001
+
+
+class RocAucEvaluation(Callback):
+    """ROC AUC for CV in Keras see for details: https://gist.github.com/smly/d29d079100f8d81b905e
+    """
+
+    def __init__(self, validation_data=(), interval=1, model_path=None):
+        super(Callback, self).__init__()
+
+        self.interval = interval
+        self.X_val, self.y_val = validation_data
+        self.model_path = model_path
+        self.best_auc = 0.0
+
+    def on_epoch_end(self, epoch, logs={}):
+        if epoch % self.interval == 0:
+            y_pred = self.model.predict(self.X_val, verbose=0)
+            auc = roc_auc_score(self.y_val, y_pred)
+            xprint('\n ROC-AUC - epoch: {:d} - score: {:.6f}'.format(epoch, auc))
+            logs['val_auc'] = auc
+
+            if auc >= self.best_auc + AUC_DELTA:
+                xprint('RocAucEvaluation.fit: auc=%.3f > best_auc=%.3f' % (auc, self.best_auc))
+                self.best_auc = auc
+
+                weights = self.model.get_weights()
+                xprint('RocAucEvaluation.fit: model_path=%s' % self.model_path)
+                with open(self.model_path, 'wb') as f:
+                    pickle.dump(weights[1:], f)
