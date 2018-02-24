@@ -6,6 +6,7 @@ import pickle
 import gzip
 import os
 import datetime
+import numpy as np
 import keras.backend as K
 from keras.callbacks import Callback
 from sklearn.metrics import roc_auc_score
@@ -183,3 +184,28 @@ class RocAucEvaluation(Callback):
             else:
                  xprint('RocAucEvaluation.fit: No improvement best_epoch=%d best_auc=%.3f' %
                     (self.best_epoch, self.best_auc))
+
+
+class Cycler:
+    """A Cycler object cycles through `items` forever in sizes of `batch_size`
+        e.g.
+            c = Cycler([0, 1, 2], 2)
+            c.batch() -> 0 1
+            c.batch() -> 2 0
+            c.batch() -> 1 2
+            ...
+    """
+
+    def __init__(self, items, batch_size):
+        self.items = items
+        self.batch_size = batch_size
+        self.i = 0
+
+    def batch(self):
+        i1 = (self.i + self.batch_size) % len(self.items)
+        if self.i < i1:
+            items = self.items[self.i:i1]
+        else:
+            items = np.concatenate((self.items[self.i:], self.items[:i1]))
+        self.i = i1
+        return items

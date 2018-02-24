@@ -90,12 +90,10 @@ class SpacySentenceCache:
 
     def sent_id_pipe(self, texts_in):
         """Use SpaCy tokenization and word vectors"""
-        # print('sent_id_pipe: texts_in=%d' % len(texts_in))
         texts = [text for text in texts_in if text not in self.text_sents]
         if texts:
             nlp = self._load_nlp()
             for text, doc in zip(texts, nlp.pipe(texts)):
-                # print('###', text[:40])
                 self.text_sents[text] = []
                 for sent in doc.sents:
                     sent_ids = []
@@ -103,17 +101,13 @@ class SpacySentenceCache:
                         vector_id = token.vocab.vectors.find(key=token.orth)
                         sent_ids.append(vector_id)
                     self.text_sents[text].append(sent_ids)
-                # print('##$', len(self.text_sents[text]) )
 
                 if self.n_calls % 10000 == 1:
                     print('**sent_id_pipe: n_calls=%d' % self.n_calls)
                     self._save()
                 self.n_calls += 1
 
-        out = [self.text_sents[text] for text in texts_in]
-        # print('sent_id_pipe: --', len(out), out[0])
-        return out
+        return [self.text_sents[text] for text in texts_in]
 
     def flush(self):
         self._save()
-

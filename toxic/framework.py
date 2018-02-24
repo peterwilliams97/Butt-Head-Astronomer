@@ -230,7 +230,7 @@ class Evaluator:
             if not ok:
                 return ok, auc
             show_auc(auc[:i + 1, :])
-        xprint('program=%s train=%s' % (sys.argv[0], dim(train)))
+        xprint('program=%s train=%s' % (sys.argv[0], dim(self.train)))
         return True, auc
 
     def _evaluate(self, get_clf, i):

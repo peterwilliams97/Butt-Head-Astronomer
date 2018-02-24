@@ -1,4 +1,3 @@
-import random
 import cytoolz
 import numpy as np
 from keras.models import Sequential, model_from_json
@@ -8,17 +7,18 @@ from keras.callbacks import EarlyStopping
 from keras.optimizers import Adam
 from spacy.compat import pickle
 import spacy
-
 import os
 import time
 import multiprocessing
 from framework import MODEL_DIR, LABEL_COLS, df_to_sentences, train_test_split
-from utils import dim, xprint, RocAucEvaluation
+from utils import dim, xprint, RocAucEvaluation, Cycler
 from spacy_glue import SpacySentenceCache
 
 
 n_threads = max(multiprocessing.cpu_count() - 1, 1)
 xprint('n_threads=%d' % n_threads)
+sentence_cache = SpacySentenceCache()
+
 
 if False:
     for lang in ('en', 'en_vectors_web_lg', 'en_core_web_lg'):
@@ -29,7 +29,7 @@ if False:
 
 class SentimentAnalyser(object):
     @classmethod
-    def load(cls, path, nlp, max_length=100):
+    def load(cls, path, nlp, max_length):
         xprint('SentimentAnalyser.load: path=%s max_length=%d' % (path, max_length))
         with open(os.path.join(path, 'config.json'), 'rt') as f:
             model = model_from_json(f.read())
@@ -39,7 +39,7 @@ class SentimentAnalyser(object):
         model.set_weights([embeddings] + lstm_weights)
         return cls(model, max_length=max_length)
 
-    def __init__(self, model, max_length=100):
+    def __init__(self, model, max_length):
         self._model = model
         self.max_length = max_length
 
@@ -65,34 +65,6 @@ class SentimentAnalyser(object):
     #     # Sentiment has a native slot for a single float.
     #     # For arbitrary data storage, there's:
     #     # doc.user_data['toxics'] = y
-
-
-sentence_cache = SpacySentenceCache()
-
-
-class Cycler:
-    """A Cycler object cycles throught the items in `texts` forever in sizes of `batch_size`
-        e.g.
-            c = Cycler([0, 1, 2], 2)
-            c.batch() -> 0 1
-            c.batch() -> 2 0
-            c.batch() -> 1 2
-            ...
-    """
-
-    def __init__(self, items, batch_size):
-        self.items = items
-        self.batch_size = batch_size
-        self.i = 0
-
-    def batch(self):
-        i1 = (self.i + self.batch_size) % len(self.items)
-        if self.i < i1:
-            items = self.items[self.i:i1]
-        else:
-            items = np.concatenate((self.items[self.i:], self.items[:i1]))
-        self.i = i1
-        return items
 
 
 def sentence_label_generator(texts_in, labels_in, batch_size):
@@ -152,15 +124,15 @@ def make_sentences(max_length, batch_size, texts_in, labels_in, name, n_sentence
     while n < n_sentences:
         sent_labels = next(gen)
         m = min(batch_size, n_sentences - n)
-        assert n + m <= n_sentences, (n, m, n_sentences)
+        # assert n + m <= n_sentences, (n, m, n_sentences)
         for i, (sent, y) in enumerate(sent_labels[:m]):
-            assert n + i < n_sentences, (n, i, n_sentences)
+            # assert n + i < n_sentences, (n, i, n_sentences)
             for j, vector_id in enumerate(sent[:max_length]):
                 if vector_id >= 0:
                     Xs[n + i, j] = vector_id
             ys[n + i, :] = y
-        n += batch_size
-        if n % N == 0:
+        n += m
+        if n % N == 0 or n + 1 == n_sentences:
             dt = max(time.clock() - t0, 1.0)
             print('^^^^%5s %7d (%5.1f%%) sents dt=%4.1f sec %3.1f sents/sec' %
                 (name, n, 100.0 * n / n_sentences, dt, n / dt))
@@ -252,6 +224,7 @@ def compile_lstm(embeddings, shape, settings):
                                  recurrent_dropout=settings['dropout'],
                                  dropout=settings['dropout'])))
     model.add(Dense(shape['n_class'], activation='sigmoid'))
+
     model.compile(optimizer=Adam(lr=settings['lr']), loss='binary_crossentropy',
                   metrics=['accuracy'])
     xprint('compile_lstm: embeddings=%s shape=%s' % (dim(embeddings), shape))
@@ -260,12 +233,10 @@ def compile_lstm(embeddings, shape, settings):
 
 
 def get_embeddings(vocab):
-    embeddings = vocab.vectors.data
-    assert embeddings.any()
     return vocab.vectors.data
 
 
-def predict(model_dir, texts, max_length=100):
+def predict(model_dir, texts, max_length):
     nlp = spacy.load('en_core_web_lg')
     print('----- pipe_names=%s' % nlp.pipe_names)
     nlp.pipeline = [
@@ -335,4 +306,4 @@ class ClfSpacy:
 
     def predict(self, test):
         X_test = df_to_sentences(test)
-        return predict(get_model_dir(self.model_name, 0), X_test, max_length=100)
+        return predict(get_model_dir(self.model_name, 0), X_test, max_length=self.max_length)
