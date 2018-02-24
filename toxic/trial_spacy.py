@@ -7,7 +7,7 @@ from framework import Evaluator, seed_random, make_submission
 from clf_spacy import ClfSpacy
 
 
-submission_name = 'spacy_lstm1'
+submission_name = 'spacy_lstm2'
 
 
 def get_clf():
