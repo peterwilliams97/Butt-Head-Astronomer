@@ -27,8 +27,11 @@ xprint_f = None
 xprint_path = None
 
 
-def xprint_init(name):
+def xprint_init(name, do_submisision):
     global xprint_f, xprint_path
+
+    if do_submisision:
+        name = '%s.submission' % name
 
     os.makedirs(LOG_DIR, exist_ok=True)
     path = os.path.join(LOG_DIR, '%s.log' % name)
@@ -62,6 +65,10 @@ if False:
 def _dim(x):
     try:
         return '%s:%s' % (list(x.shape), x.dtype)
+    except:
+        pass
+    try:
+        return list(x.shape)
     except:
         pass
     try:
@@ -174,5 +181,5 @@ class RocAucEvaluation(Callback):
                 with open(self.model_path, 'wb') as f:
                     pickle.dump(weights[1:], f)
             else:
-                 xprint('RocAucEvaluation.fit: No improvement best_epoch=%dbest_auc=%.3f' %
+                 xprint('RocAucEvaluation.fit: No improvement best_epoch=%d best_auc=%.3f' %
                     (self.best_epoch, self.best_auc))

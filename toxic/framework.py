@@ -230,7 +230,7 @@ class Evaluator:
             if not ok:
                 return ok, auc
             show_auc(auc[:i + 1, :])
-        xprint('program=%s' % sys.argv[0])
+        xprint('program=%s train=%s' % (sys.argv[0], dim(train)))
         return True, auc
 
     def _evaluate(self, get_clf, i):
@@ -289,6 +289,8 @@ def make_submission(get_clf, submission_name):
     submission = pd.concat([submid, pd.DataFrame(pred, columns=LABEL_COLS)], axis=1)
     submission.to_csv(submission_path, index=False)
     xprint('Saved in %s' % submission_path)
+    xprint('program=%s train=%s test=%s submission=%s' % (sys.argv[0], dim(train), dim(test),
+        dim(submission)))
 
 
 if __name__ == '__main__':

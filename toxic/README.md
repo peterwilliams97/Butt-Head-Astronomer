@@ -1,3 +1,5 @@
+/home/pcadmin/code/Butt-Head-Astronomer/toxic/logs/spacy_lstm2.log
+
 SUBMISSION
 ----------
 https://medium.com/@nokkk/make-your-kaggle-submissions-with-kaggle-official-api-f49093c04f8a
