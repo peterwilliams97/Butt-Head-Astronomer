@@ -9,36 +9,42 @@ from clf_spacy import ClfSpacy
 
 do_submission = False
 submission_name = 'spacy_lstm3'
+epochs = 1
 
+
+def get_clf10():
+    return ClfSpacy(n_hidden=64, max_length=100,  # Shape
+                    dropout=0.5, learn_rate=0.001,  # General NN config
+                    epochs=epochs, batch_size=150, n_examples=-1, frozen=False)
 
 def get_clf1():
     return ClfSpacy(n_hidden=128, max_length=100,  # Shape
                     dropout=0.5, learn_rate=0.001,  # General NN config
-                    epochs=40, batch_size=150, n_examples=-1)
+                    epochs=epochs, batch_size=150, n_examples=-1)
 
 
 def get_clf2():
     return ClfSpacy(n_hidden=64, max_length=150,  # Shape
                     dropout=0.5, learn_rate=0.001,  # General NN config
-                    epochs=40, batch_size=150, n_examples=-1)
+                    epochs=epochs, batch_size=150, n_examples=-1)
 
 
 def get_clf3():
     return ClfSpacy(n_hidden=64, max_length=100,  # Shape
                     dropout=0.2, learn_rate=0.001,  # General NN config
-                    epochs=40, batch_size=150, n_examples=-1)
+                    epochs=epochs, batch_size=150, n_examples=-1)
 
 
 def get_clf4():
     return ClfSpacy(n_hidden=64, max_length=100,  # Shape
                     dropout=0.5, learn_rate=0.002,  # General NN config
-                    epochs=40, batch_size=150, n_examples=-1)
+                    epochs=epochs, batch_size=150, n_examples=-1)
 
 
 def get_clf5():
     return ClfSpacy(n_hidden=64, max_length=100,  # Shape
                     dropout=0.5, learn_rate=0.001,  # General NN config
-                    epochs=40, batch_size=50, n_examples=-1)
+                    epochs=epochs, batch_size=50, n_examples=-1)
 
 
 xprint_init(submission_name, do_submission)

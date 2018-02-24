@@ -29,14 +29,16 @@ if False:
 
 class SentimentAnalyser(object):
     @classmethod
-    def load(cls, path, nlp, max_length):
+    def load(cls, path, nlp, max_length, frozen):
         xprint('SentimentAnalyser.load: path=%s max_length=%d' % (path, max_length))
         with open(os.path.join(path, 'config.json'), 'rt') as f:
             model = model_from_json(f.read())
         with open(os.path.join(path, 'model'), 'rb') as f:
             lstm_weights = pickle.load(f)
-        embeddings = get_embeddings(nlp.vocab)
-        model.set_weights([embeddings] + lstm_weights)
+        if frozen:
+            embeddings = get_embeddings(nlp.vocab)
+            lstm_weights = [embeddings] + lstm_weights
+        model.set_weights(lstm_weights)
         return cls(model, max_length=max_length)
 
     def __init__(self, model, max_length):
@@ -159,7 +161,7 @@ def count_sentences(texts_in, batch_size, name):
 
 def do_train(train_texts, train_labels, dev_texts, dev_labels,
     lstm_shape, lstm_settings, lstm_optimizer, batch_size=100, epochs=5, by_sentence=True,
-    model_path=None):
+    frozen=False, model_path=None):
     """Train a Keras model on the sentences in `train_texts`
         All the sentences in a text have the text's label
     """
@@ -184,11 +186,20 @@ def do_train(train_texts, train_labels, dev_texts, dev_labels,
 
     callback_list = None
     if validation_data is not None:
-        ra_val = RocAucEvaluation(validation_data=validation_data, interval=1, model_path=model_path)
+        ra_val = RocAucEvaluation(validation_data=validation_data, interval=1, frozen=frozen,
+            model_path=model_path)
         early = EarlyStopping(monitor='val_auc', mode='max', patience=3, verbose=1)
         callback_list = [ra_val, early]
 
     model.fit(X_train, y_train, batch_size=batch_size, epochs=epochs,
+              validation_data=validation_data, callbacks=callback_list, verbose=1)
+
+    if not frozen:
+        for layer in model.layers:
+            layer.trainable = False
+        lr = model.lr.get_value()
+        model.lr.set_value(lr / 10)
+        model.fit(X_train, y_train, batch_size=batch_size, epochs=epochs,
               validation_data=validation_data, callbacks=callback_list, verbose=1)
 
     return model
@@ -260,7 +271,7 @@ class ClfSpacy:
 
     def __init__(self, n_hidden=64, max_length=100,  # Shape
         dropout=0.5, learn_rate=0.001,  # General NN config
-        epochs=5, batch_size=100, n_examples=-1):
+        epochs=5, batch_size=100, n_examples=-1, frozen=True):
         """
             n_hidden: Number of elements in the LSTM layer
             max_length: Max length of comment text
@@ -273,9 +284,11 @@ class ClfSpacy:
         self.epochs = epochs
         self.batch_size = batch_size
         self.n_examples = n_examples
+        self.frozen = frozen
 
         self.description = ', '.join('%s=%s' % (k, v) for k, v in sorted(self.__dict__.items()))
-        self.model_name = 'lstm_spacy_%03d_%03d_%.3f_%.3f' % (n_hidden, max_length, dropout, learn_rate)
+        self.model_name = 'lstm_spacy_%03d_%03d_%.3f_%.3f.%s' % (n_hidden, max_length, dropout,
+            learn_rate, frozen)
 
     def __repr__(self):
         return 'ClfSpacy(%s)' % self.description
@@ -299,11 +312,13 @@ class ClfSpacy:
         lstm_settings = {'dropout': self.dropout,
                          'lr': self.learn_rate}
         lstm = do_train(X_train, y_train, X_val, y_val, lstm_shape, lstm_settings, {},
-                        epochs=self.epochs, batch_size=self.batch_size, model_path=model_path)
+                        epochs=self.epochs, batch_size=self.batch_size, frozen=self.frozen,
+                        model_path=model_path)
 
         with open(os.path.join(model_dir, 'config.json'), 'wt') as f:
             f.write(lstm.to_json())
 
     def predict(self, test):
         X_test = df_to_sentences(test)
-        return predict(get_model_dir(self.model_name, 0), X_test, max_length=self.max_length)
+        model_path = get_model_dir(self.model_name, 0)
+        return predict(model_path, X_test, max_length=self.max_length, frozen=self.frozen)

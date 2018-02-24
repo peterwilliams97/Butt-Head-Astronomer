@@ -17,6 +17,7 @@ def get_model(embed_size, maxlen, max_features):
     x = Dense(50, activation='relu')(x)
     x = Dropout(0.1)(x)
     x = Dense(6, activation='sigmoid')(x)
+
     model = Model(inputs=inp, outputs=x)
     model.compile(loss='binary_crossentropy',
                   optimizer='adam',

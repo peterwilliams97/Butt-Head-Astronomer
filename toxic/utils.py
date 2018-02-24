@@ -156,12 +156,13 @@ class RocAucEvaluation(Callback):
     """ROC AUC for CV in Keras see for details: https://gist.github.com/smly/d29d079100f8d81b905e
     """
 
-    def __init__(self, validation_data=(), interval=1, model_path=None):
+    def __init__(self, validation_data=(), interval=1, model_path=None, frozen=False):
         super(Callback, self).__init__()
 
         self.interval = interval
         self.X_val, self.y_val = validation_data
         self.model_path = model_path
+        self.frozen = frozen
         self.best_auc = 0.0
         self.best_epoch = -1
 
@@ -178,9 +179,11 @@ class RocAucEvaluation(Callback):
                 self.best_epoch = epoch
 
                 weights = self.model.get_weights()
+                if self.frozen:
+                    weights = weights[1:]
                 xprint('RocAucEvaluation.fit: model_path=%s' % self.model_path)
                 with open(self.model_path, 'wb') as f:
-                    pickle.dump(weights[1:], f)
+                    pickle.dump(weights, f)
             else:
                  xprint('RocAucEvaluation.fit: No improvement best_epoch=%d best_auc=%.3f' %
                     (self.best_epoch, self.best_auc))
