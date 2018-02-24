@@ -247,13 +247,13 @@ def get_embeddings(vocab):
     return vocab.vectors.data
 
 
-def predict(model_dir, texts, max_length):
+def predict(model_dir, texts, max_length, frozen):
     nlp = spacy.load('en_core_web_lg')
     print('----- pipe_names=%s' % nlp.pipe_names)
     nlp.pipeline = [
         ('tagger', nlp.tagger),
         ('parser', nlp.parser),
-        ('sa', SentimentAnalyser.load(model_dir, nlp, max_length=max_length))
+        ('sa', SentimentAnalyser.load(model_dir, nlp, max_length=max_length, frozen=frozen))
     ]
     print('+++++ pipe_names=%s' % nlp.pipe_names)
 
