@@ -60,18 +60,15 @@ class SentimentAnalyser(object):
     def pipe(self, docs, batch_size=1000, n_threads=n_threads):
         for minibatch in cytoolz.partition_all(batch_size, docs):
             minibatch = list(minibatch)
-            sentences = []
             for doc in minibatch:
-                sentences.extend(doc.sents)
-                doc.user_data['toxics'] = np.zeros(len(LABEL_COLS), dtype=np.float32)
-            Xs = get_features(sentences, self.max_length)
-            ys = self._model.predict(Xs)
-            # print('pipe: sentences=%s sentences[0]=%s Xs=%s ys=%s' % (
-            #     dim(sentences), dim(sentences[0]), dim(Xs), dim(ys)))
-            for sent, label in zip(sentences, ys):
-                # print('pipe: sent=%s label=%s' % (sent, label))
-                sent.doc.user_data['toxics'] += label - 0.5
-            for doc in minibatch:
+                Xs = get_features(doc.sents, self.max_length)
+                ys = self._model.predict(Xs)
+                assert len(ys.shape) == 2, (dim(Xs), dim(ys))
+                assert ys.shape[1] == len(LABEL_COLS), (dim(Xs), dim(ys))
+                y = ys.mean(axis=0)
+                assert len(y.shape) == 1, (dim(Xs), dim(ys), dim(y))
+                assert y.shape[0] == len(LABEL_COLS), (dim(Xs), dim(ys), dim(y))
+                doc.user_data['toxics'] = y
                 yield doc
 
     def set_sentiment(self, doc, y):
@@ -289,8 +286,6 @@ def do_train(train_texts, train_labels, dev_texts, dev_labels,
 
     # model.fit_generator(train_gen, validation_data=dev_gen, steps_per_epoch=steps_per_epoch,
     #     validation_steps=validation_steps, epochs=epochs, callbacks=callback_list, verbose=2)
-
-
     return model
 
 
@@ -307,7 +302,7 @@ def get_features(docs, max_length):
             # else:
             #     Xs[i, j] = 0
 
-    print('get_features: Xs=%s' % dim(Xs))
+    # print('get_features: Xs=%s' % dim(Xs))
     return Xs
 
 
