@@ -155,6 +155,7 @@ class RocAucEvaluation(Callback):
         self.X_val, self.y_val = validation_data
         self.model_path = model_path
         self.best_auc = 0.0
+        self.best_epoch = -1
 
     def on_epoch_end(self, epoch, logs={}):
         if epoch % self.interval == 0:
@@ -166,8 +167,12 @@ class RocAucEvaluation(Callback):
             if auc >= self.best_auc + AUC_DELTA:
                 xprint('RocAucEvaluation.fit: auc=%.3f > best_auc=%.3f' % (auc, self.best_auc))
                 self.best_auc = auc
+                self.best_epoch = epoch
 
                 weights = self.model.get_weights()
                 xprint('RocAucEvaluation.fit: model_path=%s' % self.model_path)
                 with open(self.model_path, 'wb') as f:
                     pickle.dump(weights[1:], f)
+            else:
+                 xprint('RocAucEvaluation.fit: No improvement best_epoch=%dbest_auc=%.3f' %
+                    (self.best_epoch, self.best_auc))

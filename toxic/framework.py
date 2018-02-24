@@ -279,12 +279,12 @@ def make_submission(get_clf, submission_name):
 
     train, test, subm = load_data()
     clf = get_clf()
-    clf.fit(train)
+    clf.fit(train, test_size=0.0)
     pred = clf.predict(test)
 
     describe(pred)
 
-    # And finally, create the submission file.
+    # Csreate the submission file.
     submid = pd.DataFrame({'id': subm['id']})
     submission = pd.concat([submid, pd.DataFrame(pred, columns=LABEL_COLS)], axis=1)
     submission.to_csv(submission_path, index=False)

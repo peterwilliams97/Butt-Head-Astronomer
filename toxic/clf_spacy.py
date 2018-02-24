@@ -195,12 +195,14 @@ def do_train(train_texts, train_labels, dev_texts, dev_labels,
     print('do_train: train_texts=%s dev_texts=%s' % (dim(train_texts), dim(dev_texts)))
 
     n_train_sents = count_sentences(train_texts, batch_size, 'train')
-    n_dev_sents = count_sentences(dev_texts, batch_size, 'dev')
-
     X_train, y_train = make_sentences(lstm_shape['max_length'], batch_size,
         train_texts, train_labels, 'train', n_train_sents)
-    X_val, y_val = make_sentences(lstm_shape['max_length'], batch_size,
-        dev_texts, dev_labels, 'dev', n_dev_sents)
+    validation_data = None
+    if dev_texts is not None:
+        n_dev_sents = count_sentences(dev_texts, batch_size, 'dev')
+        X_val, y_val = make_sentences(lstm_shape['max_length'], batch_size,
+            dev_texts, dev_labels, 'dev', n_dev_sents)
+        validation_data = (X_val, y_val)
     sentence_cache.flush()
 
     print("Loading spaCy")
@@ -208,12 +210,14 @@ def do_train(train_texts, train_labels, dev_texts, dev_labels,
     embeddings = get_embeddings(nlp.vocab)
     model = compile_lstm(embeddings, lstm_shape, lstm_settings)
 
-    ra_val = RocAucEvaluation(validation_data=(X_val, y_val), interval=1, model_path=model_path)
-    early = EarlyStopping(monitor='val_auc', mode='max', patience=3, verbose=1)
-    callback_list = [ra_val, early]
+    callback_list = None
+    if validation_data is not None:
+        ra_val = RocAucEvaluation(validation_data=validation_data, interval=1, model_path=model_path)
+        early = EarlyStopping(monitor='val_auc', mode='max', patience=3, verbose=1)
+        callback_list = [ra_val, early]
 
     model.fit(X_train, y_train, batch_size=batch_size, epochs=epochs,
-              validation_data=(X_val, y_val), callbacks=callback_list, verbose=1)
+              validation_data=validation_data, callbacks=callback_list, verbose=1)
 
     return model
 
@@ -305,16 +309,18 @@ class ClfSpacy:
     def __repr__(self):
         return 'ClfSpacy(%s)' % self.description
 
-    def fit(self, train):
+    def fit(self, train, test_size=0.1):
         model_dir = get_model_dir(self.model_name, 0)
         # RocAucEvaluation saves the trainable part of the mode;
         model_path = os.path.join(model_dir, 'model')
         os.makedirs(model_dir, exist_ok=True)
         xprint('ClfSpacy.fit: model_dir=%s' % model_dir)
 
-        y_train0 = train[LABEL_COLS].values
-        X_train0 = df_to_sentences(train)
-        X_train, X_val, y_train, y_val = train_test_split(X_train0, y_train0, test_size=0.1)
+        y_train = train[LABEL_COLS].values
+        X_train = df_to_sentences(train)
+        X_val, y_val = None, None
+        if test_size > 0.0:
+            X_train, X_val, y_train, y_val = train_test_split(X_train, y_train, test_size=test_size)
 
         lstm_shape = {'n_hidden': self.n_hidden,
                       'max_length': self.max_length,
