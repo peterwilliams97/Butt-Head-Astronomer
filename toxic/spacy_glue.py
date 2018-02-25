@@ -111,3 +111,57 @@ class SpacySentenceCache:
 
     def flush(self):
         self._save()
+
+
+# class SpacyFeatureCache:
+
+#     def __init__(self):
+#         os.makedirs(SPACY_DIR, exist_ok=True)
+#         self.sents_path = os.path.join(SPACY_DIR, 'sentence.features.gzip')
+#         self.sents = load_pickle_gzip(self.sents_path, {})
+#         print("SpacyFeatureCache: path=%s len=%d" % (self.sents_path, len(self.sents)))
+#         self.sents_len = len(self.sents)
+#         self.n_calls = 0
+
+#     def _save(self, min_delta=0):
+#         if self.sents_len + min_delta < len(self.sents):
+#             print('_save 1: %7d = %7d + %4d %s' % (len(self.sents),
+#                 self.sents_len, len(self.sents) - self.sents_len,
+#                 self.ents_path))
+#             save_pickle_gzip(self.sents_path, self.sents)
+#             self.sents_len = len(self.sents)
+
+#     def sent_id_pipe(self, docs_in):
+#         """Use SpaCy tokenization and word vectors"""
+
+#         docs = list(docs_in)
+#         doc_ids_list = []
+#         for doc in docs:
+#             doc_ids = []
+#             for token in doc:
+#                 doc_ids.append(token.vocab.vectors.find(key=token.orth))
+#             doc_ids_list.append(doc_ids)
+
+#         return X
+#         texts = [text for text in texts_in if text not in self.text_sents]
+#         if texts:
+#             nlp = self._load_nlp()
+#             for text, doc in zip(texts, nlp.pipe(texts)):
+#                 self.text_sents[text] = []
+#                 for sent in doc.sents:
+#                     sent_ids = []
+#                     for token in sent:
+#                         vector_id = token.vocab.vectors.find(key=token.orth)
+#                         sent_ids.append(vector_id)
+#                     self.text_sents[text].append(sent_ids)
+
+#                 if self.n_calls % 10000 == 1:
+#                     print('**sent_id_pipe: n_calls=%d' % self.n_calls)
+#                     self._save()
+#                 self.n_calls += 1
+
+#         return [self.text_sents[text] for text in texts_in]
+
+#     def flush(self):
+#         self._save()
+

@@ -165,6 +165,7 @@ class RocAucEvaluation(Callback):
         self.frozen = frozen
         self.best_auc = 0.0
         self.best_epoch = -1
+        self.top_weights = None
 
     def on_epoch_end(self, epoch, logs={}):
         if epoch % self.interval == 0:
@@ -179,6 +180,7 @@ class RocAucEvaluation(Callback):
                 self.best_epoch = epoch
 
                 weights = self.model.get_weights()
+                self.top_weights = weights[1:]
                 if self.frozen:
                     weights = weights[1:]
                 xprint('RocAucEvaluation.fit: model_path=%s' % self.model_path)

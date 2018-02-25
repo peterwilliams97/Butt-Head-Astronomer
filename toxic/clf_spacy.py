@@ -1,5 +1,6 @@
 import cytoolz
 import numpy as np
+import keras.backend as K
 from keras.models import Sequential, model_from_json
 from keras.layers import LSTM, Dense, Embedding, Bidirectional
 from keras.layers import TimeDistributed
@@ -182,7 +183,8 @@ def do_train(train_texts, train_labels, dev_texts, dev_labels,
     print("Loading spaCy")
     nlp = sentence_cache._load_nlp()
     embeddings = get_embeddings(nlp.vocab)
-    model = compile_lstm(embeddings, lstm_shape, lstm_settings)
+    model = build_lstm(embeddings, lstm_shape, lstm_settings)
+    compile_lstm(model, lstm_settings['lr'])
 
     callback_list = None
     if validation_data is not None:
@@ -195,10 +197,17 @@ def do_train(train_texts, train_labels, dev_texts, dev_labels,
               validation_data=validation_data, callbacks=callback_list, verbose=1)
 
     if not frozen:
+        xprint("Unfreezing")
         for layer in model.layers:
-            layer.trainable = False
-        lr = model.lr.get_value()
-        model.lr.set_value(lr / 10)
+            layer.trainable = True
+        compile_lstm(model, lstm_settings['lr'] / 10)
+        if validation_data is not None:
+            # Reload the best model so far
+            lstm_weights = [embeddings] + ra_val.top_weights
+            model.set_weights(lstm_weights)
+            # Reset early stopping
+            early = EarlyStopping(monitor='val_auc', mode='max', patience=3, verbose=1)
+            callback_list = [ra_val, early]
         model.fit(X_train, y_train, batch_size=batch_size, epochs=epochs,
               validation_data=validation_data, callbacks=callback_list, verbose=1)
 
@@ -218,7 +227,27 @@ def get_features(docs, max_length):
     return Xs
 
 
-def compile_lstm(embeddings, shape, settings):
+def build_lstm(embeddings, shape, settings):
+    # inp = Input(shape=(shape['max_length'],))
+    # x = Embedding(
+    #         embeddings.shape[0],
+    #         embeddings.shape[1],
+    #         input_length=shape['max_length'],
+    #         trainable=False,
+    #         weights=[embeddings],
+    #         mask_zero=True
+    #     )(inp)
+    # x = Bidirectional(LSTM(shape['n_hidden'],
+    #                              recurrent_dropout=settings['dropout'],
+    #                              dropout=settings['dropout']))(x)
+    # x = GlobalMaxPool1D()(x)
+    # x = BatchNormalization()(x)
+    # x = Dense(50, activation="relu")(x)
+    # #x = BatchNormalization()(x)
+    # x = Dropout(dropout)(x)
+    # x = Dense(shape['n_class'], activation='sigmoid')(x)
+    # model = Model(inputs=inp, outputs=x)
+
     model = Sequential()
     model.add(
         Embedding(
@@ -235,10 +264,14 @@ def compile_lstm(embeddings, shape, settings):
                                  recurrent_dropout=settings['dropout'],
                                  dropout=settings['dropout'])))
     model.add(Dense(shape['n_class'], activation='sigmoid'))
+    xprint('build_lstm: embeddings=%s shape=%s' % (dim(embeddings), shape))
+    return model
 
-    model.compile(optimizer=Adam(lr=settings['lr']), loss='binary_crossentropy',
+
+def compile_lstm(model, learn_rate):
+    model.compile(optimizer=Adam(lr=learn_rate), loss='binary_crossentropy',
                   metrics=['accuracy'])
-    xprint('compile_lstm: embeddings=%s shape=%s' % (dim(embeddings), shape))
+    xprint('compile_lstm: learn_rate=%g' % learn_rate)
     xprint(model.summary())
     return model
 
