@@ -10,7 +10,7 @@ from clf_spacy import ClfSpacy
 do_submission = False
 submission_name = 'spacy_lstm4'
 epochs = 40
-frozen = False
+frozen = True
 submission_name = '%s.%s' % (submission_name, frozen)
 
 
