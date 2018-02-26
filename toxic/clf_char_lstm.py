@@ -11,7 +11,7 @@ import os
 import time
 import math
 import multiprocessing
-from framework import MODEL_DIR, LABEL_COLS, df_to_sentences, train_test_split
+from framework import MODEL_DIR, LABEL_COLS, df_to_sentences, train_test_split, find_all_chars
 from utils import dim, xprint, RocAucEvaluation, Cycler
 from spacy_glue import SpacySentenceCache
 
@@ -30,47 +30,34 @@ if False:
 
 class SentimentAnalyser(object):
     @classmethod
-    def load(cls, path, nlp, max_length, frozen):
+    def load(cls, path, char_index, max_length, frozen):
         xprint('SentimentAnalyser.load: path=%s max_length=%d' % (path, max_length))
         with open(os.path.join(path, 'config.json'), 'rt') as f:
             model = model_from_json(f.read())
         with open(os.path.join(path, 'model'), 'rb') as f:
             lstm_weights = pickle.load(f)
         if frozen:
-            embeddings = get_embeddings(nlp.vocab)
+            embeddings, char_index, index_char = get_char_embeddings()
             lstm_weights = [embeddings] + lstm_weights
         model.set_weights(lstm_weights)
-        return cls(model, max_length=max_length)
+        return cls(char_index, model, max_length=max_length)
 
-    def __init__(self, model, max_length):
+    def __init__(self, char_index, model, max_length):
+        self.char_index = char_index
         self._model = model
         self.max_length = max_length
-
-    # def __call__(self, doc):
-    #     X = get_features([doc], self.max_length)
-    #     y = self._model.predict(X)
-    #     self.set_sentiment(doc, y)
 
     def pipe(self, docs, batch_size=1000, n_threads=n_threads):
         for minibatch in cytoolz.partition_all(batch_size, docs):
             minibatch = list(minibatch)
             for doc in minibatch:
-                Xs = get_features(doc.sents, self.max_length)
+                Xs = get_char_features(self.char_index, doc.sents, self.max_length)
                 ys = self._model.predict(Xs)
                 doc.user_data['toxics'] = ys.mean(axis=0)
                 yield doc
 
-    # def set_sentiment(self, doc, y):
-    #     print('set_sentiment: y=%s sentiment=%s' % (y, doc.sentiment))
-    #     # doc.sentiment = float(y[0])
-    #     doc.user_data['toxics'] = y
-    #     assert False
-    #     # Sentiment has a native slot for a single float.
-    #     # For arbitrary data storage, there's:
-    #     # doc.user_data['toxics'] = y
 
-
-def sentence_label_generator(texts_in, labels_in, batch_size):
+def sentence_label_generator(texts_in, labels_in, batch_size, char_index):
     print('sentence_label_generator', len(texts_in), len(labels_in), batch_size)
     sent_labels = []
 
@@ -80,7 +67,7 @@ def sentence_label_generator(texts_in, labels_in, batch_size):
     while True:
         texts = texts_cycler.batch()
         labels = labels_cycler.batch()
-        text_sents = sentence_cache.sent_id_pipe(texts)
+        text_sents = sentence_cache.sent_char_pipe(char_index, texts)
         for sents, label in zip(text_sents, labels):
             for sent in sents:
                  sent_labels.append((sent, label))
@@ -114,16 +101,16 @@ def sentence_feature_generator(max_length, batch_size, texts_in, labels_in, name
                 (name, n, 100.0 * n / n_sentences, dt, n / dt))
 
 
-def make_sentences(max_length, batch_size, texts_in, labels_in, name, n_sentences):
+def make_char_sentences(max_length, batch_size, texts_in, labels_in, name, n_sentences, char_index):
     t0 = time.clock()
     N = max(1, n_sentences / 5)
     n = 0
 
     Xs = np.zeros((n_sentences, max_length), dtype='int32')
     ys = np.zeros((n_sentences, len(LABEL_COLS)), dtype='int32')
-    print('make_sentences: Xs=%s ys=%s' % (dim(Xs), dim(ys)))
+    print('make_char_sentences: Xs=%s ys=%s' % (dim(Xs), dim(ys)))
 
-    gen = sentence_label_generator(texts_in, labels_in, batch_size)
+    gen = sentence_label_generator(texts_in, labels_in, batch_size, char_index)
     while n < n_sentences:
         sent_labels = next(gen)
         m = min(batch_size, n_sentences - n)
@@ -169,20 +156,19 @@ def do_train(train_texts, train_labels, dev_texts, dev_labels,
 
     print('do_train: train_texts=%s dev_texts=%s' % (dim(train_texts), dim(dev_texts)))
 
+    embeddings, char_index, index_char = get_char_embeddings()
+
     n_train_sents = count_sentences(train_texts, batch_size, 'train')
-    X_train, y_train = make_sentences(lstm_shape['max_length'], batch_size,
-        train_texts, train_labels, 'train', n_train_sents)
+    X_train, y_train = make_char_sentences(lstm_shape['max_length'], batch_size,
+        train_texts, train_labels, 'train', n_train_sents, char_index)
     validation_data = None
     if dev_texts is not None:
         n_dev_sents = count_sentences(dev_texts, batch_size, 'dev')
-        X_val, y_val = make_sentences(lstm_shape['max_length'], batch_size,
-            dev_texts, dev_labels, 'dev', n_dev_sents)
+        X_val, y_val = make_char_sentences(lstm_shape['max_length'], batch_size,
+            dev_texts, dev_labels, 'dev', n_dev_sents, char_index)
         validation_data = (X_val, y_val)
     sentence_cache.flush()
 
-    print("Loading spaCy")
-    nlp = sentence_cache._load_nlp()
-    embeddings = get_embeddings(nlp.vocab)
     model = build_lstm[lstm_type](embeddings, lstm_shape, lstm_settings)
     compile_lstm(model, lstm_settings['lr'])
 
@@ -218,16 +204,16 @@ def do_train(train_texts, train_labels, dev_texts, dev_labels,
     return model, (best_epoch_frozen, best_epoch_unfrozen)
 
 
-def get_features(docs, max_length):
-    docs = list(docs)
-    Xs = np.zeros((len(docs), max_length), dtype='int32')
-    for i, doc in enumerate(docs):
-        for j, token in enumerate(doc):
+def get_char_features(char_index, sents, max_length):
+    sents = list(sents)
+    Xs = np.zeros((len(sents), max_length), dtype='int32')
+    for i, text in enumerate(sents):
+        for j, c in enumerate(text):
             if j >= max_length:
                 break
-            vector_id = token.vocab.vectors.find(key=token.orth)
-            if vector_id >= 0:
-                Xs[i, j] = vector_id
+            c_id = char_index.get(c, -1)
+            if c_id >= 0:
+                Xs[i, j] = c_id
     return Xs
 
 
@@ -466,8 +452,29 @@ def compile_lstm(model, learn_rate):
     return model
 
 
-def get_embeddings(vocab):
-    return vocab.vectors.data
+def get_char_embeddings():
+    char_count = find_all_chars()
+    embeddings_path = "glove.840B.300d-char.txt"
+    print('Processing pretrained character embeds...')
+    embedding_vectors = {}
+    with open(embeddings_path, 'r') as f:
+        for line in f:
+            line_split = line.strip().split(" ")
+            vec = np.array(line_split[1:], dtype=float)
+            char = line_split[0]
+            embedding_vectors[char] = vec
+
+    chars = sorted(embedding_vectors, key=lambda c: char_count[c])
+    char_index = {c: i for i, c in enumerate(chars)}
+    char_index['UNK'] = -1
+    index_char = {i: c for c, i in char_index.items()}
+
+    embeddings = np.zeros((len(chars) + 1, 300))
+    for c, i in char_index.items():
+        if c in embedding_vectors:
+            embeddings[i] = embedding_vectors[c]
+
+    return embeddings, char_index, index_char
 
 
 def predict(model_dir, texts, max_length, frozen):
@@ -490,41 +497,40 @@ def get_model_dir(model_name, fold):
     return os.path.join(MODEL_DIR, '%s.fold%d' % (model_name, fold))
 
 
-class ClfSpacy:
+class ClfCharLstm:
 
-    def __init__(self, n_hidden=64, max_length=100,  # Shape
+    def __init__(self, n_hidden=64, max_length=400,  # Shape
         dropout=0.5, learn_rate=0.001,  # General NN config
-        epochs=5, batch_size=100, n_examples=-1, frozen=True, lstm_type=1):
+        epochs=5, batch_size=100, frozen=True, lstm_type=1):
         """
             n_hidden: Number of elements in the LSTM layer
             max_length: Max length of comment text
             max_features: Maximum vocabulary size
         """
         self.n_hidden = n_hidden
-        self.max_length = max_length
+        self.max_length = max_length * 4
         self.dropout = dropout
         self.learn_rate = learn_rate
         self.epochs = epochs
         self.batch_size = batch_size
-        self.n_examples = n_examples
         self.frozen = frozen
         self.lstm_type = lstm_type
 
         self.description = ', '.join('%s=%s' % (k, v) for k, v in sorted(self.__dict__.items()))
-        self.model_name = 'lstm_spacy_%03d_%03d_%.3f_%.3f.%s.%d' % (n_hidden, max_length, dropout,
+        self.model_name = 'char_lstm_%03d_%03d_%.3f_%.3f.%s.%d' % (n_hidden, max_length, dropout,
             learn_rate, frozen, lstm_type)
         self.best_epochs = (-1, -1)
         assert lstm_type in build_lstm, self.description
 
     def __repr__(self):
-        return 'ClfSpacy(%s)' % self.description
+        return 'ClfCharLstm(%s)' % self.description
 
     def fit(self, train, test_size=0.1):
         model_dir = get_model_dir(self.model_name, 0)
-        # RocAucEvaluation saves the trainable part of the mode;
+        # RocAucEvaluation saves the trainable part of the model
         model_path = os.path.join(model_dir, 'model')
         os.makedirs(model_dir, exist_ok=True)
-        xprint('ClfSpacy.fit: model_dir=%s' % model_dir)
+        xprint('ClfCharLstm.fit: model_dir=%s' % model_dir)
 
         y_train = train[LABEL_COLS].values
         X_train = df_to_sentences(train)

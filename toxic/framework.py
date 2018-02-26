@@ -9,10 +9,11 @@ import os
 import random
 import sys
 from os.path import join
+from collections import defaultdict
 from sklearn.metrics import roc_auc_score
 from sklearn.model_selection import train_test_split
 # import matplotlib.pyplot as plt
-from utils import COMMENT, DATA_ROOT, dim, xprint
+from utils import COMMENT, DATA_ROOT, dim, xprint, load_json, save_json
 
 
 VERBOSE = False
@@ -294,7 +295,46 @@ def make_submission(get_clf, submission_name):
         dim(submission)))
 
 
+CHAR_COUNT = 'char_count.json'
+
+
+def find_all_chars(verbose=False):
+
+    char_count = load_json(CHAR_COUNT, {})
+    if not char_count:
+        train, test, _ = load_data()
+        char_count = defaultdict(int)
+        S = 0
+        for df in (test, train):
+            for sentence in df_to_sentences(df):
+                S += 1
+                for c in sentence:
+                    assert len(c) == 1, (c, sentence)
+                    char_count[c] += 1
+        char_count = {c: n for c, n in char_count.items()}
+        save_json(CHAR_COUNT, char_count)
+        print('S=%d' % S)
+
+    chars = sorted(char_count, key=lambda c: (-char_count[c], c))
+    N = sum(char_count.values())
+    print('find_all_chars: %d %r' % (len(chars), ''.join(chars[:50])))
+    print('N=%d=%.3fM' % (N, N * 1e-6))
+
+    if verbose:
+        tot = 0.0
+        for i, c in enumerate(chars[:200]):
+            n = char_count[c]
+            r = n / N
+            tot += r
+            print('%4d: %8d %.4f %.3f %4d=%2r' % (i, n, r, tot, ord(c), c))
+
+    return char_count
+
+
 if __name__ == '__main__':
+    find_all_chars()
+    assert False
+
     train, test, subm = load_data()
     # ## Looking at the data
     #

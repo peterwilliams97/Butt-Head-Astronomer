@@ -67,8 +67,14 @@ class SpacySentenceCache:
         os.makedirs(SPACY_DIR, exist_ok=True)
         self.text_sents_path = os.path.join(SPACY_DIR, 'sentence.text.tokens.gzip')
         self.text_sents = load_pickle_gzip(self.text_sents_path, {})
-        print("SpacySentenceCache: path=%s len=%d" % (self.text_sents_path, len(self.text_sents)))
+        print("SpacySentenceCache: sent path=%s len=%d" % (self.text_sents_path, len(self.text_sents)))
         self.text_sents_len = len(self.text_sents)
+
+        self.text_sent_chars_path = os.path.join(SPACY_DIR, 'sentence.text.texts.gzip')
+        self.text_sent_chars = load_pickle_gzip(self.text_sent_chars_path, {})
+        print("SpacySentenceCache: text path=%s len=%d" % (self.text_sent_chars_path, len(self.text_sent_chars)))
+        self.text_sent_chars_len = len(self.text_sent_chars)
+
         self.nlp = None
         self.n_calls = 0
 
@@ -87,6 +93,12 @@ class SpacySentenceCache:
                 self.text_sents_path))
             save_pickle_gzip(self.text_sents_path, self.text_sents)
             self.text_sents_len = len(self.text_sents)
+        if self.text_sent_chars_len + min_delta < len(self.text_sent_chars):
+            print('_save 2: %7d = %7d + %4d %s' % (len(self.text_sent_chars),
+                self.text_sent_chars_len, len(self.text_sent_chars) - self.text_sent_chars_len,
+                self.text_sent_chars_path))
+            save_pickle_gzip(self.text_sent_chars_path, self.text_sent_chars)
+            self.text_sent_chars_len = len(self.text_sent_chars)
 
     def sent_id_pipe(self, texts_in):
         """Use SpaCy tokenization and word vectors"""
@@ -108,6 +120,21 @@ class SpacySentenceCache:
                 self.n_calls += 1
 
         return [self.text_sents[text] for text in texts_in]
+
+    def sent_char_pipe(self, char_index, texts_in):
+        """Use SpaCy tokenization"""
+        texts = [text for text in texts_in if text not in self.text_sent_chars]
+        if texts:
+            nlp = self._load_nlp()
+            for text, doc in zip(texts, nlp.pipe(texts)):
+                self.text_sent_chars[text] = [[char_index.get(c, -1) for c in sent.string.strip()]
+                                              for sent in doc.sents]
+                if self.n_calls % 10000 == 1:
+                    print('**sent_char_pipe: n_calls=%d' % self.n_calls)
+                    self._save()
+                self.n_calls += 1
+
+        return [self.text_sent_chars[text] for text in texts_in]
 
     def flush(self):
         self._save()
