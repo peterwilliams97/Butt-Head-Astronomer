@@ -233,7 +233,7 @@ class Evaluator:
         xprint('program=%s train=%s' % (sys.argv[0], dim(self.train)))
         return True, auc
 
-    def _evaluate(self, get_clf, i):
+    def _evaluate(self, get_clf, i, do_clips=False):
         xprint('_evaluate %3d of %d  %s' % (i, self.n, '-' * 66))
         assert 0 <= i < len(self.shuffled_indexes), (i, self.n, len(self.shuffled_indexes))
         train_part, test_part = split_data(self.train, self.shuffled_indexes[i], self.frac)
@@ -251,14 +251,15 @@ class Evaluator:
             raise
             return False, auc
 
-        for k, delta in enumerate(CLIPS):
-            auc = np.zeros(len(LABEL_COLS), dtype=np.float64)
-            for j, col in enumerate(LABEL_COLS):
-                y_true = test_part[col]
-                y_pred = np.clip(pred[:, j], 0.0, 1.0 - delta)
-                auc[j] = roc_auc_score(y_true, y_pred)
-            mean_auc = auc.mean()
-            xprint('%5d: %d: delta=%6g auc=%.5f %s' % (i, k, delta, mean_auc, label_score(auc)))
+        if do_clips:
+            for k, delta in enumerate(CLIPS):
+                auc = np.zeros(len(LABEL_COLS), dtype=np.float64)
+                for j, col in enumerate(LABEL_COLS):
+                    y_true = test_part[col]
+                    y_pred = np.clip(pred[:, j], 0.0, 1.0 - delta)
+                    auc[j] = roc_auc_score(y_true, y_pred)
+                mean_auc = auc.mean()
+                xprint('%5d: %d: delta=%6g auc=%.5f %s' % (i, k, delta, mean_auc, label_score(auc)))
 
         auc = np.zeros(len(LABEL_COLS), dtype=np.float64)
         for j, col in enumerate(LABEL_COLS):

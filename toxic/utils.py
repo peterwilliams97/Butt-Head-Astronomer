@@ -171,7 +171,7 @@ class RocAucEvaluation(Callback):
         if epoch % self.interval == 0:
             y_pred = self.model.predict(self.X_val, verbose=0)
             auc = roc_auc_score(self.y_val, y_pred)
-            xprint('\n ROC-AUC - epoch: {:d} - score: {:.6f}'.format(epoch, auc))
+            xprint(' ROC-AUC - epoch: {:d} - score: {:.6f}'.format(epoch + 1, auc))
             logs['val_auc'] = auc
 
             if auc >= self.best_auc + AUC_DELTA:
@@ -188,7 +188,7 @@ class RocAucEvaluation(Callback):
                     pickle.dump(weights, f)
             else:
                  xprint('RocAucEvaluation.fit: No improvement best_epoch=%d best_auc=%.3f' %
-                    (self.best_epoch, self.best_auc))
+                    (self.best_epoch + 1, self.best_auc))
 
 
 class Cycler:

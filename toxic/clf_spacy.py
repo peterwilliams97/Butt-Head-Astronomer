@@ -1,15 +1,15 @@
 import cytoolz
 import numpy as np
-import keras.backend as K
 from keras.models import Sequential, model_from_json
-from keras.layers import LSTM, Dense, Embedding, Bidirectional
-from keras.layers import TimeDistributed
+from keras.layers import (LSTM, Dense, Embedding, Bidirectional, GlobalMaxPool1D,
+    BatchNormalization, TimeDistributed, Flatten)
 from keras.callbacks import EarlyStopping
 from keras.optimizers import Adam
 from spacy.compat import pickle
 import spacy
 import os
 import time
+import math
 import multiprocessing
 from framework import MODEL_DIR, LABEL_COLS, df_to_sentences, train_test_split
 from utils import dim, xprint, RocAucEvaluation, Cycler
@@ -162,7 +162,7 @@ def count_sentences(texts_in, batch_size, name):
 
 def do_train(train_texts, train_labels, dev_texts, dev_labels,
     lstm_shape, lstm_settings, lstm_optimizer, batch_size=100, epochs=5, by_sentence=True,
-    frozen=False, model_path=None):
+    frozen=False, lstm_type=1, model_path=None):
     """Train a Keras model on the sentences in `train_texts`
         All the sentences in a text have the text's label
     """
@@ -183,7 +183,7 @@ def do_train(train_texts, train_labels, dev_texts, dev_labels,
     print("Loading spaCy")
     nlp = sentence_cache._load_nlp()
     embeddings = get_embeddings(nlp.vocab)
-    model = build_lstm(embeddings, lstm_shape, lstm_settings)
+    model = build_lstm[lstm_type](embeddings, lstm_shape, lstm_settings)
     compile_lstm(model, lstm_settings['lr'])
 
     callback_list = None
@@ -195,7 +195,10 @@ def do_train(train_texts, train_labels, dev_texts, dev_labels,
 
     model.fit(X_train, y_train, batch_size=batch_size, epochs=epochs,
               validation_data=validation_data, callbacks=callback_list, verbose=1)
+    best_epoch_frozen = ra_val.best_epoch
+    ra_val.best_epoch = -1
 
+    best_epoch_unfrozen = -1
     if not frozen:
         xprint("Unfreezing")
         for layer in model.layers:
@@ -210,8 +213,9 @@ def do_train(train_texts, train_labels, dev_texts, dev_labels,
             callback_list = [ra_val, early]
         model.fit(X_train, y_train, batch_size=batch_size, epochs=epochs,
               validation_data=validation_data, callbacks=callback_list, verbose=1)
+        best_epoch_unfrozen = ra_val.best_epoch
 
-    return model
+    return model, (best_epoch_frozen, best_epoch_unfrozen)
 
 
 def get_features(docs, max_length):
@@ -227,7 +231,28 @@ def get_features(docs, max_length):
     return Xs
 
 
-def build_lstm(embeddings, shape, settings):
+def build_lstm1(embeddings, shape, settings):
+    model = Sequential()
+    model.add(
+        Embedding(
+            embeddings.shape[0],
+            embeddings.shape[1],
+            input_length=shape['max_length'],
+            trainable=False,
+            weights=[embeddings],
+            mask_zero=True
+        )
+    )
+    model.add(TimeDistributed(Dense(shape['n_hidden'], use_bias=False)))
+    model.add(Bidirectional(LSTM(shape['n_hidden'],
+                                 recurrent_dropout=settings['dropout'],
+                                 dropout=settings['dropout'])))
+    model.add(Dense(shape['n_class'], activation='sigmoid'))
+    xprint('build_lstm: embeddings=%s shape=%s' % (dim(embeddings), shape))
+    return model
+
+
+def build_lstm2(embeddings, shape, settings):
     # inp = Input(shape=(shape['max_length'],))
     # x = Embedding(
     #         embeddings.shape[0],
@@ -256,23 +281,86 @@ def build_lstm(embeddings, shape, settings):
             input_length=shape['max_length'],
             trainable=False,
             weights=[embeddings],
-            mask_zero=True
+            mask_zero=False
         )
     )
     model.add(TimeDistributed(Dense(shape['n_hidden'], use_bias=False)))
-    model.add(Bidirectional(LSTM(shape['n_hidden'],
+    model.add(Bidirectional(LSTM(shape['n_hidden'], return_sequences=True,
                                  recurrent_dropout=settings['dropout'],
                                  dropout=settings['dropout'])))
+    model.add(GlobalMaxPool1D())
+    model.add(BatchNormalization())
     model.add(Dense(shape['n_class'], activation='sigmoid'))
-    xprint('build_lstm: embeddings=%s shape=%s' % (dim(embeddings), shape))
+    xprint('build_lstm2: embeddings=%s shape=%s' % (dim(embeddings), shape))
     return model
+
+
+def build_lstm3(embeddings, shape, settings):
+    model = Sequential()
+    model.add(
+        Embedding(
+            embeddings.shape[0],
+            embeddings.shape[1],
+            input_length=shape['max_length'],
+            trainable=False,
+            weights=[embeddings],
+            mask_zero=False,
+            name='eembed'
+        )
+    )
+    model.add(TimeDistributed(Dense(shape['n_hidden'], use_bias=False, name='td')))
+    model.add(Bidirectional(LSTM(shape['n_hidden'], return_sequences=True,
+                                 recurrent_dropout=settings['dropout'],
+                                 dropout=settings['dropout'])))
+    model.add(Flatten(name='flaaten'))
+    model.add(BatchNormalization())
+    model.add(Dense(shape['n_class'], activation='sigmoid'))
+    xprint('build_lstm3: embeddings=%s shape=%s' % (dim(embeddings), shape))
+    return model
+
+
+def build_lstm4(embeddings, shape, settings):
+    model = Sequential()
+    model.add(
+        Embedding(
+            embeddings.shape[0],
+            embeddings.shape[1],
+            input_length=shape['max_length'],
+            trainable=False,
+            weights=[embeddings],
+            mask_zero=False,
+            name='eembed'
+        )
+    )
+    model.add(TimeDistributed(Dense(shape['n_hidden'], use_bias=False, name='td')))
+    model.add(Bidirectional(LSTM(shape['n_hidden'], return_sequences=True,
+                                 recurrent_dropout=settings['dropout'],
+                                 dropout=settings['dropout'])))
+    model.add(Flatten(name='flaaten'))
+    model.add(BatchNormalization())
+    n_dense = int(math.ceil(math.sqrt(shape['n_hidden'] * shape['n_class'])))
+    model.add(Dense(n_dense, activation='relu'))
+    # model.add(BatchNormalization())
+    # x = Dropout(dropout)(x)
+    model.add(Dense(shape['n_class'], activation='sigmoid'))
+    xprint('build_lstm4: embeddings=%s shape=%s' % (dim(embeddings), shape))
+
+    return model
+
+
+build_lstm = {
+    1: build_lstm1,
+    2: build_lstm2,
+    3: build_lstm3,
+    4: build_lstm4,
+}
 
 
 def compile_lstm(model, learn_rate):
     model.compile(optimizer=Adam(lr=learn_rate), loss='binary_crossentropy',
                   metrics=['accuracy'])
     xprint('compile_lstm: learn_rate=%g' % learn_rate)
-    xprint(model.summary())
+    model.summary(print_fn=xprint)
     return model
 
 
@@ -304,7 +392,7 @@ class ClfSpacy:
 
     def __init__(self, n_hidden=64, max_length=100,  # Shape
         dropout=0.5, learn_rate=0.001,  # General NN config
-        epochs=5, batch_size=100, n_examples=-1, frozen=True):
+        epochs=5, batch_size=100, n_examples=-1, frozen=True, lstm_type=1):
         """
             n_hidden: Number of elements in the LSTM layer
             max_length: Max length of comment text
@@ -318,10 +406,12 @@ class ClfSpacy:
         self.batch_size = batch_size
         self.n_examples = n_examples
         self.frozen = frozen
+        self.lstm_type = lstm_type
 
         self.description = ', '.join('%s=%s' % (k, v) for k, v in sorted(self.__dict__.items()))
-        self.model_name = 'lstm_spacy_%03d_%03d_%.3f_%.3f.%s' % (n_hidden, max_length, dropout,
-            learn_rate, frozen)
+        self.model_name = 'lstm_spacy_%03d_%03d_%.3f_%.3f.%s.%d' % (n_hidden, max_length, dropout,
+            learn_rate, frozen, lstm_type)
+        self.best_epochs = (-1, -1)
 
     def __repr__(self):
         return 'ClfSpacy(%s)' % self.description
@@ -344,12 +434,14 @@ class ClfSpacy:
                       'n_class': len(LABEL_COLS)}
         lstm_settings = {'dropout': self.dropout,
                          'lr': self.learn_rate}
-        lstm = do_train(X_train, y_train, X_val, y_val, lstm_shape, lstm_settings, {},
+        lstm, self.best_epochs = do_train(X_train, y_train, X_val, y_val, lstm_shape, lstm_settings, {},
                         epochs=self.epochs, batch_size=self.batch_size, frozen=self.frozen,
-                        model_path=model_path)
+                        lstm_type=self.lstm_type, model_path=model_path)
 
         with open(os.path.join(model_dir, 'config.json'), 'wt') as f:
             f.write(lstm.to_json())
+
+        print('****: best_epochs=%s - %s' % (self.best_epochs, self.description))
 
     def predict(self, test):
         X_test = df_to_sentences(test)
