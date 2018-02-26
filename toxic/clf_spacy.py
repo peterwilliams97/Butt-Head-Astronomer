@@ -2,7 +2,7 @@ import cytoolz
 import numpy as np
 from keras.models import Sequential, model_from_json
 from keras.layers import (LSTM, Dense, Embedding, Bidirectional, GlobalMaxPool1D,
-    BatchNormalization, TimeDistributed, Flatten)
+    GlobalAveragePooling1D, BatchNormalization, TimeDistributed, Flatten)
 from keras.callbacks import EarlyStopping
 from keras.optimizers import Adam
 from spacy.compat import pickle
@@ -248,7 +248,7 @@ def build_lstm1(embeddings, shape, settings):
                                  recurrent_dropout=settings['dropout'],
                                  dropout=settings['dropout'])))
     model.add(Dense(shape['n_class'], activation='sigmoid'))
-    xprint('build_lstm: embeddings=%s shape=%s' % (dim(embeddings), shape))
+    xprint('build_lstm1: embeddings=%s shape=%s' % (dim(embeddings), shape))
     return model
 
 
@@ -344,7 +344,29 @@ def build_lstm4(embeddings, shape, settings):
     # x = Dropout(dropout)(x)
     model.add(Dense(shape['n_class'], activation='sigmoid'))
     xprint('build_lstm4: embeddings=%s shape=%s' % (dim(embeddings), shape))
+    return model
 
+
+def build_lstm5(embeddings, shape, settings):
+    model = Sequential()
+    model.add(
+        Embedding(
+            embeddings.shape[0],
+            embeddings.shape[1],
+            input_length=shape['max_length'],
+            trainable=False,
+            weights=[embeddings],
+            mask_zero=False
+        )
+    )
+    model.add(TimeDistributed(Dense(shape['n_hidden'], use_bias=False)))
+    model.add(Bidirectional(LSTM(shape['n_hidden'], return_sequences=True,
+                                 recurrent_dropout=settings['dropout'],
+                                 dropout=settings['dropout'])))
+    model.add(GlobalAveragePooling1D())
+    model.add(BatchNormalization())
+    model.add(Dense(shape['n_class'], activation='sigmoid'))
+    xprint('build_lstm5: embeddings=%s shape=%s' % (dim(embeddings), shape))
     return model
 
 
@@ -353,6 +375,7 @@ build_lstm = {
     2: build_lstm2,
     3: build_lstm3,
     4: build_lstm4,
+    5: build_lstm5,
 }
 
 
@@ -412,6 +435,7 @@ class ClfSpacy:
         self.model_name = 'lstm_spacy_%03d_%03d_%.3f_%.3f.%s.%d' % (n_hidden, max_length, dropout,
             learn_rate, frozen, lstm_type)
         self.best_epochs = (-1, -1)
+        assert lstm_type in build_lstm, self.description
 
     def __repr__(self):
         return 'ClfSpacy(%s)' % self.description

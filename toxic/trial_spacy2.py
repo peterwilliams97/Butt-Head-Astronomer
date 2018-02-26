@@ -62,10 +62,11 @@ def get_clf6():
 
 xprint_init(submission_name, False)
 clf_list = [get_clf0, get_clf1, get_clf2, get_clf3, get_clf4, get_clf5]
+clf_list.reverse()
 auc_list = []
 for get_clf in clf_list:
     frozen = True
-    for lstm_type in (4, 3, 2, 1):
+    for lstm_type in (5, 2, 3, 4, 1):
         xprint('#' * 80)
         xprint(get_clf())
         seed_random(seed=1234)
