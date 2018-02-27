@@ -164,7 +164,7 @@ def show_auc(auc):
 
     xprint('-' * 110, 'n=%d' % n)
     for i in range(n):
-        print('%5d: auc=%.3f %s' % (i, auc[i].mean(), label_score(auc[i])))
+        xprint('%5d: auc=%.3f %s' % (i, auc[i, :].mean(), label_score(auc[i, :])))
     xprint('%5s: auc=%.3f %s' % ('Mean', mean_auc.mean(), label_score(mean_auc)))
     xprint('-' * 110)
     xprint('auc=%.3f +- %.3f (%.0f%%) range=%.3f (%.0f%%)' % (

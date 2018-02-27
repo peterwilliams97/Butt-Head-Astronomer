@@ -494,7 +494,7 @@ class ClfSpacy:
 
     def __init__(self, n_hidden=64, max_length=100,  # Shape
         dropout=0.5, learn_rate=0.001,  # General NN config
-        epochs=5, batch_size=100, n_examples=-1, frozen=True, lstm_type=1):
+        epochs=5, batch_size=100, frozen=True, lstm_type=1):
         """
             n_hidden: Number of elements in the LSTM layer
             max_length: Max length of comment text
@@ -506,7 +506,6 @@ class ClfSpacy:
         self.learn_rate = learn_rate
         self.epochs = epochs
         self.batch_size = batch_size
-        self.n_examples = n_examples
         self.frozen = frozen
         self.lstm_type = lstm_type
 
