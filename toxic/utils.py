@@ -171,7 +171,7 @@ class RocAucEvaluation(Callback):
         if epoch % self.interval == 0:
             y_pred = self.model.predict(self.X_val, verbose=0)
             auc = roc_auc_score(self.y_val, y_pred)
-            xprint(' ROC-AUC - epoch: {:d} - score: {:.6f}'.format(epoch + 1, auc))
+            xprint('\nROC-AUC - epoch: {:d} - score: {:.6f}'.format(epoch + 1, auc))
             logs['val_auc'] = auc
 
             if auc >= self.best_auc + AUC_DELTA:

@@ -13,12 +13,12 @@ import math
 import multiprocessing
 from framework import MODEL_DIR, LABEL_COLS, df_to_sentences, train_test_split, find_all_chars
 from utils import dim, xprint, RocAucEvaluation, Cycler
-from spacy_glue import SpacySentenceCache
+from spacy_glue import SpacySentenceCharCache
 
 
 n_threads = max(multiprocessing.cpu_count() - 1, 1)
 xprint('n_threads=%d' % n_threads)
-sentence_cache = SpacySentenceCache()
+sentence_cache = SpacySentenceCharCache()
 
 
 if False:
@@ -101,7 +101,11 @@ def sentence_feature_generator(max_length, batch_size, texts_in, labels_in, name
                 (name, n, 100.0 * n / n_sentences, dt, n / dt))
 
 
-def make_char_sentences(max_length, batch_size, texts_in, labels_in, name, n_sentences, char_index):
+def make_char_sentences(char_index, max_length, batch_size, texts_in, labels_in, name, n_sentences):
+    assert isinstance(char_index, dict), [type(x) for x in (char_index, max_length, batch_size,
+        texts_in, labels_in, name, n_sentences)]
+    assert isinstance(n_sentences, int), [type(x) for x in (char_index, max_length, batch_size,
+        texts_in, labels_in, name, n_sentences)]
     t0 = time.clock()
     N = max(1, n_sentences / 5)
     n = 0
@@ -130,14 +134,14 @@ def make_char_sentences(max_length, batch_size, texts_in, labels_in, name, n_sen
     return Xs, ys
 
 
-def count_sentences(texts_in, batch_size, name):
+def count_sentences(char_index, texts_in, batch_size, name):
     t0 = time.clock()
     N = max(1, len(texts_in) / 5)
     n = 0
     k = 0
     for minibatch in cytoolz.partition_all(batch_size, texts_in):
         texts = list(minibatch)
-        text_sents = sentence_cache.sent_id_pipe(texts)
+        text_sents = sentence_cache.sent_char_pipe(char_index, texts)
         k += len(text_sents)
         n += sum(len(sent) for sent in text_sents)
         if k % N == 0 or k == len(texts):
@@ -156,16 +160,16 @@ def do_train(train_texts, train_labels, dev_texts, dev_labels,
 
     print('do_train: train_texts=%s dev_texts=%s' % (dim(train_texts), dim(dev_texts)))
 
-    embeddings, char_index, index_char = get_char_embeddings()
+    embeddings, char_index, _ = get_char_embeddings()
 
-    n_train_sents = count_sentences(train_texts, batch_size, 'train')
-    X_train, y_train = make_char_sentences(lstm_shape['max_length'], batch_size,
-        train_texts, train_labels, 'train', n_train_sents, char_index)
+    n_train_sents = count_sentences(char_index, train_texts, batch_size, 'train')
+    X_train, y_train = make_char_sentences(char_index, lstm_shape['max_length'], batch_size,
+        train_texts, train_labels, 'train', n_train_sents)
     validation_data = None
     if dev_texts is not None:
-        n_dev_sents = count_sentences(dev_texts, batch_size, 'dev')
-        X_val, y_val = make_char_sentences(lstm_shape['max_length'], batch_size,
-            dev_texts, dev_labels, 'dev', n_dev_sents, char_index)
+        n_dev_sents = count_sentences(char_index, dev_texts, batch_size, 'dev')
+        X_val, y_val = make_char_sentences(char_index, lstm_shape['max_length'], batch_size,
+            dev_texts, dev_labels, 'dev', n_dev_sents)
         validation_data = (X_val, y_val)
     sentence_cache.flush()
 
@@ -176,7 +180,7 @@ def do_train(train_texts, train_labels, dev_texts, dev_labels,
     if validation_data is not None:
         ra_val = RocAucEvaluation(validation_data=validation_data, interval=1, frozen=frozen,
             model_path=model_path)
-        early = EarlyStopping(monitor='val_auc', mode='max', patience=3, verbose=1)
+        early = EarlyStopping(monitor='val_auc', mode='max', patience=1, verbose=1)
         callback_list = [ra_val, early]
 
     model.fit(X_train, y_train, batch_size=batch_size, epochs=epochs,
@@ -195,7 +199,7 @@ def do_train(train_texts, train_labels, dev_texts, dev_labels,
             lstm_weights = [embeddings] + ra_val.top_weights
             model.set_weights(lstm_weights)
             # Reset early stopping
-            early = EarlyStopping(monitor='val_auc', mode='max', patience=3, verbose=1)
+            early = EarlyStopping(monitor='val_auc', mode='max', patience=1, verbose=1)
             callback_list = [ra_val, early]
         model.fit(X_train, y_train, batch_size=batch_size, epochs=epochs,
               validation_data=validation_data, callbacks=callback_list, verbose=1)
@@ -229,11 +233,11 @@ def build_lstm1(embeddings, shape, settings):
             mask_zero=True
         )
     )
-    model.add(TimeDistributed(Dense(shape['n_hidden'], use_bias=False)))
+    model.add(TimeDistributed(Dense(shape['n_hidden'], use_bias=False), name='td1'))
     model.add(Bidirectional(LSTM(shape['n_hidden'],
                                  recurrent_dropout=settings['dropout'],
-                                 dropout=settings['dropout'])))
-    model.add(Dense(shape['n_class'], activation='sigmoid'))
+                                 dropout=settings['dropout']), name='bidi1'))
+    model.add(Dense(shape['n_class'], activation='sigmoid'), name='den1')
     xprint('build_lstm1: embeddings=%s shape=%s' % (dim(embeddings), shape))
     return model
 
@@ -508,7 +512,7 @@ class ClfCharLstm:
             max_features: Maximum vocabulary size
         """
         self.n_hidden = n_hidden
-        self.max_length = max_length * 4
+        self.max_length = max_length * 2
         self.dropout = dropout
         self.learn_rate = learn_rate
         self.epochs = epochs

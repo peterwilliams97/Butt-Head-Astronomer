@@ -18,8 +18,8 @@ from utils import COMMENT, DATA_ROOT, dim, xprint, load_json, save_json
 
 VERBOSE = False
 GRAPHS = False
-N_SAMPLES = -1  # > 0 for testing
-SEED = 234
+N_SAMPLES = 10000  # > 0 for testing
+SEED = 1111
 
 SUBMISSION_DIR = 'submissions'
 MODEL_DIR = 'models'
@@ -317,7 +317,7 @@ def find_all_chars(verbose=False):
 
     chars = sorted(char_count, key=lambda c: (-char_count[c], c))
     N = sum(char_count.values())
-    print('find_all_chars: %d %r' % (len(chars), ''.join(chars[:50])))
+    print('find_all_chars: %d %r' % (len(chars), ''.join(chars[:100])))
     print('N=%d=%.3fM' % (N, N * 1e-6))
 
     if verbose:

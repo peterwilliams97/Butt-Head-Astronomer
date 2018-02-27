@@ -8,14 +8,14 @@ from clf_char_lstm import ClfCharLstm
 
 
 submission_name = 'char_lstm1'
-epochs = 1
+epochs = 3
 
 
 def get_clf0():
-    return ClfCharLstm(n_hidden=4, max_length=10,  # Shape
-                    dropout=0.5, learn_rate=0.001,  # General NN config
-                    epochs=epochs, batch_size=150, frozen=frozen,
-                    lstm_type=lstm_type)
+    # return ClfCharLstm(n_hidden=4, max_length=10,  # Shape
+    #                 dropout=0.5, learn_rate=0.001,  # General NN config
+    #                 epochs=epochs, batch_size=150, frozen=frozen,
+    #                 lstm_type=lstm_type)
     return ClfCharLstm(n_hidden=64, max_length=100,  # Shape
                     dropout=0.5, learn_rate=0.001,  # General NN config
                     epochs=epochs, batch_size=150, frozen=frozen,
@@ -82,18 +82,19 @@ for get_clf in clf_list:
         evaluator = Evaluator(n=1)
         ok, auc = evaluator.evaluate(get_clf)
         auc_list.append((auc, get_clf.__name__, str(get_clf())))
-        xprint('~' * 100)
-        xprint('RESULTS SO FAR: %d' % len(auc_list))
         results = [(i, auc, clf, clf_str) for i, (auc, clf, clf_str) in enumerate(auc_list)]
         results.sort(key=lambda x: (-x[1].mean(), x[2], x[3]))
+        xprint('~' * 100)
+        xprint('RESULTS SO FAR: %d' % len(results))
         for i, auc, clf, clf_str in results:
             xprint('$' * 100)
             xprint('auc=%.4f %3d: %s %s' % (auc.mean(), i, clf, clf_str))
             show_auc(auc)
         xprint('^' * 100)
+        xprint('RESULTS SUMMARY: %d' % len(results))
         for i, auc, clf, clf_str in results:
             xprint('auc=%.4f %3d: %s %s' % (auc.mean(), i, clf, clf_str))
         xprint('&' * 100)
 
 
-xprint('$' * 80)
+xprint('$' * 100)

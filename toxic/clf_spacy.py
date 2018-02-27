@@ -13,12 +13,12 @@ import math
 import multiprocessing
 from framework import MODEL_DIR, LABEL_COLS, df_to_sentences, train_test_split
 from utils import dim, xprint, RocAucEvaluation, Cycler
-from spacy_glue import SpacySentenceCache
+from spacy_glue import SpacySentenceWordCache
 
 
 n_threads = max(multiprocessing.cpu_count() - 1, 1)
 xprint('n_threads=%d' % n_threads)
-sentence_cache = SpacySentenceCache()
+sentence_cache = SpacySentenceWordCache()
 
 
 if False:
@@ -190,7 +190,7 @@ def do_train(train_texts, train_labels, dev_texts, dev_labels,
     if validation_data is not None:
         ra_val = RocAucEvaluation(validation_data=validation_data, interval=1, frozen=frozen,
             model_path=model_path)
-        early = EarlyStopping(monitor='val_auc', mode='max', patience=3, verbose=1)
+        early = EarlyStopping(monitor='val_auc', mode='max', patience=1, verbose=1)
         callback_list = [ra_val, early]
 
     model.fit(X_train, y_train, batch_size=batch_size, epochs=epochs,
@@ -209,7 +209,7 @@ def do_train(train_texts, train_labels, dev_texts, dev_labels,
             lstm_weights = [embeddings] + ra_val.top_weights
             model.set_weights(lstm_weights)
             # Reset early stopping
-            early = EarlyStopping(monitor='val_auc', mode='max', patience=3, verbose=1)
+            early = EarlyStopping(monitor='val_auc', mode='max', patience=1, verbose=1)
             callback_list = [ra_val, early]
         model.fit(X_train, y_train, batch_size=batch_size, epochs=epochs,
               validation_data=validation_data, callbacks=callback_list, verbose=1)
