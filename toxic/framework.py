@@ -18,7 +18,7 @@ from utils import COMMENT, DATA_ROOT, dim, xprint, load_json, save_json
 
 VERBOSE = False
 GRAPHS = False
-N_SAMPLES = -1  # > 0 for testing
+_N_SAMPLES = [-1]  # > 0 for testing
 SEED = 234
 
 SUBMISSION_DIR = 'submissions'
@@ -28,10 +28,33 @@ LABEL_COLS = ['toxic', 'severe_toxic', 'obscene', 'threat', 'insult', 'identity_
 seed_delta = 1
 
 
-def seed_random(seed=SEED):
+def set_n_samples(n):
+    _N_SAMPLES[0] = n
+
+
+def get_n_samples():
+    return _N_SAMPLES[0]
+
+
+def get_n_samples_str():
+    n_samples = get_n_samples()
+    return 'ALL' if n_samples < 0 else str(n_samples)
+
+
+_random_seed = [SEED]
+
+
+def seed_random(seed=None):
+    if seed is None:
+        seed = _random_seed[0]
     random.seed(seed)
     np.random.seed(seed)
     tf.set_random_seed(seed)
+
+
+def set_random_seed(seed):
+    _random_seed[0] = seed
+    seed_random()
 
 
 def my_shuffle(indexes):
@@ -50,9 +73,10 @@ def load_data():
     subm = pd.read_csv(join(TOXIC_DATA_DIR, 'sample_submission.csv'))
     xprint('train,test,subm:', train.shape, test.shape, subm.shape)
 
-    if N_SAMPLES > 0:
-        train = train[:N_SAMPLES]
-        test = test[:N_SAMPLES]
+    n_samples = get_n_samples()
+    if n_samples > 0:
+        train = train[:n_samples]
+        test = test[:n_samples]
 
     seed_random()
 

@@ -3,12 +3,13 @@
     SpaCy deep_learning_keras.py solution to Kaggle Toxic Comment challenge
 """
 from utils import xprint_init, xprint
-from framework import Evaluator, seed_random, show_auc
+from framework import Evaluator, set_random_seed, show_auc, set_n_samples
 from clf_spacy import ClfSpacy, PREDICT_METHODS
 
 
 submission_name = 'spacy_lstm12'
 epochs = 40
+set_n_samples(10000)
 
 
 def get_clf0():
@@ -89,10 +90,10 @@ def get_clf15():
 
 
 xprint_init(submission_name, False)
-clf_list = [get_clf12, get_clf13, get_clf14, get_clf15,
+clf_list = [get_clf13, get_clf14, get_clf15,
            # get_clf0, get_clf2, get_clf3,
            get_clf4, get_clf5,
-           get_clf1]
+           get_clf1, get_clf12]
 # clf_list.reverse()
 auc_list = []
 frozen = True
@@ -138,7 +139,7 @@ for get_clf in clf_list:
         for predict_method in PREDICT_METHODS:
             xprint('#' * 80)
             xprint(get_clf())
-            seed_random(seed=1234)
+            set_random_seed(1234)
             evaluator = Evaluator(n=1)
             ok, auc0 = evaluator.evaluate(get_clf)
             auc_list.append((auc0, get_clf.__name__, str(get_clf())))

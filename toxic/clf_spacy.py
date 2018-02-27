@@ -11,7 +11,7 @@ import os
 import time
 import math
 import multiprocessing
-from framework import MODEL_DIR, LABEL_COLS, N_SAMPLES, df_to_sentences, train_test_split
+from framework import MODEL_DIR, LABEL_COLS, get_n_samples_str, df_to_sentences, train_test_split
 from utils import dim, xprint, RocAucEvaluation, Cycler, save_model
 from spacy_glue import SpacySentenceWordCache
 
@@ -29,9 +29,8 @@ if False:
 
 
 MIN, MEAN, MAX, MEAN_MAX, MEDIAN, PC75, PC90, LINEAR, LINEAR2, LINEAR3, LINEAR4, LINEAR5, EXP = (
-    'MIN', 'MEAN', 'MAX', 'MEAN_MAX',
-    'MEDIAN', 'PC75',
-    'PC90', 'LINEAR', 'LINEAR2', 'LINEAR3', 'LINEAR4', 'LINEAR5', 'EXP')
+    'MIN', 'MEAN', 'MAX', 'MEAN_MAX', 'MEDIAN', 'PC75', 'PC90', 'LINEAR', 'LINEAR2', 'LINEAR3',
+    'LINEAR4', 'LINEAR5', 'EXP')
 PREDICT_METHODS = (MIN, MEAN, MAX, MEAN_MAX, MEDIAN, PC75, PC90, LINEAR, LINEAR2, LINEAR3, LINEAR4,
     LINEAR5, EXP)
 
@@ -610,9 +609,8 @@ class ClfSpacy:
         self.predict_method = predict_method
 
         self.description = ', '.join('%s=%s' % (k, v) for k, v in sorted(self.__dict__.items()))
-        n_samples = str(N_SAMPLES) if N_SAMPLES >= 0 else 'ALL'
-        self.model_name = 'lstm_spacy.%s_%03d_%03d_%.3f_%.3f.%s.%d' % (n_samples, n_hidden,
-            max_length, dropout, learn_rate, frozen, lstm_type)
+        self.model_name = 'lstm_spacy.%s_%03d_%03d_%.3f_%.3f.%s.%d' % (get_n_samples_str(),
+            n_hidden, max_length, dropout, learn_rate, frozen, lstm_type)
         self.force_fit = force_fit
 
         self.best_epochs = (-1, -1)
