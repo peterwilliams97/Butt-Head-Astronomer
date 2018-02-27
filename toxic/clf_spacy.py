@@ -261,8 +261,9 @@ def do_train(train_texts, train_labels, dev_texts, dev_labels,
 
     model.fit(X_train, y_train, batch_size=batch_size, epochs=epochs,
               validation_data=validation_data, callbacks=callback_list, verbose=1)
-    best_epoch_frozen = ra_val.best_epoch
-    ra_val.best_epoch = -1
+    if validation_data is not None:
+        best_epoch_frozen = ra_val.best_epoch
+        ra_val.best_epoch = -1
 
     best_epoch_unfrozen = -1
     if not frozen:
