@@ -149,6 +149,15 @@ def save_pickle_gzip(path, obj):
     os.renames(temp_pickle, path)
 
 
+def save_model(model, frozen, model_path):
+    weights = model.get_weights()
+    if frozen:
+        weights = weights[1:]
+    xprint('save_model: model_path=%s' % model_path)
+    with open(model_path, 'wb') as f:
+        pickle.dump(weights, f)
+
+
 AUC_DELTA = 0.001
 
 
@@ -181,11 +190,7 @@ class RocAucEvaluation(Callback):
 
                 weights = self.model.get_weights()
                 self.top_weights = weights[1:]
-                if self.frozen:
-                    weights = weights[1:]
-                xprint('RocAucEvaluation.fit: model_path=%s' % self.model_path)
-                with open(self.model_path, 'wb') as f:
-                    pickle.dump(weights, f)
+                save_model(self.model, self.frozen, self.model_path)
             else:
                  xprint('RocAucEvaluation.fit: No improvement best_epoch=%d best_auc=%.3f' %
                     (self.best_epoch + 1, self.best_auc))

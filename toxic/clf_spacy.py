@@ -11,8 +11,8 @@ import os
 import time
 import math
 import multiprocessing
-from framework import MODEL_DIR, LABEL_COLS, df_to_sentences, train_test_split
-from utils import dim, xprint, RocAucEvaluation, Cycler
+from framework import MODEL_DIR, LABEL_COLS, N_SAMPLES, df_to_sentences, train_test_split
+from utils import dim, xprint, RocAucEvaluation, Cycler, save_model
 from spacy_glue import SpacySentenceWordCache
 
 
@@ -33,7 +33,7 @@ MIN, MEAN, MAX, MEAN_MAX, MEDIAN, PC75, PC90, LINEAR, LINEAR2, LINEAR3, LINEAR4,
     'MEDIAN', 'PC75',
     'PC90', 'LINEAR', 'LINEAR2', 'LINEAR3', 'LINEAR4', 'LINEAR5', 'EXP')
 PREDICT_METHODS = (MIN, MEAN, MAX, MEAN_MAX, MEDIAN, PC75, PC90, LINEAR, LINEAR2, LINEAR3, LINEAR4,
-    LINEAR5, EXP )
+    LINEAR5, EXP)
 
 
 def linear_weights(ys, limit):
@@ -263,6 +263,7 @@ def do_train(train_texts, train_labels, dev_texts, dev_labels,
     """
 
     print('do_train: train_texts=%s dev_texts=%s' % (dim(train_texts), dim(dev_texts)))
+    best_epoch_frozen, best_epoch_unfrozen = -1, -1
 
     n_train_sents = count_sentences(train_texts, batch_size, 'train')
     X_train, y_train = make_sentences(lstm_shape['max_length'], batch_size,
@@ -293,8 +294,9 @@ def do_train(train_texts, train_labels, dev_texts, dev_labels,
     if validation_data is not None:
         best_epoch_frozen = ra_val.best_epoch
         ra_val.best_epoch = -1
+    else:
+        save_model(model, frozen, model_path)
 
-    best_epoch_unfrozen = -1
     if not frozen:
         xprint("Unfreezing")
         for layer in model.layers:
@@ -591,7 +593,7 @@ class ClfSpacy:
 
     def __init__(self, n_hidden=64, max_length=100,  # Shape
         dropout=0.5, learn_rate=0.001,  # General NN config
-        epochs=5, batch_size=100, frozen=True, lstm_type=1, predict_method=MEAN):
+        epochs=5, batch_size=100, frozen=True, lstm_type=1, predict_method=MEAN, force_fit=False):
         """
             n_hidden: Number of elements in the LSTM layer
             max_length: Max length of comment text
@@ -608,8 +610,11 @@ class ClfSpacy:
         self.predict_method = predict_method
 
         self.description = ', '.join('%s=%s' % (k, v) for k, v in sorted(self.__dict__.items()))
-        self.model_name = 'lstm_spacy_%03d_%03d_%.3f_%.3f.%s.%d' % (n_hidden, max_length, dropout,
-            learn_rate, frozen, lstm_type)
+        n_samples = str(N_SAMPLES) if N_SAMPLES >= 0 else 'ALL'
+        self.model_name = 'lstm_spacy.%s_%03d_%03d_%.3f_%.3f.%s.%d' % (n_samples, n_hidden,
+            max_length, dropout, learn_rate, frozen, lstm_type)
+        self.force_fit = force_fit
+
         self.best_epochs = (-1, -1)
         assert lstm_type in build_lstm, self.description
 
@@ -618,13 +623,16 @@ class ClfSpacy:
 
     def fit(self, train, test_size=0.1):
         model_dir = get_model_dir(self.model_name, 0)
-        # RocAucEvaluation saves the trainable part of the mode;
+        # RocAucEvaluation saves the trainable part of the model
         model_path = os.path.join(model_dir, 'model')
-        xprint('model_path=%s' % model_path)
-        if os.path.exists(model_path):
+        config_path = os.path.join(model_dir, 'config.json')
+        xprint('model_path=%s exists=%s' % (model_path, os.path.exists(model_path)))
+        xprint('config_path=%s exists=%s' % (config_path, os.path.exists(config_path)))
+        if os.path.exists(model_path) and os.path.exists(config_path) and not self.force_fit:
             xprint('model_path already exists. re-using')
             return
         os.makedirs(model_dir, exist_ok=True)
+
         xprint('ClfSpacy.fit: model_dir=%s' % model_dir)
 
         y_train = train[LABEL_COLS].values
@@ -642,7 +650,7 @@ class ClfSpacy:
                         epochs=self.epochs, batch_size=self.batch_size, frozen=self.frozen,
                         lstm_type=self.lstm_type, model_path=model_path)
 
-        with open(os.path.join(model_dir, 'config.json'), 'wt') as f:
+        with open(config_path, 'wt') as f:
             f.write(lstm.to_json())
 
         print('****: best_epochs=%s - %s' % (self.best_epochs, self.description))
