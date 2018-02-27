@@ -15,7 +15,7 @@ epochs = 6
 def get_clf():
     return ClfSpacy(n_hidden=128, max_length=100,  # Shape
                     dropout=0.5, learn_rate=0.001,  # General NN config
-                    epochs=epochs, batch_size=150, frozen=False,
+                    epochs=epochs, batch_size=150, frozen=True,
                     lstm_type=2)
 
 
