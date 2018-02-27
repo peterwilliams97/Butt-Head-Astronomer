@@ -7,7 +7,7 @@ from framework import Evaluator, seed_random, show_auc
 from clf_spacy import ClfSpacy
 
 
-submission_name = 'spacy_lstm7'
+submission_name = 'spacy_lstm8'
 epochs = 40
 
 
@@ -74,8 +74,8 @@ frozen = True
 # clf=0.9721   0: get_clf0 ClfSpacy(batch_size=150, dropout=0.5, learn_rate=0.001, lstm_type=4, max_length=100, n_examples=-1, n_hidden=64)
 # clf=0.9708   5: get_clf1 ClfSpacy(batch_size=150, dropout=0.5, learn_rate=0.001, lstm_type=3, max_length=100, n_examples=-1, n_hidden=128)
 
-for get_clf in clf_list:
-    for lstm_type in (2, 8, 7, 6, 5):  # , 3, 4, 1):
+for lstm_type in (2, 8, 7, 6, 5):  # , 3, 4, 1):
+    for get_clf in clf_list:
         xprint('#' * 80)
         xprint(get_clf())
         seed_random(seed=1234)

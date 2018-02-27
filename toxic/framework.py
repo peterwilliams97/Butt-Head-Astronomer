@@ -180,7 +180,7 @@ def cmt(row, m=120):
     return '%3d %s' % (len(text), text[:m].replace('\n', ' '))
 
 
-def show_best_worst(test, pred, n=20, m=100):
+def show_best_worst(test, pred, n=20, m=100, do_best=True, do_worst=True):
     pred_df = pd.DataFrame(pred, index=test.index, columns=['%s_pred' % col for col in LABEL_COLS])
     test_pred = pd.concat([test, pred_df], axis=1)
     print('test=%s pred=%s test_pred=%s' % (dim(test), dim(pred), dim(test_pred)))
@@ -197,22 +197,24 @@ def show_best_worst(test, pred, n=20, m=100):
         print('col=%s is_0=%d is_1=%d=%.1f%% ' % (col, len(is_0), len(is_1),
             100.0 * len(is_1) / len(test)))
         assert len(is_0) + len(is_1) == len(test_pred)
-        # Best is_0, is_1
-        xprint('Is 0. Predicted ~0. Good.', col)
-        for i in range(min(len(is_0), n)):
-            xprint('%4d: %.3f %s' % (i, is_0.iloc[i][col_pred], cmt(is_0.iloc[i])))
-        xprint('Is 1. Predicted ~1. Good.', col)
-        for i in range(min(len(is_1), n)):
-            k = len(is_1) - 1 - i
-            xprint('%4d: %.3f %s' % (i, is_1.iloc[k][col_pred], cmt(is_1.iloc[k])))
-        # Worst is_0, is_1
-        xprint('Is 1. Predicted ~0. BAD.', col)
-        for i in range(min(len(is_1), n)):
-            xprint('%4d: %.3f %s' % (i, is_1.iloc[i][col_pred], cmt(is_1.iloc[i])))
-        xprint('Is 0. Predicted ~1. BAD.', col)
-        for i in range(min(len(is_0), n)):
-            k = len(is_0) - 1 - i
-            xprint('%4d: %.3f %s' % (i, is_0.iloc[k][col_pred], cmt(is_0.iloc[k])))
+        if do_best:
+            # Best is_0, is_1
+            xprint('Is 0. Predicted ~0. Good.', col)
+            for i in range(min(len(is_0), n)):
+                xprint('%4d: %.3f %s' % (i, is_0.iloc[i][col_pred], cmt(is_0.iloc[i])))
+            xprint('Is 1. Predicted ~1. Good.', col)
+            for i in range(min(len(is_1), n)):
+                k = len(is_1) - 1 - i
+                xprint('%4d: %.3f %s' % (i, is_1.iloc[k][col_pred], cmt(is_1.iloc[k])))
+        if do_worst:
+            # Worst is_0, is_1
+            xprint('Is 1. Predicted ~0. BAD.', col)
+            for i in range(min(len(is_1), n)):
+                xprint('%4d: %.3f %s' % (i, is_1.iloc[i][col_pred], cmt(is_1.iloc[i])))
+            xprint('Is 0. Predicted ~1. BAD.', col)
+            for i in range(min(len(is_0), n)):
+                k = len(is_0) - 1 - i
+                xprint('%4d: %.3f %s' % (i, is_0.iloc[k][col_pred], cmt(is_0.iloc[k])))
 
 
 class Evaluator:
@@ -270,7 +272,7 @@ class Evaluator:
         mean_auc = auc.mean()
         xprint('%5d: auc=%.3f %s' % (i, mean_auc, label_score(auc)))
         describe(pred)
-        show_best_worst(test_part, pred)
+        show_best_worst(test_part, pred, n=3, do_best=False)
         return True, auc
 
 
