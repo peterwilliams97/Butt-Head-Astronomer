@@ -28,9 +28,86 @@ if False:
     assert False
 
 
+MIN, MEAN, MAX, MEAN_MAX, MEDIAN, PC75, PC90, LINEAR, LINEAR2, LINEAR3, LINEAR4, LINEAR5, EXP = (
+    'MIN', 'MEAN', 'MAX', 'MEAN_MAX',
+    'MEDIAN', 'PC75',
+    'PC90', 'LINEAR', 'LINEAR2', 'LINEAR3', 'LINEAR4', 'LINEAR5', 'EXP')
+PREDICT_METHODS = (LINEAR4, LINEAR5, LINEAR, LINEAR2, LINEAR3, EXP, MEAN, MAX, MEDIAN, PC75, PC90)
+
+
+def linear_weights(ys, limit):
+    n = ys.shape[0]
+    weights = np.ones(n, dtype=np.float64)
+    if n <= 1:
+        return weights
+    lo = limit
+    hi = 1.0 - limit
+    span = hi - lo
+    d = span / (n - 1)
+    for i in range(n):
+        weights[i] = lo + d * i
+    weights /= weights.sum()
+    return weights
+
+
+def exponential_weights(ys, limit):
+    n = ys.shape[0]
+    weights = np.ones(n, dtype=np.float64)
+    if n <= 1:
+        return weights
+    lo = limit
+    hi = 1.0 - limit
+    span = hi - lo
+    d = span / (n - 1)
+    for i in range(n):
+        weights[i] = lo + d ** -i
+    weights /= weights.sum()
+    return weights
+
+
+def reduce(ys, method):
+    if method == MIN:
+        return ys.min(axis=0)
+    if method == MEAN:
+        return ys.mean(axis=0)
+    elif method == MAX:
+        return ys.max(axis=0)
+    elif method == MEAN_MAX:
+        return (ys.mean(axis=0) + ys.max(axis=0)) / 2.0
+    elif method == MEAN:
+        return np.percentile(ys, 50.0, axis=0, interpolation='higher')
+    elif method == PC75:
+        return np.percentile(ys, 75.0, axis=0, interpolation='higher')
+    elif method == PC90:
+        return np.percentile(ys, 90.0, axis=0, interpolation='higher')
+    elif method == LINEAR:
+        weights = linear_weights(ys, limit=0.1)
+        y = np.dot(weights, ys)
+        assert len(y.shape) == 1 and len(y) == ys.shape[1], (weights.shape, ys.shape, y.shape)
+        return y
+    elif method == LINEAR2:
+        weights = linear_weights(ys, limit=0.2)
+        return np.dot(weights, ys)
+    elif method == LINEAR3:
+        weights = linear_weights(ys, limit=0.3)
+        return np.dot(weights, ys)
+    elif method == LINEAR4:
+        weights = linear_weights(ys, limit=0.05)
+        return np.dot(weights, ys)
+    elif method == LINEAR6:
+        weights = linear_weights(ys, limit=0.01)
+        return np.dot(weights, ys)
+    elif method == EXP:
+        weights = exponential_weights(ys, limit=0.3)
+        y = np.dot(weights, ys)
+        assert len(y.shape) == 1 and len(y) == ys.shape[1], (weights.shape, ys.shape, y.shape)
+        return y
+    raise ValueError('Bad method=%s' % method)
+
+
 class SentimentAnalyser(object):
     @classmethod
-    def load(cls, path, nlp, max_length, frozen):
+    def load(cls, path, nlp, method, max_length, frozen):
         xprint('SentimentAnalyser.load: path=%s max_length=%d' % (path, max_length))
         with open(os.path.join(path, 'config.json'), 'rt') as f:
             model = model_from_json(f.read())
@@ -40,16 +117,12 @@ class SentimentAnalyser(object):
             embeddings = get_embeddings(nlp.vocab)
             lstm_weights = [embeddings] + lstm_weights
         model.set_weights(lstm_weights)
-        return cls(model, max_length=max_length)
+        return cls(model, method=method, max_length=max_length)
 
-    def __init__(self, model, max_length):
+    def __init__(self, model, method, max_length):
         self._model = model
+        self.method = method
         self.max_length = max_length
-
-    # def __call__(self, doc):
-    #     X = get_features([doc], self.max_length)
-    #     y = self._model.predict(X)
-    #     self.set_sentiment(doc, y)
 
     def pipe(self, docs, batch_size=1000, n_threads=n_threads):
         for minibatch in cytoolz.partition_all(batch_size, docs):
@@ -57,17 +130,10 @@ class SentimentAnalyser(object):
             for doc in minibatch:
                 Xs = get_features(doc.sents, self.max_length)
                 ys = self._model.predict(Xs)
-                doc.user_data['toxics'] = ys.mean(axis=0)
+                y = reduce(ys, method=self.method)
+                assert len(y.shape) == 1 and len(y) == ys.shape[1], (weights.shape, ys.shape, y.shape)
+                doc.user_data['toxics'] = y
                 yield doc
-
-    # def set_sentiment(self, doc, y):
-    #     print('set_sentiment: y=%s sentiment=%s' % (y, doc.sentiment))
-    #     # doc.sentiment = float(y[0])
-    #     doc.user_data['toxics'] = y
-    #     assert False
-    #     # Sentiment has a native slot for a single float.
-    #     # For arbitrary data storage, there's:
-    #     # doc.user_data['toxics'] = y
 
 
 def sentence_label_generator(texts_in, labels_in, batch_size):
@@ -470,13 +536,14 @@ def get_embeddings(vocab):
     return vocab.vectors.data
 
 
-def predict(model_dir, texts, max_length, frozen):
+def predict(model_dir, texts, method, max_length, frozen):
     nlp = spacy.load('en_core_web_lg')
     print('----- pipe_names=%s' % nlp.pipe_names)
     nlp.pipeline = [
         ('tagger', nlp.tagger),
         ('parser', nlp.parser),
-        ('sa', SentimentAnalyser.load(model_dir, nlp, max_length=max_length, frozen=frozen))
+        ('sa', SentimentAnalyser.load(model_dir, nlp, method=method, max_length=max_length,
+            frozen=frozen))
     ]
     print('+++++ pipe_names=%s' % nlp.pipe_names)
 
@@ -494,7 +561,7 @@ class ClfSpacy:
 
     def __init__(self, n_hidden=64, max_length=100,  # Shape
         dropout=0.5, learn_rate=0.001,  # General NN config
-        epochs=5, batch_size=100, frozen=True, lstm_type=1):
+        epochs=5, batch_size=100, frozen=True, lstm_type=1, predict_method=MEAN):
         """
             n_hidden: Number of elements in the LSTM layer
             max_length: Max length of comment text
@@ -508,6 +575,7 @@ class ClfSpacy:
         self.batch_size = batch_size
         self.frozen = frozen
         self.lstm_type = lstm_type
+        self.predict_method = predict_method
 
         self.description = ', '.join('%s=%s' % (k, v) for k, v in sorted(self.__dict__.items()))
         self.model_name = 'lstm_spacy_%03d_%03d_%.3f_%.3f.%s.%d' % (n_hidden, max_length, dropout,
@@ -522,6 +590,10 @@ class ClfSpacy:
         model_dir = get_model_dir(self.model_name, 0)
         # RocAucEvaluation saves the trainable part of the mode;
         model_path = os.path.join(model_dir, 'model')
+        xprint('model_path=%s' % model_path)
+        if os.path.exists(model_path):
+            xprint('model_path already exists. re-using')
+            return
         os.makedirs(model_dir, exist_ok=True)
         xprint('ClfSpacy.fit: model_dir=%s' % model_dir)
 
@@ -548,4 +620,5 @@ class ClfSpacy:
     def predict(self, test):
         X_test = df_to_sentences(test)
         model_path = get_model_dir(self.model_name, 0)
-        return predict(model_path, X_test, max_length=self.max_length, frozen=self.frozen)
+        return predict(model_path, X_test, method=self.predict_method, max_length=self.max_length,
+            frozen=self.frozen)
