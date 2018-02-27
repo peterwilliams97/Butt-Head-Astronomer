@@ -18,7 +18,7 @@ from utils import COMMENT, DATA_ROOT, dim, xprint, load_json, save_json
 
 VERBOSE = False
 GRAPHS = False
-N_SAMPLES = 20000  # > 0 for testing
+N_SAMPLES = -1  # > 0 for testing
 SEED = 234
 
 SUBMISSION_DIR = 'submissions'

@@ -29,6 +29,7 @@ ClfGloveNBSpacy clf_glove_nb_spacy.py
 
 TODO
 ====
+https://github.com/facebookresearch/fastText#obtaining-word-vectors-for-out-of-vocabulary-words
 http://forums.fast.ai/t/language-model-in-thai/9874
 SpaCy
 https://arxiv.org/abs/1802.00385
