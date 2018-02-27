@@ -32,7 +32,8 @@ MIN, MEAN, MAX, MEAN_MAX, MEDIAN, PC75, PC90, LINEAR, LINEAR2, LINEAR3, LINEAR4,
     'MIN', 'MEAN', 'MAX', 'MEAN_MAX',
     'MEDIAN', 'PC75',
     'PC90', 'LINEAR', 'LINEAR2', 'LINEAR3', 'LINEAR4', 'LINEAR5', 'EXP')
-PREDICT_METHODS = (LINEAR4, LINEAR5, LINEAR, LINEAR2, LINEAR3, EXP, MEAN, MAX, MEDIAN, PC75, PC90)
+PREDICT_METHODS = (MIN, MEAN, MAX, MEAN_MAX, MEDIAN, PC75, PC90, LINEAR, LINEAR2, LINEAR3, LINEAR4,
+    LINEAR5, EXP )
 
 
 def linear_weights(ys, limit):
@@ -57,15 +58,23 @@ def exponential_weights(ys, limit):
         return weights
     lo = limit
     hi = 1.0 - limit
-    span = hi - lo
-    d = span / (n - 1)
+    d = hi / lo
+    assert d > 1.0
     for i in range(n):
-        weights[i] = lo + d ** -i
+        weights[i] = lo * (d ** i)
     weights /= weights.sum()
+    for i in range(n):
+        assert 0.0 < weights[i] < 1.0
     return weights
 
 
-def reduce(ys, method):
+def reduce(ys_in, method):
+    ys = ys_in.copy()
+    for j in range(ys.shape[1]):
+        ys[:, j] = np.sort(ys_in[:, j])
+    # print(ys_in)
+    # print(ys)
+    # assert False
     if method == MIN:
         return ys.min(axis=0)
     if method == MEAN:
@@ -74,7 +83,7 @@ def reduce(ys, method):
         return ys.max(axis=0)
     elif method == MEAN_MAX:
         return (ys.mean(axis=0) + ys.max(axis=0)) / 2.0
-    elif method == MEAN:
+    elif method == MEDIAN:
         return np.percentile(ys, 50.0, axis=0, interpolation='higher')
     elif method == PC75:
         return np.percentile(ys, 75.0, axis=0, interpolation='higher')
@@ -94,7 +103,7 @@ def reduce(ys, method):
     elif method == LINEAR4:
         weights = linear_weights(ys, limit=0.05)
         return np.dot(weights, ys)
-    elif method == LINEAR6:
+    elif method == LINEAR5:
         weights = linear_weights(ys, limit=0.01)
         return np.dot(weights, ys)
     elif method == EXP:
@@ -103,6 +112,26 @@ def reduce(ys, method):
         assert len(y.shape) == 1 and len(y) == ys.shape[1], (weights.shape, ys.shape, y.shape)
         return y
     raise ValueError('Bad method=%s' % method)
+
+
+if False:
+
+    def test_reduce(ys):
+        print('-' * 80)
+        print(ys)
+        for method in PREDICT_METHODS:
+            y = reduce(ys, method)
+            print('%8s: %s' % (method, y))
+
+    ys = np.ones((1, 4), dtype=np.float32)
+    test_reduce(ys)
+
+    ys = np.ones((6, 4), dtype=np.float32)
+    ys[:, 0] = 0.0
+    ys[:3, 2] = -1.0
+    ys[:3, 1] = 2.0
+    test_reduce(ys)
+    assert False
 
 
 class SentimentAnalyser(object):

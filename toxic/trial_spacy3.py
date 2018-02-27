@@ -7,7 +7,7 @@ from framework import Evaluator, seed_random, show_auc
 from clf_spacy import ClfSpacy, PREDICT_METHODS
 
 
-submission_name = 'spacy_lstm11'
+submission_name = 'spacy_lstm12'
 epochs = 40
 
 
@@ -89,14 +89,35 @@ def get_clf15():
 
 
 xprint_init(submission_name, False)
-clf_list = [get_clf1,
-            get_clf12, get_clf13, get_clf14, get_clf15,
+clf_list = [get_clf12, get_clf13, get_clf14, get_clf15,
            # get_clf0, get_clf2, get_clf3,
            get_clf4, get_clf5,
            get_clf1]
 # clf_list.reverse()
 auc_list = []
 frozen = True
+
+#  spacy_lstm11.log  has
+# RESULTS SUMMARY: 59
+# auc=0.9837  25: get_clf1 ClfSpacy(batch_size=150, dropout=0.5, epochs=40, frozen=True, learn_rate=0.001, lstm_type=6, max_length=100, n_hidden=128, predict_method=LINEAR2)
+# auc=0.9833  14: get_clf1 ClfSpacy(batch_size=150, dropout=0.5, epochs=40, frozen=True, learn_rate=0.001, lstm_type=7, max_length=100, n_hidden=128, predict_method=LINEAR2)
+# auc=0.9831  21: get_clf1 ClfSpacy(batch_size=150, dropout=0.5, epochs=40, frozen=True, learn_rate=0.001, lstm_type=7, max_length=100, n_hidden=128, predict_method=PC90)
+# auc=0.9818  26: get_clf1 ClfSpacy(batch_size=150, dropout=0.5, epochs=40, frozen=True, learn_rate=0.001, lstm_type=6, max_length=100, n_hidden=128, predict_method=LINEAR3)
+# auc=0.9809  36: get_clf1 ClfSpacy(batch_size=150, dropout=0.5, epochs=40, frozen=True, learn_rate=0.001, lstm_type=5, max_length=100, n_hidden=128, predict_method=LINEAR2)
+# auc=0.9803  13: get_clf1 ClfSpacy(batch_size=150, dropout=0.5, epochs=40, frozen=True, learn_rate=0.001, lstm_type=7, max_length=100, n_hidden=128, predict_method=LINEAR)
+# auc=0.9802  17: get_clf1 ClfSpacy(batch_size=150, dropout=0.5, epochs=40, frozen=True, learn_rate=0.001, lstm_type=7, max_length=100, n_hidden=128, predict_method=MEAN)
+# auc=0.9802  18: get_clf1 ClfSpacy(batch_size=150, dropout=0.5, epochs=40, frozen=True, learn_rate=0.001, lstm_type=7, max_length=100, n_hidden=128, predict_method=MAX)
+# auc=0.9794  37: get_clf1 ClfSpacy(batch_size=150, dropout=0.5, epochs=40, frozen=True, learn_rate=0.001, lstm_type=5, max_length=100, n_hidden=128, predict_method=LINEAR3)
+# auc=0.9793  35: get_clf1 ClfSpacy(batch_size=150, dropout=0.5, epochs=40, frozen=True, learn_rate=0.001, lstm_type=5, max_length=100, n_hidden=128, predict_method=LINEAR)
+# auc=0.9792  29: get_clf1 ClfSpacy(batch_size=150, dropout=0.5, epochs=40, frozen=True, learn_rate=0.001, lstm_type=6, max_length=100, n_hidden=128, predict_method=MAX)
+# auc=0.9738  32: get_clf1 ClfSpacy(batch_size=150, dropout=0.5, epochs=40, frozen=True, learn_rate=0.001, lstm_type=6, max_length=100, n_hidden=128, predict_method=PC90)
+# auc=0.9733  39: get_clf1 ClfSpacy(batch_size=150, dropout=0.5, epochs=40, frozen=True, learn_rate=0.001, lstm_type=5, max_length=100, n_hidden=128, predict_method=MEAN)
+# auc=0.9716  50: get_clf1 ClfSpacy(batch_size=150, dropout=0.5, epochs=40, frozen=True, learn_rate=0.001, lstm_type=2, max_length=100, n_hidden=128, predict_method=MEAN)
+# auc=0.9714  20: get_clf1 ClfSpacy(batch_size=150, dropout=0.5, epochs=40, frozen=True, learn_rate=0.001, lstm_type=7, max_length=100, n_hidden=128, predict_method=PC75)
+# auc=0.9708  15: get_clf1 ClfSpacy(batch_size=150, dropout=0.5, epochs=40, frozen=True, learn_rate=0.001, lstm_type=7, max_length=100, n_hidden=128, predict_method=LINEAR3)
+# auc=0.9698  58: get_clf12 ClfSpacy(batch_size=150, dropout=0.5, epochs=40, frozen=True, learn_rate=0.001, lstm_type=8, max_length=100, n_hidden=256, predict_method=LINEAR2)
+# a
+
 
 # clf=0.9837   6: get_clf1 ClfSpacy(batch_size=150, dropout=0.5, learn_rate=0.001, lstm_type=2, max_length=100, n_examples=-1, n_hidden=128)
 # clf=0.9815   2: get_clf0 ClfSpacy(batch_size=150, dropout=0.5, learn_rate=0.001, lstm_type=2, max_length=100, n_examples=-1, n_hidden=64)

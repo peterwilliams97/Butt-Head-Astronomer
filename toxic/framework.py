@@ -18,7 +18,7 @@ from utils import COMMENT, DATA_ROOT, dim, xprint, load_json, save_json
 
 VERBOSE = False
 GRAPHS = False
-N_SAMPLES = 20000  # > 0 for testing
+N_SAMPLES = 10000  # > 0 for testing
 SEED = 234
 
 SUBMISSION_DIR = 'submissions'
@@ -251,6 +251,7 @@ class Evaluator:
             print('!!! pred=%s' % dim(pred))
         except Exception as e:
             xprint('!!! _evaluate, exception=%s' % e)
+            raise e
             return False, auc
 
         if do_clips:
