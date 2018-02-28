@@ -291,7 +291,7 @@ def do_train(train_texts, train_labels, dev_texts, dev_labels, lstm_shape, lstm_
             best_epoch_frozen = ra_val.best_epoch
             ra_val.best_epoch = -1
         else:
-            save_model(model, True, model1_path, config1_path)
+            save_model(model, model1_path, config1_path, True)
 
     if do_fit2:
          # Reload the best model so far, if it exists
@@ -315,7 +315,7 @@ def do_train(train_texts, train_labels, dev_texts, dev_labels, lstm_shape, lstm_
               validation_data=validation_data, callbacks=callback_list, verbose=1)
         best_epoch_unfrozen = ra_val.best_epoch
         if validation_data is None:
-            save_model(model, False, model2_path, config2_path)
+            save_model(model, model2_path, config2_path, False)
 
     return model, (best_epoch_frozen, best_epoch_unfrozen)
 

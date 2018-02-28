@@ -55,11 +55,12 @@ def xprint(*args, **kwargs):
     try:
         print(*args, **kwargs)
     except Exception as e:
-        # print('!!xprint failed. e=%s' % e)
+        print('!!xprint failed. e=%s' % e)
         for a in args:
             print('!!', a)
         for k in sorted(kwargs):
             print('!! %s: %s' % (k, kwargs[k]))
+        raise
     if xprint_f is None:
         return
     kwargs['file'] = xprint_f
@@ -71,6 +72,7 @@ def xprint(*args, **kwargs):
             print('!!', a)
         for k in sorted(kwargs):
             print('!! %s: %s' % (k, kwargs[k]))
+        raise
 
     xprint_f.flush()
 
@@ -105,6 +107,12 @@ def dim(x):
     return _dim(x)
 
 
+def rename(src, dst):
+    if os.path.exists(dst):
+        os.remove(dst)
+    os.renames(src, dst)
+
+
 def load_json(path, default=None):
     if default is not None and not os.path.exists(path):
         return default
@@ -123,8 +131,7 @@ temp_json = 'temp.json'
 def save_json(path, obj):
     with open(temp_json, 'w') as f:
         json.dump(obj, f, indent=4, sort_keys=True)
-    # remove(path)
-    os.renames(temp_json, path)
+    rename(temp_json, path)
 
 
 def load_pickle(path, default=None):
@@ -145,7 +152,7 @@ temp_pickle = 'temp.pkl'
 def save_pickle(path, obj):
     with open(temp_pickle, 'wb') as f:
         pickle.dump(obj, f)
-    os.renames(temp_pickle, path)
+    rename(temp_pickle, path)
 
 
 def load_pickle_gzip(path, default=None):
@@ -166,7 +173,7 @@ temp_pickle_gzip = 'temp.pkl.gzip'
 def save_pickle_gzip(path, obj):
     with gzip.open(temp_pickle, 'wb') as f:
         pickle.dump(obj, f)
-    os.renames(temp_pickle, path)
+    rename(temp_pickle, path)
 
 
 def load_model(model_path, config_path, frozen, get_embeddings):
@@ -174,8 +181,8 @@ def load_model(model_path, config_path, frozen, get_embeddings):
 
     with open(config_path, 'rt') as f:
         model = model_from_json(f.read())
-    with open(model_path, 'rb') as f:
-        weights = pickle.load(f)
+    weights = load_pickle(model_path)
+
     if frozen:
         embeddings = get_embeddings()
         weights = [embeddings] + weights
@@ -186,15 +193,17 @@ def load_model(model_path, config_path, frozen, get_embeddings):
 
 
 def save_model(model, model_path, config_path, frozen):
-    print('save_model: model_path=%s frozen=%s ' % (model_path, frozen), end='')
+    print('save_model: model_path=%r config_path=%r frozen=%s ' % (model_path, config_path, frozen), end='')
+    assert isinstance(model_path, str) and isinstance(config_path, str) and isinstance(frozen, bool)
+    assert config_path.endswith('.json'), config_path
+
     weights = model.get_weights()
     print('weights=%s' % dim(weights))
     if frozen:
         weights = weights[1:]
 
     print('save_model: 1')
-    with open(model_path, 'wb') as f:
-        pickle.dump(weights, f)
+    save_pickle(model_path, weights)
     print('save_model: 2')
     with open(config_path, 'wt') as f:
         f.write(model.to_json())

@@ -3,7 +3,7 @@
     SpaCy deep_learning_keras.py solution to Kaggle Toxic Comment challenge
 """
 from utils import xprint_init, xprint
-from framework import Evaluator, set_random_seed, make_submission
+from framework import Evaluator, set_random_seed, make_submission, set_n_samples
 from clf_spacy import ClfSpacy
 
 
@@ -22,11 +22,11 @@ def get_clf():
 xprint_init(submission_name, do_submission)
 xprint('#' * 80)
 xprint(get_clf())
-seed_random(seed=1234)
+set_random_seed(seed=1234)
 
 if do_submission:
     make_submission(get_clf, submission_name)
 else:
-    evaluator = Evaluator(n=1)
+    evaluator = Evaluator(n=3)
     ok, auc = evaluator.evaluate(get_clf)
 xprint('$' * 80)
