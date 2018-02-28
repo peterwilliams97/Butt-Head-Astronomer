@@ -8,7 +8,7 @@ from framework import Evaluator, set_random_seed, show_auc, set_n_samples, get_n
 from clf_spacy import ClfSpacy, PREDICT_METHODS
 
 
-submission_name = 'spacy_lstm_xxx'
+submission_name = 'spacy_lstm15'
 epochs = 40
 set_n_samples(10000)
 SUMMARY_DIR = 'run.summaries'
@@ -159,28 +159,25 @@ def get_clf15():
 # auc=0.9670   3: get_clf3 ClfSpacy(batch_size=150, dropout=0.2, learn_rate=0.001, lstm_type=2, max_length=100, n_examples=-1, n_hidden=64)
 
 xprint_init(submission_name, False)
-clf_list = [get_clf12,
-            get_clf13, get_clf14, get_clf15,
+clf_list = [get_clf12, get_clf13, get_clf14, get_clf15,
            # get_clf0, get_clf2, get_clf3,
            get_clf4, get_clf5,
            get_clf1]
 # clf_list.reverse()
 auc_list = []
 frozen = True
-
-run_summary = load_json(run_summary_path, {'n_completed': 0})
-n_completed = 0
+run_summary = load_json(run_summary_path, {'completed': []})
+completed_tests = set(run_summary.get('completed', []))
 
 for get_clf in clf_list:
     for lstm_type in (8, 7, 6, 5, 2):  # , 3, 4, 1):
         for frozen in [True]:  # (False, True, False):
             for predict_method in PREDICT_METHODS:
                 xprint('#' * 80)
-                xprint(get_clf())
-                n_completed += 1
-                if n_completed <= run_summary['n_completed']:
-                    xprint('skipping: n_completed=%d <= %d' % (n_completed,
-                        run_summary['n_completed']))
+                clf_str = str(get_clf())
+                xprint(clf_str)
+                if clf_str in completed_tests:
+                    xprint('skipping')
                     continue
                 set_random_seed(1234)
                 evaluator = Evaluator(n=1)
@@ -199,9 +196,10 @@ for get_clf in clf_list:
                 for i, auc, clf, clf_str in results:
                     xprint('auc=%.4f %3d: %s %s' % (auc.mean(), i, clf, clf_str))
 
-                run_summary['n_completed'] = n_completed
+                completed_tests.add(clf_str)
+                run_summary['completed'] = sorted(completed_tests)
                 save_json(run_summary_path, run_summary)
-                xprint('n_completed=%d' % n_completed)
+                xprint('n_completed=%d' % len(completed_tests))
                 xprint('&' * 100)
 
 xprint('$' * 100)
