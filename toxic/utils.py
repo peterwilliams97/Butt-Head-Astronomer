@@ -9,6 +9,7 @@ import datetime
 import numpy as np
 import keras.backend as K
 from keras.callbacks import Callback
+from keras.models import model_from_json
 from sklearn.metrics import roc_auc_score
 
 
@@ -149,13 +150,32 @@ def save_pickle_gzip(path, obj):
     os.renames(temp_pickle, path)
 
 
-def save_model(model, frozen, model_path):
+def load_model(model_path, config_path, frozen, get_embeddings):
+    assert frozen == (get_embeddings is not None), (model_path, config_path, frozen, get_embeddings)
+
+    with open(config_path, 'rt') as f:
+        model = model_from_json(f.read())
+    with open(model_path, 'rb') as f:
+        weights = pickle.load(f)
+    if frozen:
+        embeddings = get_embeddings()
+        weights = [embeddings] + weights
+    model.set_weights(weights)
+
+    xprint('load_model: model_path=%s frozen=%s weights=%s' % (model_path, frozen, dim(weights)))
+    return model
+
+
+def save_model(model, model_path, config_path, frozen,):
     weights = model.get_weights()
+    xprint('save_model: model_path=%s frozen=%s weights=%s' % (model_path, frozen, dim(weights)))
     if frozen:
         weights = weights[1:]
-    xprint('save_model: model_path=%s' % model_path)
+
     with open(model_path, 'wb') as f:
         pickle.dump(weights, f)
+    with open(config_path, 'wt') as f:
+        f.write(model.to_json())
 
 
 AUC_DELTA = 0.001
@@ -165,16 +185,30 @@ class RocAucEvaluation(Callback):
     """ROC AUC for CV in Keras see for details: https://gist.github.com/smly/d29d079100f8d81b905e
     """
 
-    def __init__(self, validation_data=(), interval=1, model_path=None, frozen=False):
+    def __init__(self, validation_data=(), interval=1, model_path=None, config_path=None,
+        frozen=False, was_frozen=True, get_embeddings=None, do_prime=False):
         super(Callback, self).__init__()
+
+        print('validation_data=%s interval=%s, model_path=%s, config_path=%s '
+              'frozen=%s was_frozen=%s get_embeddings=%s, do_prime=%s' % (
+            len(validation_data), interval, model_path, config_path,
+            frozen, was_frozen, get_embeddings, do_prime))
 
         self.interval = interval
         self.X_val, self.y_val = validation_data
         self.model_path = model_path
+        self.config_path = config_path
         self.frozen = frozen
         self.best_auc = 0.0
         self.best_epoch = -1
         self.top_weights = None
+        if do_prime:
+            model = load_model(model_path, config_path, was_frozen, get_embeddings)
+            y_pred = model.predict(self.X_val, verbose=0)
+            auc = roc_auc_score(self.y_val, y_pred)
+            xprint('\nROC-AUC - epoch: {:d} - score: {:.6f}'.format(0, auc))
+            self.best_auc = auc
+            del model
 
     def on_epoch_end(self, epoch, logs={}):
         if epoch % self.interval == 0:
@@ -190,7 +224,7 @@ class RocAucEvaluation(Callback):
 
                 weights = self.model.get_weights()
                 self.top_weights = weights[1:]
-                save_model(self.model, self.frozen, self.model_path)
+                save_model(self.model, self.model_path, self.config_path, self.frozen)
             else:
                  xprint('RocAucEvaluation.fit: No improvement best_epoch=%d best_auc=%.3f' %
                     (self.best_epoch + 1, self.best_auc))

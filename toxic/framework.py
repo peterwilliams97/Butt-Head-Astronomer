@@ -268,6 +268,7 @@ class Evaluator:
         CLIPS = [0.0, 1.0e-6, 1.0e-5, 1.0e-4, 1.0e-3, 1.0e-2, 0.1, 0.2, 0.3, 0.5, 0.8, 0.9]
         auc = np.zeros(len(LABEL_COLS), dtype=np.float64)
 
+        clf = None
         try:
             clf = get_clf()
             clf.fit(train_part)
@@ -297,6 +298,9 @@ class Evaluator:
         xprint('%5d: auc=%.3f %s' % (i, mean_auc, label_score(auc)))
         describe(pred)
         show_best_worst(test_part, pred, n=3, do_best=False)
+
+        if clf is not None:
+            del clf
         return True, auc
 
 

@@ -1,18 +1,18 @@
 import cytoolz
 import numpy as np
-from keras.models import Sequential, model_from_json
+from keras.models import Sequential
 from keras.layers import (LSTM, Dense, Embedding, Bidirectional, Dropout, GlobalMaxPool1D,
     GlobalAveragePooling1D, BatchNormalization, TimeDistributed, Flatten)
 from keras.callbacks import EarlyStopping
 from keras.optimizers import Adam
-from spacy.compat import pickle
 import spacy
+from functools import partial
 import os
 import time
 import math
 import multiprocessing
 from framework import MODEL_DIR, LABEL_COLS, get_n_samples_str, df_to_sentences, train_test_split
-from utils import dim, xprint, RocAucEvaluation, Cycler, save_model
+from utils import dim, xprint, RocAucEvaluation, Cycler, save_model, load_model
 from spacy_glue import SpacySentenceWordCache
 
 
@@ -71,9 +71,6 @@ def reduce(ys_in, method):
     ys = ys_in.copy()
     for j in range(ys.shape[1]):
         ys[:, j] = np.sort(ys_in[:, j])
-    # print(ys_in)
-    # print(ys)
-    # assert False
     if method == MIN:
         return ys.min(axis=0)
     if method == MEAN:
@@ -90,9 +87,7 @@ def reduce(ys_in, method):
         return np.percentile(ys, 90.0, axis=0, interpolation='higher')
     elif method == LINEAR:
         weights = linear_weights(ys, limit=0.1)
-        y = np.dot(weights, ys)
-        assert len(y.shape) == 1 and len(y) == ys.shape[1], (weights.shape, ys.shape, y.shape)
-        return y
+        return np.dot(weights, ys)
     elif method == LINEAR2:
         weights = linear_weights(ys, limit=0.2)
         return np.dot(weights, ys)
@@ -135,16 +130,11 @@ if False:
 
 class SentimentAnalyser(object):
     @classmethod
-    def load(cls, path, nlp, method, max_length, frozen):
-        xprint('SentimentAnalyser.load: path=%s max_length=%d' % (path, max_length))
-        with open(os.path.join(path, 'config.json'), 'rt') as f:
-            model = model_from_json(f.read())
-        with open(os.path.join(path, 'model'), 'rb') as f:
-            lstm_weights = pickle.load(f)
-        if frozen:
-            embeddings = get_embeddings(nlp.vocab)
-            lstm_weights = [embeddings] + lstm_weights
-        model.set_weights(lstm_weights)
+    def load(cls, nlp, model_path, config_path, frozen, method, max_length):
+        xprint('SentimentAnalyser.load: model_path=%s config_path=%s frozen=%s method=%s max_length=%d' % (
+             model_path, config_path, frozen, method, max_length))
+        get_embeds = partial(get_embeddings, vocab=nlp.vocab) if frozen else None
+        model = load_model(model_path, config_path, frozen, get_embeds)
         return cls(model, method=method, max_length=max_length)
 
     def __init__(self, model, method, max_length):
@@ -159,7 +149,7 @@ class SentimentAnalyser(object):
                 Xs = get_features(doc.sents, self.max_length)
                 ys = self._model.predict(Xs)
                 y = reduce(ys, method=self.method)
-                assert len(y.shape) == 1 and len(y) == ys.shape[1], (weights.shape, ys.shape, y.shape)
+                assert len(y.shape) == 1 and len(y) == ys.shape[1], (ys.shape, y.shape)
                 doc.user_data['toxics'] = y
                 yield doc
 
@@ -254,11 +244,16 @@ def count_sentences(texts_in, batch_size, name):
     return n
 
 
-def do_train(train_texts, train_labels, dev_texts, dev_labels,
-    lstm_shape, lstm_settings, lstm_optimizer, batch_size=100, epochs=5, by_sentence=True,
-    frozen=False, lstm_type=1, model_path=None):
+def do_train(train_texts, train_labels, dev_texts, dev_labels, lstm_shape, lstm_settings,
+    lstm_optimizer, batch_size=100,
+    do_fit1=True, epochs1=5, model1_path=None, config1_path=None,
+    do_fit2=False, epochs2=2, model2_path=None, config2_path=None,
+    lstm_type=1):
     """Train a Keras model on the sentences in `train_texts`
         All the sentences in a text have the text's label
+        do_fit1: Fit with frozen word embeddings
+        do_fit2: Fit with unfrozen word embeddings (after fitting with frozen embeddings) at a lower
+                learning rate
     """
 
     print('do_train: train_texts=%s dev_texts=%s' % (dim(train_texts), dim(dev_texts)))
@@ -282,35 +277,45 @@ def do_train(train_texts, train_labels, dev_texts, dev_labels,
     compile_lstm(model, lstm_settings['lr'])
 
     callback_list = None
-    if validation_data is not None:
-        ra_val = RocAucEvaluation(validation_data=validation_data, interval=1, frozen=frozen,
-            model_path=model_path)
-        early = EarlyStopping(monitor='val_auc', mode='max', patience=2, verbose=1)
-        callback_list = [ra_val, early]
 
-    model.fit(X_train, y_train, batch_size=batch_size, epochs=epochs,
-              validation_data=validation_data, callbacks=callback_list, verbose=1)
-    if validation_data is not None:
-        best_epoch_frozen = ra_val.best_epoch
-        ra_val.best_epoch = -1
-    else:
-        save_model(model, frozen, model_path)
+    if do_fit1:
+        if validation_data is not None:
+            ra_val = RocAucEvaluation(validation_data=validation_data, interval=1, frozen=True,
+                model_path=model1_path, config_path=config1_path)
+            early = EarlyStopping(monitor='val_auc', mode='max', patience=2, verbose=1)
+            callback_list = [ra_val, early]
 
-    if not frozen:
+        model.fit(X_train, y_train, batch_size=batch_size, epochs=epochs1,
+                  validation_data=validation_data, callbacks=callback_list, verbose=1)
+        if validation_data is not None:
+            best_epoch_frozen = ra_val.best_epoch
+            ra_val.best_epoch = -1
+        else:
+            save_model(model, True, model1_path, config1_path)
+
+    if do_fit2:
+         # Reload the best model so far, if it exists
+        if os.path.exists(model1_path) and os.path.exists(config1_path):
+            model = load_model(model1_path, config1_path, True,
+                partial(get_embeddings, vocab=nlp.vocab))
         xprint("Unfreezing")
         for layer in model.layers:
             layer.trainable = True
         compile_lstm(model, lstm_settings['lr'] / 10)
         if validation_data is not None:
-            # Reload the best model so far
-            lstm_weights = [embeddings] + ra_val.top_weights
-            model.set_weights(lstm_weights)
             # Reset early stopping
+            ra_val = RocAucEvaluation(validation_data=validation_data, interval=1,
+                frozen=False, was_frozen=True,
+                get_embeddings=partial(get_embeddings, vocab=nlp.vocab),
+                do_prime=True,
+                model_path=model1_path, config_path=config1_path)
             early = EarlyStopping(monitor='val_auc', mode='max', patience=2, verbose=1)
             callback_list = [ra_val, early]
-        model.fit(X_train, y_train, batch_size=batch_size, epochs=epochs,
+        model.fit(X_train, y_train, batch_size=batch_size, epochs=epochs2,
               validation_data=validation_data, callbacks=callback_list, verbose=1)
         best_epoch_unfrozen = ra_val.best_epoch
+        if validation_data is None:
+            save_model(model, False, model2_path, config2_path)
 
     return model, (best_epoch_frozen, best_epoch_unfrozen)
 
@@ -567,14 +572,17 @@ def get_embeddings(vocab):
     return vocab.vectors.data
 
 
-def predict(model_dir, texts, method, max_length, frozen):
+def predict(model_path, config_path, frozen, texts, method, max_length):
+    print('predict(model_path=%s, config_path=%s, frozen=%s, texts=%s, method=%s, max_length=%d)' %
+        (model_path, config_path, frozen, dim(texts), method, max_length))
+
     nlp = spacy.load('en_core_web_lg')
     print('----- pipe_names=%s' % nlp.pipe_names)
     nlp.pipeline = [
         ('tagger', nlp.tagger),
         ('parser', nlp.parser),
-        ('sa', SentimentAnalyser.load(model_dir, nlp, method=method, max_length=max_length,
-            frozen=frozen))
+        ('sa', SentimentAnalyser.load(nlp, model_path, config_path, frozen,
+                                      method=method, max_length=max_length))
     ]
     print('+++++ pipe_names=%s' % nlp.pipe_names)
 
@@ -592,25 +600,36 @@ class ClfSpacy:
 
     def __init__(self, n_hidden=64, max_length=100,  # Shape
         dropout=0.5, learn_rate=0.001,  # General NN config
-        epochs=5, batch_size=100, frozen=True, lstm_type=1, predict_method=MEAN, force_fit=False):
+        epochs=5, epochs2=2, batch_size=100, frozen=True, lstm_type=1, predict_method=MEAN, force_fit=False):
         """
             n_hidden: Number of elements in the LSTM layer
             max_length: Max length of comment text
             max_features: Maximum vocabulary size
+
+            frozen => freeze embeddings
+            2 stages of training: frozen, unfrozen
+            if frozen and model1 exists: frozen training is done. Nothing more to do
+            if not frozen and model2 exists: unfrozen training is done. Nothing more to do
+            if not frozen and not model2 exists:
+                if not model1 exists: do frozen training
+                do unfrozen training
+
         """
         self.n_hidden = n_hidden
         self.max_length = max_length
         self.dropout = dropout
         self.learn_rate = learn_rate
         self.epochs = epochs
+        self.epochs2 = epochs2
         self.batch_size = batch_size
         self.frozen = frozen
         self.lstm_type = lstm_type
         self.predict_method = predict_method
 
         self.description = ', '.join('%s=%s' % (k, v) for k, v in sorted(self.__dict__.items()))
-        self.model_name = 'lstm_spacy.%s_%03d_%03d_%.3f_%.3f.%s.%d' % (get_n_samples_str(),
-            n_hidden, max_length, dropout, learn_rate, frozen, lstm_type)
+        self.model_name = 'lstm_spacy.%s_%03d_%03d_%.3f_%.3f.%s.%d.epochs%d' % (get_n_samples_str(),
+            n_hidden, max_length, dropout, learn_rate, frozen, lstm_type, epochs)
+
         self.force_fit = force_fit
 
         self.best_epochs = (-1, -1)
@@ -619,19 +638,35 @@ class ClfSpacy:
     def __repr__(self):
         return 'ClfSpacy(%s)' % self.description
 
-    def fit(self, train, test_size=0.1):
+    def _get_paths(self, create_dir):
         model_dir = get_model_dir(self.model_name, 0)
+        if create_dir:
+            os.makedirs(model_dir, exist_ok=True)
         # RocAucEvaluation saves the trainable part of the model
-        model_path = os.path.join(model_dir, 'model')
-        config_path = os.path.join(model_dir, 'config.json')
-        xprint('model_path=%s exists=%s' % (model_path, os.path.exists(model_path)))
-        xprint('config_path=%s exists=%s' % (config_path, os.path.exists(config_path)))
-        if os.path.exists(model_path) and os.path.exists(config_path) and not self.force_fit:
-            xprint('model_path already exists. re-using')
-            return
-        os.makedirs(model_dir, exist_ok=True)
+        model1_path = os.path.join(model_dir, 'model')
+        config1_path = os.path.join(model_dir, 'config.json')
+        model2_path = os.path.join(model_dir, 'model2')
+        config2_path = os.path.join(model_dir, 'config2.json')
+        xprint('model1_path=%s exists=%s' % (model1_path, os.path.exists(model1_path)))
+        xprint('config1_path=%s exists=%s' % (config1_path, os.path.exists(config1_path)))
+        xprint('model2_path=%s exists=%s' % (model2_path, os.path.exists(model2_path)))
+        xprint('config2_path=%s exists=%s' % (config1_path, os.path.exists(config2_path)))
+        return (model1_path, config1_path), (model2_path, config2_path)
 
-        xprint('ClfSpacy.fit: model_dir=%s' % model_dir)
+    def fit(self, train, test_size=0.1):
+        print('ClfSpacy.fit', '-' * 80)
+        (model1_path, config1_path), (model2_path, config2_path) = self._get_paths(True)
+        if not self.force_fit:
+            if self.frozen:
+                if os.path.exists(model1_path) and os.path.exists(config1_path):
+                    xprint('model1_path already exists. re-using')
+                    return
+            else:
+                if os.path.exists(model2_path) and os.path.exists(config2_path):
+                    xprint('model2_path already exists. re-using')
+                    return
+        do_fit1 = not os.path.exists(model1_path)
+        do_fit2 = not self.frozen and not os.path.exists(model2_path)
 
         y_train = train[LABEL_COLS].values
         X_train = df_to_sentences(train)
@@ -644,17 +679,28 @@ class ClfSpacy:
                       'n_class': len(LABEL_COLS)}
         lstm_settings = {'dropout': self.dropout,
                          'lr': self.learn_rate}
-        lstm, self.best_epochs = do_train(X_train, y_train, X_val, y_val, lstm_shape, lstm_settings, {},
-                        epochs=self.epochs, batch_size=self.batch_size, frozen=self.frozen,
-                        lstm_type=self.lstm_type, model_path=model_path)
-
-        with open(config_path, 'wt') as f:
-            f.write(lstm.to_json())
+        lstm, self.best_epochs = do_train(X_train, y_train, X_val, y_val, lstm_shape, lstm_settings,
+            {}, batch_size=self.batch_size, lstm_type=self.lstm_type,
+            do_fit1=do_fit1, epochs1=self.epochs, model1_path=model1_path, config1_path=config1_path,
+            do_fit2=do_fit2, epochs2=self.epochs2, model2_path=model2_path, config2_path=config2_path
+            )
 
         print('****: best_epochs=%s - %s' % (self.best_epochs, self.description))
+        del lstm
 
     def predict(self, test):
+        print('ClfSpacy.predict', '-' * 80)
         X_test = df_to_sentences(test)
-        model_path = get_model_dir(self.model_name, 0)
-        return predict(model_path, X_test, method=self.predict_method, max_length=self.max_length,
-            frozen=self.frozen)
+        (model1_path, config1_path), (model2_path, config2_path) = self._get_paths(False)
+        frozen = self.frozen
+        if not frozen and not (os.path.exists(model2_path) and os.path.exists(config2_path)):
+            xprint('unfrozen but no improvement over frozen. Using frozen')
+            frozen = True
+
+        if frozen:
+            model_path, config_path = model1_path, config1_path
+        else:
+            model_path, config_path = model2_path, config2_path
+
+        return predict(model_path, config_path, frozen, X_test, method=self.predict_method,
+            max_length=self.max_length)
