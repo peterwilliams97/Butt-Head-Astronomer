@@ -181,6 +181,11 @@ def auc_score(auc):
     return mean_auc.mean(), mean_auc
 
 
+def auc_score_list(auc):
+    mean_mean, mean_auc = auc_score(auc)
+    return [mean_mean, mean_auc.tolist()]
+
+
 def show_auc(auc):
     n = auc.shape[0]
     mean_auc = auc.mean(axis=0)

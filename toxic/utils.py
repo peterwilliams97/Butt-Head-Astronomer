@@ -51,17 +51,36 @@ def xprint_init(name, do_submisision):
     xprint('Starting log: %s %r %r' % (now, name, xprint_path))
 
 
-def xprint(*args):
-    print(*args)
+def xprint(*args, **kwargs):
+    try:
+        print(*args, **kwargs)
+    except Exception as e:
+        # print('!!xprint failed. e=%s' % e)
+        for a in args:
+            print('!!', a)
+        for k in sorted(kwargs):
+            print('!! %s: %s' % (k, kwargs[k]))
     if xprint_f is None:
         return
-    print(*args, file=xprint_f)
+    kwargs['file'] = xprint_f
+    try:
+        print(*args, **kwargs)
+    except Exception as e:
+        print('!!xprint failed. e=%s' % e)
+        for a in args:
+            print('!!', a)
+        for k in sorted(kwargs):
+            print('!! %s: %s' % (k, kwargs[k]))
+
     xprint_f.flush()
 
 
 if False:
-    xprint_init('blah')
+    xprint_init('blah', False)
     xprint('What do you think of htis')
+    xprint('het', end = ' ')
+    xprint('teh')
+    assert False
 
 
 def _dim(x):
@@ -166,16 +185,20 @@ def load_model(model_path, config_path, frozen, get_embeddings):
     return model
 
 
-def save_model(model, model_path, config_path, frozen,):
+def save_model(model, model_path, config_path, frozen):
+    print('save_model: model_path=%s frozen=%s ' % (model_path, frozen), end='')
     weights = model.get_weights()
-    xprint('save_model: model_path=%s frozen=%s weights=%s' % (model_path, frozen, dim(weights)))
+    print('weights=%s' % dim(weights))
     if frozen:
         weights = weights[1:]
 
+    print('save_model: 1')
     with open(model_path, 'wb') as f:
         pickle.dump(weights, f)
+    print('save_model: 2')
     with open(config_path, 'wt') as f:
         f.write(model.to_json())
+    print('save_model: 3')
 
 
 AUC_DELTA = 0.001

@@ -631,6 +631,7 @@ class ClfSpacy:
             n_hidden, max_length, dropout, learn_rate, frozen, lstm_type, epochs)
 
         self.force_fit = force_fit
+        self._shown_paths = False
 
         self.best_epochs = (-1, -1)
         assert lstm_type in build_lstm, self.description
@@ -647,10 +648,12 @@ class ClfSpacy:
         config1_path = os.path.join(model_dir, 'config.json')
         model2_path = os.path.join(model_dir, 'model2')
         config2_path = os.path.join(model_dir, 'config2.json')
-        xprint('model1_path=%s exists=%s' % (model1_path, os.path.exists(model1_path)))
-        xprint('config1_path=%s exists=%s' % (config1_path, os.path.exists(config1_path)))
-        xprint('model2_path=%s exists=%s' % (model2_path, os.path.exists(model2_path)))
-        xprint('config2_path=%s exists=%s' % (config1_path, os.path.exists(config2_path)))
+        if not self._shown_paths:
+            xprint('model1_path=%s exists=%s' % (model1_path, os.path.exists(model1_path)))
+            xprint('config1_path=%s exists=%s' % (config1_path, os.path.exists(config1_path)))
+            xprint('model2_path=%s exists=%s' % (model2_path, os.path.exists(model2_path)))
+            xprint('config2_path=%s exists=%s' % (config1_path, os.path.exists(config2_path)))
+            self._shown_paths = True
         return (model1_path, config1_path), (model2_path, config2_path)
 
     def fit(self, train, test_size=0.1):
@@ -665,8 +668,8 @@ class ClfSpacy:
                 if os.path.exists(model2_path) and os.path.exists(config2_path):
                     xprint('model2_path already exists. re-using')
                     return
-        do_fit1 = not os.path.exists(model1_path)
-        do_fit2 = not self.frozen and not os.path.exists(model2_path)
+        do_fit1 = not (os.path.exists(model1_path) and os.path.exists(config1_path))
+        do_fit2 = not self.frozen and not (os.path.exists(model2_path) and os.path.exists(config2_path))
 
         y_train = train[LABEL_COLS].values
         X_train = df_to_sentences(train)
@@ -682,8 +685,15 @@ class ClfSpacy:
         lstm, self.best_epochs = do_train(X_train, y_train, X_val, y_val, lstm_shape, lstm_settings,
             {}, batch_size=self.batch_size, lstm_type=self.lstm_type,
             do_fit1=do_fit1, epochs1=self.epochs, model1_path=model1_path, config1_path=config1_path,
-            do_fit2=do_fit2, epochs2=self.epochs2, model2_path=model2_path, config2_path=config2_path
-            )
+            do_fit2=do_fit2, epochs2=self.epochs2, model2_path=model2_path, config2_path=config2_path)
+
+        assert do_fit1
+        if do_fit1:
+            assert os.path.exists(model1_path), model1_path
+            assert os.path.exists(config1_path), config1_path
+        if do_fit2:
+            assert os.path.exists(model2_path), model2_path
+            assert os.path.exists(config2_path), config2_path
 
         print('****: best_epochs=%s - %s' % (self.best_epochs, self.description))
         del lstm
@@ -701,6 +711,9 @@ class ClfSpacy:
             model_path, config_path = model1_path, config1_path
         else:
             model_path, config_path = model2_path, config2_path
+
+        assert os.path.exists(model_path), model_path
+        assert os.path.exists(config_path), config_path
 
         return predict(model_path, config_path, frozen, X_test, method=self.predict_method,
             max_length=self.max_length)
