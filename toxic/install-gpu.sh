@@ -8,9 +8,9 @@ sudo apt-get --assume-yes install software-properties-common
 
 
 # download and install GPU drivers
-wget "http://developer.download.nvidia.com/compute/cuda/repos/ubuntu1604/x86_64/cuda-9-1_9.1.85-1_amd64.deb"
+wget "http://developer.download.nvidia.com/compute/cuda/repos/ubuntu1604/x86_64/cuda-9-0_9.0.176-1_amd64.deb"http://developer.download.nvidia.com/compute/cuda/repos/ubuntu1604/x86_64/cuda-9-0_9.0.176-1_amd64.deb
 
-sudo dpkg -i cuda-9-1_9.1.85-1_amd64.deb
+sudo dpkg -i cuda-9-0_9.0.176-1_amd64.deb
 sudo apt-get update
 sudo apt-get -y install cuda
 sudo modprobe nvidia
