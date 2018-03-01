@@ -8,6 +8,7 @@ import tensorflow as tf
 import os
 import random
 import sys
+import time
 from os.path import join
 from collections import defaultdict
 from sklearn.metrics import roc_auc_score
@@ -24,8 +25,14 @@ SEED = 234
 SUBMISSION_DIR = 'submissions'
 MODEL_DIR = 'models'
 TOXIC_DATA_DIR = join(DATA_ROOT, 'toxic')
+SUMMARY_DIR = 'run.summaries'
 LABEL_COLS = ['toxic', 'severe_toxic', 'obscene', 'threat', 'insult', 'identity_hate']
 seed_delta = 1
+
+
+os.makedirs(SUBMISSION_DIR, exist_ok=True)
+os.makedirs(MODEL_DIR, exist_ok=True)
+os.makedirs(SUMMARY_DIR, exist_ok=True)
 
 
 def set_n_samples(n):
@@ -204,6 +211,21 @@ def show_auc(auc):
     ))
 
 
+def show_results(auc_list):
+    results = [(i, auc, clf, clf_str) for i, (auc, clf, clf_str) in enumerate(auc_list)]
+    results.sort(key=lambda x: (-x[1].mean(), x[2], x[3]))
+    xprint('~' * 100)
+    xprint('RESULTS SO FAR: %d' % len(results))
+    for i, auc, clf, clf_str in results:
+        xprint('$' * 100)
+        xprint('auc=%.4f %3d: %s %s' % (auc.mean(), i, clf, clf_str))
+        show_auc(auc)
+    xprint('^' * 100)
+    xprint('RESULTS SUMMARY: %d' % len(results))
+    for i, auc, clf, clf_str in results:
+        xprint('auc=%.4f %3d: %s %s' % (auc.mean(), i, clf, clf_str))
+
+
 def cmt(row, m=120):
     text = row['comment_text'].strip()
     return '%3d %s' % (len(text), text[:m].replace('\n', ' '))
@@ -276,9 +298,13 @@ class Evaluator:
         clf = None
         try:
             clf = get_clf()
+            t0 = time.clock()
             clf.fit(train_part)
+            print('_evaluate %d fit duration=%.1f sec' % (i, time.clock() - t0))
+            t0 = time.clock()
             pred = clf.predict(test_part)
-            print('!!! pred=%s' % dim(pred))
+            print('_evaluate %d predict duration=%.1f sec' % (i, time.clock() - t0))
+            print('!!! _evaluate pred=%s' % dim(pred))
         except Exception as e:
             xprint('!!! _evaluate, exception=%s' % e)
             raise e

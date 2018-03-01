@@ -10,17 +10,12 @@ from functools import partial
 import os
 import time
 import math
-import multiprocessing
 from framework import MODEL_DIR, LABEL_COLS, get_n_samples_str, df_to_sentences, train_test_split
 from utils import dim, xprint, RocAucEvaluation, Cycler, save_model, load_model
 from spacy_glue import SpacySentenceWordCache
 
 
-n_threads = max(multiprocessing.cpu_count() - 1, 1)
-xprint('n_threads=%d' % n_threads)
 sentence_cache = SpacySentenceWordCache()
-
-
 if False:
     for lang in ('en', 'en_vectors_web_lg', 'en_core_web_lg'):
         nlp = spacy.load(lang)
@@ -33,6 +28,7 @@ MIN, MEAN, MAX, MEAN_MAX, MEDIAN, PC75, PC90, LINEAR, LINEAR2, LINEAR3, LINEAR4,
     'LINEAR4', 'LINEAR5', 'EXP')
 PREDICT_METHODS = (MIN, MEAN, MAX, MEAN_MAX, MEDIAN, PC75, PC90, LINEAR, LINEAR2, LINEAR3, LINEAR4,
     LINEAR5, EXP)
+PREDICT_METHODS_GOOD = (MEAN, LINEAR)
 
 
 def linear_weights(ys, limit):
@@ -142,7 +138,10 @@ class SentimentAnalyser(object):
         self.method = method
         self.max_length = max_length
 
-    def pipe(self, docs, batch_size=1000, n_threads=n_threads):
+    def __del__(self):
+        del self._model
+
+    def pipe(self, docs, batch_size=1000, n_threads=-1):
         for minibatch in cytoolz.partition_all(batch_size, docs):
             minibatch = list(minibatch)
             for doc in minibatch:
@@ -317,6 +316,7 @@ def do_train(train_texts, train_labels, dev_texts, dev_labels, lstm_shape, lstm_
         if validation_data is None:
             save_model(model, model2_path, config2_path, False)
 
+    del nlp
     return model, (best_epoch_frozen, best_epoch_unfrozen)
 
 
@@ -587,8 +587,10 @@ def predict(model_path, config_path, frozen, texts, method, max_length):
     print('+++++ pipe_names=%s' % nlp.pipe_names)
 
     y = np.zeros((len(texts), len(LABEL_COLS)), dtype=np.float32)
-    for i, doc in enumerate(nlp.pipe(texts, batch_size=1000, n_threads=n_threads)):
+    for i, doc in enumerate(nlp.pipe(texts, batch_size=1000)):
         y[i, :] = doc.user_data['toxics']
+
+    del nlp
     return y
 
 

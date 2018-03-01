@@ -4,16 +4,14 @@
 """
 import os
 from utils import xprint_init, xprint, load_json, save_json
-from framework import (Evaluator, set_random_seed, show_auc, set_n_samples, get_n_samples_str,
-    auc_score_list)
+from framework import (SUMMARY_DIR, Evaluator, set_random_seed, show_auc, set_n_samples,
+    get_n_samples_str, auc_score_list, show_results)
 from clf_spacy import ClfSpacy, PREDICT_METHODS
 
 
 submission_name = 'spacy_lstm15'
 epochs = 40
 set_n_samples(10000)
-SUMMARY_DIR = 'run.summaries'
-os.makedirs(SUMMARY_DIR, exist_ok=True)
 run_summary_path = os.path.join(SUMMARY_DIR,
     '%s.%s.run_summary.json' % (submission_name, get_n_samples_str()))
 
@@ -102,20 +100,11 @@ def get_clf15():
                     lstm_type=lstm_type, predict_method=predict_method)
 
 
-def show_results(auc_list):
-    results = [(i, auc, clf, clf_str) for i, (auc, clf, clf_str) in enumerate(auc_list)]
-    results.sort(key=lambda x: (-x[1].mean(), x[2], x[3]))
-    xprint('~' * 100)
-    xprint('RESULTS SO FAR: %d' % len(results))
-    for i, auc, clf, clf_str in results:
-        xprint('$' * 100)
-        xprint('auc=%.4f %3d: %s %s' % (auc.mean(), i, clf, clf_str))
-        show_auc(auc)
-    xprint('^' * 100)
-    xprint('RESULTS SUMMARY: %d' % len(results))
-    for i, auc, clf, clf_str in results:
-        xprint('auc=%.4f %3d: %s %s' % (auc.mean(), i, clf, clf_str))
-
+# spacy_lstm15.log instance3 has
+# RESULTS SUMMARY: 68
+# auc=0.9920  46: get_clf12 ClfSpacy(batch_size=150, dropout=0.5, epochs=40, epochs2=2, frozen=True, learn_rate=0.001, lstm_type=2, max_length=100, n_hidden=256, predict_method=LINEAR3)
+# auc=0.9905  38: get_clf12 ClfSpacy(batch_size=150, dropout=0.5, epochs=40, epochs2=2, frozen=True, learn_rate=0.001, lstm_type=2, max_length=100, n_hidden=256, predict_method=MEAN)
+# auc=0.9894  22: get_clf12 ClfSpacy(batch_size=150, dropout=0.5, epochs=40, epochs2=2, frozen=True, learn_rate=0.001, lstm_type=6, max_length=100, n_hidden=256, predict_method=LINEAR3)
 
 # spacy_lstm15.log instance3 has
 # RESULTS SUMMARY: 63
@@ -178,7 +167,7 @@ clf_list = [get_clf12, get_clf13, get_clf14, get_clf15,
            # get_clf0, get_clf2, get_clf3,
            get_clf4, get_clf5,
            get_clf1]
-# clf_list.reverse()
+
 auc_list = []
 frozen = True
 completed_tests = load_json(run_summary_path, {})
