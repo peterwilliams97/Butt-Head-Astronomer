@@ -102,6 +102,29 @@ def get_clf15():
                     lstm_type=lstm_type, predict_method=predict_method)
 
 
+def show_results(auc_list):
+    results = [(i, auc, clf, clf_str) for i, (auc, clf, clf_str) in enumerate(auc_list)]
+    results.sort(key=lambda x: (-x[1].mean(), x[2], x[3]))
+    xprint('~' * 100)
+    xprint('RESULTS SO FAR: %d' % len(results))
+    for i, auc, clf, clf_str in results:
+        xprint('$' * 100)
+        xprint('auc=%.4f %3d: %s %s' % (auc.mean(), i, clf, clf_str))
+        show_auc(auc)
+    xprint('^' * 100)
+    xprint('RESULTS SUMMARY: %d' % len(results))
+    for i, auc, clf, clf_str in results:
+        xprint('auc=%.4f %3d: %s %s' % (auc.mean(), i, clf, clf_str))
+
+
+# spacy_lstm15.log instance3 has
+# RESULTS SUMMARY: 63
+# auc=0.9919  46: get_clf12 ClfSpacy(dropout=0.5, learn_rate=0.001, lstm_type=2, max_length=100, n_hidden=256, predict_method=LINEAR)
+# auc=0.9899  49: get_clf12 ClfSpacy(dropout=0.5, learn_rate=0.001, lstm_type=2, max_length=100, n_hidden=256, predict_method=LINEAR4)
+# auc=0.9895  22: get_clf12 ClfSpacy(dropout=0.5, learn_rate=0.001, lstm_type=6, max_length=100, n_hidden=256, predict_method=LINEAR)
+# auc=0.9885  34: get_clf12 ClfSpacy(dropout=0.5, learn_rate=0.001, lstm_type=5, max_length=100, n_hidden=256, predict_method=LINEAR)
+# auc=0.9885  42: get_clf12 ClfSpacy(dropout=0.5, learn_rate=0.001, lstm_type=2, max_length=100, n_hidden=256, predict_method=MEAN_MAX)
+
 # spacy_lstm15.log instance4 has
 # RESULTS SUMMARY: 65
 # auc=0.9900  34: get_clf1 ClfSpacy(dropout=0.5, learn_rate=0.001, lstm_type=6, max_length=100, n_hidden=128, predict_method=LINEAR2)
@@ -177,24 +200,13 @@ for get_clf in clf_list:
 
                 set_random_seed(1234)
                 evaluator = Evaluator(n=1)
-                ok, auc0 = evaluator.evaluate(get_clf)
-                auc_list.append((auc0, get_clf.__name__, str(get_clf())))
-                results = [(i, auc, clf, clf_str) for i, (auc, clf, clf_str) in enumerate(auc_list)]
-                results.sort(key=lambda x: (-x[1].mean(), x[2], x[3]))
-                xprint('~' * 100)
-                xprint('RESULTS SO FAR: %d' % len(results))
-                for i, auc, clf, clf_str in results:
-                    xprint('$' * 100)
-                    xprint('auc=%.4f %3d: %s %s' % (auc.mean(), i, clf, clf_str))
-                    show_auc(auc)
-                xprint('^' * 100)
-                xprint('RESULTS SUMMARY: %d' % len(results))
-                for i, auc, clf, clf_str in results:
-                    xprint('auc=%.4f %3d: %s %s' % (auc.mean(), i, clf, clf_str))
+                ok, auc = evaluator.evaluate(get_clf)
+
+                auc_list.append((auc, get_clf.__name__, str(get_clf())))
+                show_results(auc_list)
 
                 runs.append(auc_score_list(auc))
                 completed_tests[clf_str] = runs
-
                 save_json(run_summary_path, completed_tests)
                 xprint('n_completed=%d = %d + %d' % (len(completed_tests), n_completed0,
                     len(completed_tests) - n_completed0))
