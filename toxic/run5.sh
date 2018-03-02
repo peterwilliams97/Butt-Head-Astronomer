@@ -1,6 +1,7 @@
 #!/bin/bash
+trap "echo Program crashed. Restarting" ERR
 while true
 do
-    exec python trial_spacy5_reductions.py
-    sleep 100
+    python trial_spacy5_reductions.py
+    sleep 1
 done
