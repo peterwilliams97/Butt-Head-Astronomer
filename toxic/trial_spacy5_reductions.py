@@ -9,9 +9,9 @@ from framework import (SUMMARY_DIR, Evaluator, set_random_seed, set_n_samples, g
 from clf_spacy import ClfSpacy, PREDICT_METHODS_GOOD
 
 
-submission_name = 'spacy_lstm18'
+submission_name = 'spacy_lstm19'
 epochs = 40
-set_n_samples(10000)
+set_n_samples(9000)
 run_summary_path = os.path.join(SUMMARY_DIR,
     '%s.%s.run_summary.json' % (submission_name, get_n_samples_str()))
 
@@ -138,7 +138,7 @@ completed_tests = load_json(run_summary_path, {})
 xprint('run_summary_path=%s' % run_summary_path)
 n_completed0 = len(completed_tests)
 
-for n_runs0 in range(8):
+for n_runs0 in range(3):
     print('n_completed0=%d n_runs0=%d' % (n_completed0, n_runs0))
     for get_clf in clf_list:
         for lstm_type in lstm_list:

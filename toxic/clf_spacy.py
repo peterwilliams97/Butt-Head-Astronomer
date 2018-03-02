@@ -142,16 +142,26 @@ class SentimentAnalyser(object):
         del self._model
 
     def pipe(self, docs, batch_size=1000, n_threads=-1):
+        interval = 10
+        t0 = time.clock()
+        i = 0
+        k = 0
         for minibatch in cytoolz.partition_all(batch_size, docs):
             minibatch = list(minibatch)
             for doc in minibatch:
                 Xs = get_features(doc.sents, self.max_length)
                 ys = self._model.predict(Xs)
+                if i >= interval:
+                    xprint('SentimentAnalyser.pipe: %4d docs %5d sents %.1f sec' % (i, k, time.clock() - t0))
+                    interval *= 2
                 for method in self.methods:
                     y = reduce(ys, method=method)
                     assert len(y.shape) == 1 and len(y) == ys.shape[1], (ys.shape, y.shape)
                     doc.user_data[method] = y
                 yield doc
+                i += 1
+                k += ys.shape[0]
+        xprint('SentimentAnalyser.pipe: %4d docs %5d sents %.1f sec TOTAL' % (i, k, time.clock() - t0))
 
 
 def sentence_label_generator(texts_in, labels_in, batch_size):
@@ -572,7 +582,7 @@ def build_lstm9(embeddings, shape, settings):
     # model.add(TimeDistributed(Dense(shape['n_hidden'], use_bias=False), name='td9b'))
     model.add(Bidirectional(LSTM(shape['n_hidden'], return_sequences=True,
                                  recurrent_dropout=settings['dropout'],
-                                 dropout=settings['dropout'], name='bidi9b')))
+                                 dropout=settings['dropout']), name='bidi9b'))
     model.add(GlobalMaxPool1D(name='mp9'))
     model.add(BatchNormalization(name='bn9'))
     model.add(Dropout(settings['dropout'] / 2.0, name='drop9b'))
@@ -621,12 +631,11 @@ def predict_reductions(model_path, config_path, frozen, texts, methods, max_leng
     ]
     print('+++++ pipe_names=%s' % nlp.pipe_names)
 
-    reductions = {}
-    for method in methods:
-        y = np.zeros((len(texts), len(LABEL_COLS)), dtype=np.float32)
-        for i, doc in enumerate(nlp.pipe(texts, batch_size=1000)):
-            y[i, :] = doc.user_data[method]
-        reductions[method] = y
+    reductions = {method: np.zeros((len(texts), len(LABEL_COLS)), dtype=np.float32)
+                  for method in methods}
+    for i, doc in enumerate(nlp.pipe(texts, batch_size=1000)):
+        for method in methods:
+            reductions[method][i, :] = doc.user_data[method]
 
     del nlp
     return reductions
@@ -735,7 +744,7 @@ class ClfSpacy:
             assert os.path.exists(model2_path), model2_path
             assert os.path.exists(config2_path), config2_path
 
-        print('****: best_epochs=%s - %s' % (self.best_epochs, self.description))
+        print('****: best_epochs=%s - %s Add 1 to these' % (self.best_epochs, self.description))
         del lstm
 
     def predict_reductions(self, test, predict_methods):
