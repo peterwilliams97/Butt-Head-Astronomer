@@ -28,7 +28,7 @@ MIN, MEAN, MAX, MEAN_MAX, MEDIAN, PC75, PC90, LINEAR, LINEAR2, LINEAR3, LINEAR4,
     'LINEAR4', 'LINEAR5', 'EXP')
 PREDICT_METHODS = (MIN, MEAN, MAX, MEAN_MAX, MEDIAN, PC75, PC90, LINEAR, LINEAR2, LINEAR3, LINEAR4,
     LINEAR5, EXP)
-PREDICT_METHODS_GOOD = (MEAN, LINEAR)
+PREDICT_METHODS_GOOD = (MEAN, LINEAR, LINEAR2, LINEAR3)
 
 
 def linear_weights(ys, limit):
@@ -126,16 +126,16 @@ if False:
 
 class SentimentAnalyser(object):
     @classmethod
-    def load(cls, nlp, model_path, config_path, frozen, method, max_length):
-        xprint('SentimentAnalyser.load: model_path=%s config_path=%s frozen=%s method=%s max_length=%d' % (
-             model_path, config_path, frozen, method, max_length))
+    def load(cls, nlp, model_path, config_path, frozen, methods, max_length):
+        xprint('SentimentAnalyser.load: model_path=%s config_path=%s frozen=%s methods=%s max_length=%d' % (
+             model_path, config_path, frozen, methods, max_length))
         get_embeds = partial(get_embeddings, vocab=nlp.vocab) if frozen else None
         model = load_model(model_path, config_path, frozen, get_embeds)
-        return cls(model, method=method, max_length=max_length)
+        return cls(model, methods=methods, max_length=max_length)
 
-    def __init__(self, model, method, max_length):
+    def __init__(self, model, methods, max_length):
         self._model = model
-        self.method = method
+        self.methods = methods
         self.max_length = max_length
 
     def __del__(self):
@@ -147,9 +147,10 @@ class SentimentAnalyser(object):
             for doc in minibatch:
                 Xs = get_features(doc.sents, self.max_length)
                 ys = self._model.predict(Xs)
-                y = reduce(ys, method=self.method)
-                assert len(y.shape) == 1 and len(y) == ys.shape[1], (ys.shape, y.shape)
-                doc.user_data['toxics'] = y
+                for method in self.methods:
+                    y = reduce(ys, method=method)
+                    assert len(y.shape) == 1 and len(y) == ys.shape[1], (ys.shape, y.shape)
+                    doc.user_data[method] = y
                 yield doc
 
 
@@ -572,9 +573,9 @@ def get_embeddings(vocab):
     return vocab.vectors.data
 
 
-def predict(model_path, config_path, frozen, texts, method, max_length):
-    print('predict(model_path=%s, config_path=%s, frozen=%s, texts=%s, method=%s, max_length=%d)' %
-        (model_path, config_path, frozen, dim(texts), method, max_length))
+def predict_reductions(model_path, config_path, frozen, texts, methods, max_length):
+    print('predict_reductions(model_path=%s, config_path=%s, frozen=%s, texts=%s, methods=%s, max_length=%d)' %
+        (model_path, config_path, frozen, dim(texts), methods, max_length))
 
     nlp = spacy.load('en_core_web_lg')
     print('----- pipe_names=%s' % nlp.pipe_names)
@@ -582,16 +583,19 @@ def predict(model_path, config_path, frozen, texts, method, max_length):
         ('tagger', nlp.tagger),
         ('parser', nlp.parser),
         ('sa', SentimentAnalyser.load(nlp, model_path, config_path, frozen,
-                                      method=method, max_length=max_length))
+                                      methods=methods, max_length=max_length))
     ]
     print('+++++ pipe_names=%s' % nlp.pipe_names)
 
-    y = np.zeros((len(texts), len(LABEL_COLS)), dtype=np.float32)
-    for i, doc in enumerate(nlp.pipe(texts, batch_size=1000)):
-        y[i, :] = doc.user_data['toxics']
+    reductions = {}
+    for method in methods:
+        y = np.zeros((len(texts), len(LABEL_COLS)), dtype=np.float32)
+        for i, doc in enumerate(nlp.pipe(texts, batch_size=1000)):
+            y[i, :] = doc.user_data[method]
+        reductions[method] = y
 
     del nlp
-    return y
+    return reductions
 
 
 def get_model_dir(model_name, fold):
@@ -700,7 +704,7 @@ class ClfSpacy:
         print('****: best_epochs=%s - %s' % (self.best_epochs, self.description))
         del lstm
 
-    def predict(self, test):
+    def predict_reductions(self, test, predict_methods):
         print('ClfSpacy.predict', '-' * 80)
         X_test = df_to_sentences(test)
         (model1_path, config1_path), (model2_path, config2_path) = self._get_paths(False)
@@ -717,5 +721,10 @@ class ClfSpacy:
         assert os.path.exists(model_path), model_path
         assert os.path.exists(config_path), config_path
 
-        return predict(model_path, config_path, frozen, X_test, method=self.predict_method,
+        return predict_reductions(model_path, config_path, frozen, X_test, methods=predict_methods,
             max_length=self.max_length)
+
+    def predict(self, test):
+        reductions = self.predict_reductions(test, predict_methods=[self.predict_method])
+        print('ClfSpacy.predict', '-' * 80)
+        return reductions[self.predict_method]

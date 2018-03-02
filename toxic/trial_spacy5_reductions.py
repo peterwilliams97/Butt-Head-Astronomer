@@ -9,7 +9,7 @@ from framework import (SUMMARY_DIR, Evaluator, set_random_seed, set_n_samples, g
 from clf_spacy import ClfSpacy, PREDICT_METHODS_GOOD
 
 
-submission_name = 'spacy_lstm17'
+submission_name = 'spacy_lstm18'
 epochs = 40
 set_n_samples(10000)
 run_summary_path = os.path.join(SUMMARY_DIR,
@@ -128,7 +128,7 @@ def get_clf25():
                     lstm_type=lstm_type, predict_method=predict_method)
 
 
-clf_list = [get_clfx]  # , get_clf22, get_clf23, get_clf24, get_clf25]
+clf_list = [get_clf22, get_clf23, get_clf24, get_clf25]
 lstm_list = [6, 8]
 frozen_list = [True]
 
@@ -138,32 +138,34 @@ completed_tests = load_json(run_summary_path, {})
 xprint('run_summary_path=%s' % run_summary_path)
 n_completed0 = len(completed_tests)
 
-for n_runs0 in range(3):
+for n_runs0 in range(8):
     print('n_completed0=%d n_runs0=%d' % (n_completed0, n_runs0))
     for get_clf in clf_list:
         for lstm_type in lstm_list:
             for frozen in frozen_list:
-                for predict_method in PREDICT_METHODS_GOOD:
-                    xprint('#' * 80)
-                    clf_str = str(get_clf())
-                    xprint(clf_str)
-                    runs = completed_tests.get(clf_str, [])
-                    if len(runs) > n_runs0:
-                        xprint('skipping runs=%d n_runs0=%d' % (len(runs), n_runs0))
-                        continue
+                xprint('#' * 80)
+                predict_method = PREDICT_METHODS_GOOD[0]
+                clf_str = str(get_clf())
+                xprint(clf_str)
+                runs = completed_tests.get(clf_str, [])
+                if len(runs) > n_runs0:
+                    xprint('skipping runs=%d n_runs0=%d' % (len(runs), n_runs0))
+                    continue
 
-                    set_random_seed(1234 + n_runs0)
-                    evaluator = Evaluator(n=1)
-                    ok, auc = evaluator.evaluate(get_clf)
+                set_random_seed(1234 + n_runs0)
+                evaluator = Evaluator(n=1)
+                ok, auc_reductions = evaluator.evaluate_reductions(get_clf, PREDICT_METHODS_GOOD)
+                assert ok
 
+                for predict_method, auc in auc_reductions.items():
                     auc_list.append((auc, get_clf.__name__, str(get_clf())))
                     show_results(auc_list)
 
                     runs.append(auc_score_list(auc))
-                    completed_tests[clf_str] = runs
+                    completed_tests[str(get_clf())] = runs
                     save_json(run_summary_path, completed_tests)
                     xprint('n_completed=%d = %d + %d' % (len(completed_tests), n_completed0,
                         len(completed_tests) - n_completed0))
-                    xprint('&' * 100)
+                xprint('&' * 100)
 
 xprint('$' * 100)

@@ -276,6 +276,7 @@ class Evaluator:
         self.train, _, _ = load_data()
         self.shuffled_indexes = make_shuffled_indexes(self.train, self.n)
         assert len(self.shuffled_indexes) == n, (len(self.shuffled_indexes))
+        seed_random()
 
     def evaluate(self, get_clf):
         auc = np.zeros((self.n, len(LABEL_COLS)), dtype=np.float64)
@@ -334,8 +335,64 @@ class Evaluator:
             del clf
         return True, auc
 
+    def evaluate_reductions(self, get_clf, predict_methods):
+        auc_reductions = {method: np.zeros((self.n, len(LABEL_COLS)), dtype=np.float64)
+                          for method in predict_methods}
+        for i in range(self.n):
+            ok, reductions = self._evaluate_reductions(get_clf, i, predict_methods)
+            if not ok:
+                return ok, {}
+            for method in predict_methods:
+                auc = auc_reductions[method]
+                auci = reductions[method]
+                auc[i, :] = auci
+                print('evaluate_reductions: method=%s' % method)
+                show_auc(auc[:i + 1, :])
+        xprint('program=%s train=%s' % (sys.argv[0], dim(self.train)))
+        return True, auc_reductions
+
+    def _evaluate_reductions(self, get_clf, i, predict_methods):
+        xprint('_evaluate_reductions %3d of %d predict_methods=%s' % (i, self.n, predict_methods))
+        assert 0 <= i < len(self.shuffled_indexes), (i, self.n, len(self.shuffled_indexes))
+        train_part, test_part = split_data(self.train, self.shuffled_indexes[i], self.frac)
+
+        clf = None
+        try:
+            clf = get_clf()
+            t0 = time.clock()
+            clf.fit(train_part)
+            print('_evaluate_reductions %d fit duration=%.1f sec' % (i, time.clock() - t0))
+            t0 = time.clock()
+            reductions = clf.predict_reductions(test_part, predict_methods)
+            print('_evaluate_reductions %d predict duration=%.1f sec' % (i, time.clock() - t0))
+            print('!!! _evaluate_reductions reductions=%s' % {k: dim(v)
+                for k, v in reductions.items()})
+        except Exception as e:
+            xprint('!!! _evaluate_reductions, exception=%s' % e)
+            raise e
+            return False, {}
+
+        auc_reductions = {}
+        for method in predict_methods:
+            pred = reductions[method]
+            auc = np.zeros(len(LABEL_COLS), dtype=np.float64)
+            for j, col in enumerate(LABEL_COLS):
+                y_true = test_part[col]
+                y_pred = pred[:, j]
+                auc[j] = roc_auc_score(y_true, y_pred)
+            mean_auc = auc.mean()
+            xprint('%5d: auc=%.3f %s' % (i, mean_auc, label_score(auc)))
+            describe(pred)
+            show_best_worst(test_part, pred, n=3, do_best=False)
+            auc_reductions[method] = auc
+
+        if clf is not None:
+            del clf
+        return True, auc_reductions
+
 
 def make_submission(get_clf, submission_name):
+    seed_random()
     submission_path = join(SUBMISSION_DIR, '%s.csv' % submission_name)
     assert not os.path.exists(submission_path), submission_path
     os.makedirs(SUBMISSION_DIR, exist_ok=True)
