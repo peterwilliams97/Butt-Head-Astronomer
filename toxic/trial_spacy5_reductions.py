@@ -128,8 +128,8 @@ def get_clf25():
                     lstm_type=lstm_type, predict_method=predict_method)
 
 
-clf_list = [get_clf22, get_clf23, get_clf24, get_clf25]
-lstm_list = [6, 8]
+clf_list = [get_clf0, get_clf22, get_clf23, get_clf24, get_clf25]
+lstm_list = [9, 6, 7, 8]
 frozen_list = [True]
 
 xprint_init(submission_name, False)
