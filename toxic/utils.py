@@ -146,6 +146,10 @@ def load_pickle(path, default=None):
     return obj
 
 
+def touch(path):
+    save_json(path, {'path': path})
+
+
 temp_pickle = 'temp.pkl'
 
 
@@ -257,6 +261,43 @@ class RocAucEvaluation(Callback):
             else:
                  xprint('RocAucEvaluation.fit: No improvement best_epoch=%d best_auc=%.3f' %
                     (self.best_epoch + 1, self.best_auc))
+
+
+class SaveAllEpochs(Callback):
+    """Save weights at the end of every epoch
+    """
+
+    @staticmethod
+    def epoch_dict(epoch_path, default={'epoch1': 0, 'epoch2': 0}):
+        return load_json(epoch_path, default)
+
+    def __init__(self, model_path, config_path, epoch_path, frozen):
+
+        super(Callback, self).__init__()
+
+        print('SaveAllEpochs: model_path=%s, config_path=%s epoch_path=%s frozen=%s' % (
+            model_path, config_path, epoch_path, frozen))
+
+        self.model_path = model_path
+        self.config_path = config_path
+        self.epoch_path = epoch_path
+        self.frozen = frozen
+        self.epochs = load_json(self.epoch_path, {'epoch1': 0, 'epoch2': 0})
+
+    def on_epoch_end(self, epoch, logs={}):
+        save_model(self.model, self.model_path, self.config_path, self.frozen)
+        if self.frozen:
+            self.epochs['epoch1'] += 1
+        else:
+            self.epochs['epoch2'] += 1
+        save_json(self.epoch_path, self.epochs)
+        xprint('SaveAllEpochs: epochs=%s' % self.epochs)
+
+    def last_epoch1(self):
+        return SaveAllEpochs.epoch_dict(self.epoch_path, self.epochs)['epoch1']
+
+    def last_epoch2(self):
+        return SaveAllEpochs.epoch_dict(self.epoch_path, self.epochs)['epoch2']
 
 
 class Cycler:

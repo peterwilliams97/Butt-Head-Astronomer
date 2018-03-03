@@ -2,7 +2,7 @@
 """
     SpaCy deep_learning_keras.py solution to Kaggle Toxic Comment challenge
 """
-from utils import xprint_init, xprint
+from utils import xprint_init, xprint, touch
 from framework import Evaluator, set_random_seed, make_submission_reductions, set_n_samples
 from clf_spacy import ClfSpacy, PREDICT_METHODS_GOOD
 
@@ -26,6 +26,7 @@ set_random_seed(seed=1234)
 
 if do_submission:
     make_submission_reductions(get_clf, submission_name, PREDICT_METHODS_GOOD)
+    touch('completed.spacy_lstm20.txt')
 else:
     evaluator = Evaluator(n=1)
     ok, auc = evaluator.evaluate_reductions(get_clf, PREDICT_METHODS_GOOD)

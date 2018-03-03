@@ -11,7 +11,7 @@ import os
 import time
 import math
 from framework import MODEL_DIR, LABEL_COLS, get_n_samples_str, df_to_sentences, train_test_split
-from utils import dim, xprint, RocAucEvaluation, Cycler, save_model, load_model
+from utils import dim, xprint, RocAucEvaluation, SaveAllEpochs, Cycler, save_model, load_model
 from spacy_glue import SpacySentenceWordCache
 
 
@@ -258,7 +258,7 @@ def do_train(train_texts, train_labels, dev_texts, dev_labels, lstm_shape, lstm_
     lstm_optimizer, batch_size=100,
     do_fit1=True, epochs1=5, model1_path=None, config1_path=None,
     do_fit2=False, epochs2=2, model2_path=None, config2_path=None,
-    lstm_type=1):
+    epoch_path=None, lstm_type=1):
     """Train a Keras model on the sentences in `train_texts`
         All the sentences in a text have the text's label
         do_fit1: Fit with frozen word embeddings
@@ -294,14 +294,24 @@ def do_train(train_texts, train_labels, dev_texts, dev_labels, lstm_shape, lstm_
                 model_path=model1_path, config_path=config1_path)
             early = EarlyStopping(monitor='val_auc', mode='max', patience=2, verbose=1)
             callback_list = [ra_val, early]
-
-        model.fit(X_train, y_train, batch_size=batch_size, epochs=epochs1,
-                  validation_data=validation_data, callbacks=callback_list, verbose=1)
-        if validation_data is not None:
-            best_epoch_frozen = ra_val.best_epoch
-            ra_val.best_epoch = -1
         else:
-            save_model(model, model1_path, config1_path, True)
+            sae = SaveAllEpochs(model1_path, config1_path, epoch_path, True)
+            if sae.last_epoch1() > 0:
+                xprint('Reloading partially built model 1')
+                get_embeds = partial(get_embeddings, vocab=nlp.vocab)
+                model = load_model(model1_path, config1_path, True, get_embeds)
+                compile_lstm(model, lstm_settings['lr'])
+                epochs1 -= sae.last_epoch1()
+            callback_list = [sae]
+
+        if epochs1 > 0:
+            model.fit(X_train, y_train, batch_size=batch_size, epochs=epochs1,
+                      validation_data=validation_data, callbacks=callback_list, verbose=1)
+            if validation_data is not None:
+                best_epoch_frozen = ra_val.best_epoch
+                ra_val.best_epoch = -1
+            else:
+                save_model(model, model1_path, config1_path, True)
 
     if do_fit2:
          # Reload the best model so far, if it exists
@@ -317,15 +327,25 @@ def do_train(train_texts, train_labels, dev_texts, dev_labels, lstm_shape, lstm_
             ra_val = RocAucEvaluation(validation_data=validation_data, interval=1,
                 frozen=False, was_frozen=True,
                 get_embeddings=partial(get_embeddings, vocab=nlp.vocab),
-                do_prime=True,
-                model_path=model1_path, config_path=config1_path)
+                do_prime=True, model_path=model1_path, config_path=config1_path)
             early = EarlyStopping(monitor='val_auc', mode='max', patience=2, verbose=1)
             callback_list = [ra_val, early]
-        model.fit(X_train, y_train, batch_size=batch_size, epochs=epochs2,
-              validation_data=validation_data, callbacks=callback_list, verbose=1)
-        best_epoch_unfrozen = ra_val.best_epoch
-        if validation_data is None:
-            save_model(model, model2_path, config2_path, False)
+        else:
+            sae = SaveAllEpochs(model2_path, config2_path, epoch_path, False)
+            if sae.last_epoch2() > 0:
+                xprint('Reloading partially built model 2')
+                get_embeds = partial(get_embeddings, vocab=nlp.vocab)
+                model = load_model(model2_path, config2_path, False)
+                compile_lstm(model, lstm_settings['lr'])
+                epochs2 -= sae.last_epoch2()
+            callback_list = [sae]
+
+        if epochs2 > 0:
+            model.fit(X_train, y_train, batch_size=batch_size, epochs=epochs2,
+                  validation_data=validation_data, callbacks=callback_list, verbose=1)
+            best_epoch_unfrozen = ra_val.best_epoch
+            if validation_data is None:
+                save_model(model, model2_path, config2_path, False)
 
     del nlp
     return model, (best_epoch_frozen, best_epoch_unfrozen)
@@ -618,8 +638,9 @@ def get_embeddings(vocab):
 
 
 def predict_reductions(model_path, config_path, frozen, texts, methods, max_length):
-    print('predict_reductions(model_path=%s, config_path=%s, frozen=%s, texts=%s, methods=%s, max_length=%d)' %
-        (model_path, config_path, frozen, dim(texts), methods, max_length))
+    print('predict_reductions(model_path=%s, config_path=%s, frozen=%s, texts=%s, methods=%s, '
+          'max_length=%d)' %
+          (model_path, config_path, frozen, dim(texts), methods, max_length))
 
     nlp = spacy.load('en_core_web_lg')
     print('----- pipe_names=%s' % nlp.pipe_names)
@@ -697,28 +718,35 @@ class ClfSpacy:
         config1_path = os.path.join(model_dir, 'config.json')
         model2_path = os.path.join(model_dir, 'model2')
         config2_path = os.path.join(model_dir, 'config2.json')
+        epoch_path = os.path.join(model_dir, 'epochs.json')
         if not self._shown_paths:
             xprint('model1_path=%s exists=%s' % (model1_path, os.path.exists(model1_path)))
             xprint('config1_path=%s exists=%s' % (config1_path, os.path.exists(config1_path)))
             xprint('model2_path=%s exists=%s' % (model2_path, os.path.exists(model2_path)))
             xprint('config2_path=%s exists=%s' % (config1_path, os.path.exists(config2_path)))
+            xprint('epoch_path=%s exists=%s' % (epoch_path, os.path.exists(epoch_path)))
             self._shown_paths = True
-        return (model1_path, config1_path), (model2_path, config2_path)
+        return (model1_path, config1_path), (model2_path, config2_path), epoch_path
 
     def fit(self, train, test_size=0.1):
         print('ClfSpacy.fit', '-' * 80)
-        (model1_path, config1_path), (model2_path, config2_path) = self._get_paths(True)
+        (model1_path, config1_path), (model2_path, config2_path), epoch_path = self._get_paths(True)
         if not self.force_fit:
             if self.frozen:
-                if os.path.exists(model1_path) and os.path.exists(config1_path):
+                if (os.path.exists(model1_path) and os.path.exists(config1_path) and
+                    SaveAllEpochs.epoch_dict(epoch_path)['epoch1'] == self.epochs):
                     xprint('model1_path already exists. re-using')
                     return
             else:
-                if os.path.exists(model2_path) and os.path.exists(config2_path):
+                if (os.path.exists(model2_path) and os.path.exists(config2_path) and
+                    SaveAllEpochs.epoch_dict(epoch_path)['epoch2'] == self.epochs2):
                     xprint('model2_path already exists. re-using')
                     return
-        do_fit1 = not (os.path.exists(model1_path) and os.path.exists(config1_path))
-        do_fit2 = not self.frozen and not (os.path.exists(model2_path) and os.path.exists(config2_path))
+        do_fit1 = (not (os.path.exists(model1_path) and os.path.exists(config1_path)) or
+                   SaveAllEpochs.epoch_dict(epoch_path)['epoch1'] < self.epochs)
+        do_fit2 = (not self.frozen and (not (os.path.exists(model2_path) and
+                                             os.path.exists(config2_path)) or
+                   SaveAllEpochs.epoch_dict(epoch_path)['epoch2'] < self.epochs2))
 
         y_train = train[LABEL_COLS].values
         X_train = df_to_sentences(train)
@@ -734,7 +762,8 @@ class ClfSpacy:
         lstm, self.best_epochs = do_train(X_train, y_train, X_val, y_val, lstm_shape, lstm_settings,
             {}, batch_size=self.batch_size, lstm_type=self.lstm_type,
             do_fit1=do_fit1, epochs1=self.epochs, model1_path=model1_path, config1_path=config1_path,
-            do_fit2=do_fit2, epochs2=self.epochs2, model2_path=model2_path, config2_path=config2_path)
+            do_fit2=do_fit2, epochs2=self.epochs2, model2_path=model2_path, config2_path=config2_path,
+            epoch_path=epoch_path)
 
         assert do_fit1
         if do_fit1:
@@ -750,7 +779,7 @@ class ClfSpacy:
     def predict_reductions(self, test, predict_methods):
         print('ClfSpacy.predict', '-' * 80)
         X_test = df_to_sentences(test)
-        (model1_path, config1_path), (model2_path, config2_path) = self._get_paths(False)
+        (model1_path, config1_path), (model2_path, config2_path), _ = self._get_paths(False)
         frozen = self.frozen
         if not frozen and not (os.path.exists(model2_path) and os.path.exists(config2_path)):
             xprint('unfrozen but no improvement over frozen. Using frozen')

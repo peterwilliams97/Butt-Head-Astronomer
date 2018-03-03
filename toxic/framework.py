@@ -420,10 +420,14 @@ def make_submission_reductions(get_clf, submission_name, predict_methods):
     clf.fit(train, test_size=0.0)
     reductions = clf.predict_reductions(test, predict_methods)
 
+    ok = True
     for method in predict_methods:
         submission_path = join(SUBMISSION_DIR, '%s.%s.%s.csv' % (
             submission_name, get_n_samples_str(), method))
-        assert not os.path.exists(submission_path), submission_path
+        if os.path.exists(submission_path):
+            xprint('make_submission_reductions: submission_path=%s already exists' % submission_path)
+            ok = False
+            break
         xprint('make_submission_reduction: method=%s' % method)
         pred = reductions[method]
         describe(pred)
@@ -432,12 +436,14 @@ def make_submission_reductions(get_clf, submission_name, predict_methods):
         submid = pd.DataFrame({'id': subm['id']})
         submission = pd.concat([submid, pd.DataFrame(pred, columns=LABEL_COLS)], axis=1)
         submission.to_csv(submission_path, index=False)
-        xprint('Saved in %s' % submission_path)
+        xprint('make_submission_reductions: Saved in %s' % submission_path)
 
-    xprint('program=%s train=%s test=%s submission=%s' % (sys.argv[0], dim(train), dim(test),
-        dim(submission)))
+        xprint('program=%s train=%s test=%s submission=%s' % (sys.argv[0], dim(train), dim(test),
+            dim(submission)))
+
     if clf is not None:
         del clf
+    return ok
 
 
 CHAR_COUNT = 'char_count.json'
