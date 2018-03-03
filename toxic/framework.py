@@ -393,7 +393,7 @@ class Evaluator:
 
 def make_submission(get_clf, submission_name):
     seed_random()
-    submission_path = join(SUBMISSION_DIR, '%s.csv' % submission_name)
+    submission_path = join(SUBMISSION_DIR, '%s.%s.csv' % (submission_name, get_n_samples_str()))
     assert not os.path.exists(submission_path), submission_path
     os.makedirs(SUBMISSION_DIR, exist_ok=True)
 
@@ -411,6 +411,35 @@ def make_submission(get_clf, submission_name):
     xprint('Saved in %s' % submission_path)
     xprint('program=%s train=%s test=%s submission=%s' % (sys.argv[0], dim(train), dim(test),
         dim(submission)))
+
+
+def make_submission_reductions(get_clf, submission_name, predict_methods):
+    seed_random()
+    os.makedirs(SUBMISSION_DIR, exist_ok=True)
+
+    train, test, subm = load_data()
+    clf = get_clf()
+    clf.fit(train, test_size=0.0)
+    reductions = clf.predict_reductions(test, predict_methods)
+
+    for method in predict_methods:
+        submission_path = join(SUBMISSION_DIR, '%s.%s.%s.csv' % (
+            submission_name, get_n_samples_str(), method))
+        assert not os.path.exists(submission_path), submission_path
+        xprint('make_submission_reduction: method=%s' % method)
+        pred = reductions[method]
+        describe(pred)
+
+        # Create the submission file.
+        submid = pd.DataFrame({'id': subm['id']})
+        submission = pd.concat([submid, pd.DataFrame(pred, columns=LABEL_COLS)], axis=1)
+        submission.to_csv(submission_path, index=False)
+        xprint('Saved in %s' % submission_path)
+
+    xprint('program=%s train=%s test=%s submission=%s' % (sys.argv[0], dim(train), dim(test),
+        dim(submission)))
+    if clf is not None:
+        del clf
 
 
 CHAR_COUNT = 'char_count.json'
