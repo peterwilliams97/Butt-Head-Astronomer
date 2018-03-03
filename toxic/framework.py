@@ -308,7 +308,6 @@ class Evaluator:
             print('!!! _evaluate pred=%s' % dim(pred))
         except Exception as e:
             xprint('!!! _evaluate, exception=%s' % e)
-            raise e
             return False, auc
 
         if do_clips:
@@ -369,7 +368,6 @@ class Evaluator:
                 for k, v in reductions.items()})
         except Exception as e:
             xprint('!!! _evaluate_reductions, exception=%s' % e)
-            raise e
             return False, {}
 
         auc_reductions = {}

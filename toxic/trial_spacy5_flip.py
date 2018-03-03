@@ -11,7 +11,7 @@ from clf_spacy import ClfSpacy, PREDICT_METHODS_GOOD
 
 submission_name = 'spacy_lstm19_flip'
 epochs = 10
-set_n_samples(10000)
+set_n_samples(20000)
 random_seed = 1235
 run_summary_path = os.path.join(SUMMARY_DIR,
     '%s.%s.run_summary.json' % (submission_name, get_n_samples_str()))

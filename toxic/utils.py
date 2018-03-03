@@ -202,12 +202,9 @@ def save_model(model, model_path, config_path, frozen):
     if frozen:
         weights = weights[1:]
 
-    print('save_model: 1')
     save_pickle(model_path, weights)
-    print('save_model: 2')
     with open(config_path, 'wt') as f:
         f.write(model.to_json())
-    print('save_model: 3')
 
 
 AUC_DELTA = 0.001

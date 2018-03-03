@@ -8,8 +8,7 @@ from clf_spacy import ClfSpacy, PREDICT_METHODS_GOOD
 
 
 submission_name = 'spacy_lstm20'
-do_submission = False
-set_n_samples(30000)
+do_submission = True
 epochs = 8
 
 
