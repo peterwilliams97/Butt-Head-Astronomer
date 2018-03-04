@@ -59,13 +59,15 @@ multitask learning
    https://www.google.com.au/search?q=Stanford+Twitter+Sentiment+Corpus&oq=Stanford+Twitter+Sentiment+Corpus&aqs=chrome..69i57j0.1316j0j7&sourceid=chrome&ie=UTF-8
 transfer learning (jhoward)
 
-Need to clip
-             |        toxic | severe_toxic |      obscene |       threat |       insult | identity_hate
------------- + ------------ + ------------ + ------------ + ------------ + ------------ + ------------
-         min |       0.0000 |       0.0000 |       0.0000 |       0.0000 |       0.0000 |       0.0000
-        mean |       0.0901 |       0.0129 |       0.0507 |       0.0020 |       0.0376 |       0.0096
-         max |       1.0000 |       0.8277 |       0.9997 |       0.9047 |       0.9859 |       0.9465
------------- + ------------ + ------------ + ------------ + ------------ + ------------ + ------------
+
+gpu3/spacy_lstm21_flip.40000.log
+RESULTS SUMMARY: 20
+auc=0.9776   6: get_clf23 ClfSpacy(batch_size=300, dropout=0.3, epochs=20, epochs2=2, frozen=True, learn_rate=0.001, lstm_type=6, max_length=100, n_hidden=512, predict_method=LINEAR2)
+auc=0.9775   7: get_clf23 ClfSpacy(batch_size=300, dropout=0.3, epochs=20, epochs2=2, frozen=True, learn_rate=0.001, lstm_type=6, max_length=100, n_hidden=512, predict_method=LINEAR3)
+auc=0.9775   5: get_clf23 ClfSpacy(batch_size=300, dropout=0.3, epochs=20, epochs2=2, frozen=True, learn_rate=0.001, lstm_type=6, max_length=100, n_hidden=512, predict_method=LINEAR)
+auc=0.9771   4: get_clf23 ClfSpacy(batch_size=300, dropout=0.3, epochs=20, epochs2=2, frozen=True, learn_rate=0.001, lstm_type=6, max_length=100, n_hidden=512, predict_method=MEAN)
+auc=0.9765  10: get_clf24 ClfSpacy(batch_size=300, dropout=0.5, epochs=20, epochs2=2, frozen=True, learn_rate=0.002, lstm_type=6, max_length=100, n_hidden=512, predict_method=LINEAR2)
+a
 
 Clipping from 1.0 down has little effect
 31915/31915 [==============================] - 116s 4ms/step
