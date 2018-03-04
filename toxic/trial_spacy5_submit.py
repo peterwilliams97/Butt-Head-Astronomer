@@ -12,6 +12,7 @@ do_submission = False
 epochs = 8
 
 
+
 def get_clf():
     return ClfSpacy(n_hidden=512, max_length=100,  # Shape
                     dropout=0.5, learn_rate=0.001,  # General NN config
@@ -31,3 +32,9 @@ else:
     evaluator = Evaluator(n=1)
     ok, auc = evaluator.evaluate_reductions(get_clf, PREDICT_METHODS_GOOD)
 xprint('$' * 80)
+
+"""
+instance5/spacy_lstm20s.ALL.LINEAR2.csv
+Your submission scored 0.9723, which is not an improvement of your best score. Keep trying!
+
+"""

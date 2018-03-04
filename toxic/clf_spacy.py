@@ -32,6 +32,14 @@ PREDICT_METHODS_GOOD = (MEAN, LINEAR, LINEAR2, LINEAR3)
 
 
 def linear_weights(ys, limit):
+    """Returns: Array of linearly increasing weights [w_1, ..., w_n]
+        n = len(ys)
+        sum(weights) = 1.0
+        w_1 = limit
+        w_n = 1.0 - limit
+
+        w_n / w_1 = (1 / limit - 1) increases as limit decreases
+    """
     n = ys.shape[0]
     weights = np.ones(n, dtype=np.float64)
     if n <= 1:
@@ -70,7 +78,7 @@ def reduce(ys_in, method):
     if method == MIN:
         return ys.min(axis=0)
     if method == MEAN:
-        return ys.mean(axis=0)
+        return ys.mean(axis=0)      # w_n / w_1 = 1
     elif method == MAX:
         return ys.max(axis=0)
     elif method == MEAN_MAX:
@@ -82,19 +90,19 @@ def reduce(ys_in, method):
     elif method == PC90:
         return np.percentile(ys, 90.0, axis=0, interpolation='higher')
     elif method == LINEAR:
-        weights = linear_weights(ys, limit=0.1)
+        weights = linear_weights(ys, limit=0.1)  # w_n / w_1 = 9
         return np.dot(weights, ys)
     elif method == LINEAR2:
-        weights = linear_weights(ys, limit=0.2)
+        weights = linear_weights(ys, limit=0.2)  # w_n / w_1 = 4
         return np.dot(weights, ys)
     elif method == LINEAR3:
-        weights = linear_weights(ys, limit=0.3)
+        weights = linear_weights(ys, limit=0.3)  # w_n / w_1 = 2.3
         return np.dot(weights, ys)
     elif method == LINEAR4:
-        weights = linear_weights(ys, limit=0.05)
+        weights = linear_weights(ys, limit=0.05)  # w_n / w_1 = 19
         return np.dot(weights, ys)
     elif method == LINEAR5:
-        weights = linear_weights(ys, limit=0.01)
+        weights = linear_weights(ys, limit=0.01)  # w_n / w_1 = 99
         return np.dot(weights, ys)
     elif method == EXP:
         weights = exponential_weights(ys, limit=0.3)

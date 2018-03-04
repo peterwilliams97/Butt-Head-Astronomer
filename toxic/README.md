@@ -59,6 +59,10 @@ multitask learning
    https://www.google.com.au/search?q=Stanford+Twitter+Sentiment+Corpus&oq=Stanford+Twitter+Sentiment+Corpus&aqs=chrome..69i57j0.1316j0j7&sourceid=chrome&ie=UTF-8
 transfer learning (jhoward)
 
+RESULTS
+=======
+instance5/spacy_lstm20s.ALL.LINEAR2.csv
+Your submission scored 0.9723, which is not an improvement of your best score. Keep trying!
 
 gpu3/spacy_lstm21_flip.40000.log
 RESULTS SUMMARY: 20
