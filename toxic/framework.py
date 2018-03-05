@@ -361,11 +361,11 @@ class Evaluator:
             clf = get_clf()
             t0 = time.clock()
             clf.fit(train_part)
-            print('_evaluate_reductions %d fit duration=%.1f sec' % (i, time.clock() - t0))
+            xprint('_evaluate_reductions %d fit duration=%.1f sec' % (i, time.clock() - t0))
             t0 = time.clock()
             reductions = clf.predict_reductions(test_part, predict_methods)
-            print('_evaluate_reductions %d predict duration=%.1f sec' % (i, time.clock() - t0))
-            print('!!! _evaluate_reductions reductions=%s' % {k: dim(v)
+            xprint('_evaluate_reductions: %d predict duration=%.1f sec' % (i, time.clock() - t0))
+            xprint('_evaluate_reductions: reductions=%s' % {k: dim(v)
                 for k, v in reductions.items()})
         except Exception as e:
             xprint('!!! _evaluate_reductions, exception=%s' % e)
@@ -373,6 +373,7 @@ class Evaluator:
 
         auc_reductions = {}
         for method in predict_methods:
+            xprint('_evaluate_reductions: method=%s' % method)
             pred = reductions[method]
             auc = np.zeros(len(LABEL_COLS), dtype=np.float64)
             for j, col in enumerate(LABEL_COLS):

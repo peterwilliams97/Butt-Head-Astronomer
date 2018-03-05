@@ -3,7 +3,7 @@
     SpaCy deep_learning_keras.py solution to Kaggle Toxic Comment challenge
 """
 import os
-from utils import xprint_init, xprint, load_json, save_json
+from utils import xprint_init, xprint, load_json, save_json, touch
 from framework import (SUMMARY_DIR, Evaluator, set_random_seed, set_n_samples, get_n_samples_str,
     auc_score_list, show_results)
 from clf_spacy import ClfSpacy, PREDICT_METHODS_GOOD

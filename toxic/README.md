@@ -64,8 +64,9 @@ PROGRESS
 gpu2: 5 ALL evaluate
 gpu3: Testing many parameters on 40000
 gpu4: Testing many parameters on 40000
-gpu5: 5 ALL evaluate 23: get_clf24 ClfSpacy(bat=300, dropout=0.5, lr=0.001, typ=7, max_length=100, n_hidden=512, pm=LINEAR3)
-gpu2: 5 ALL evaluate
+gpu5: spacy_lstmx_90.ALL.submission'  prog='trial_spacy9_submit.py' ClfSpacy(batch_size=300, dropout=0.5, epochs=9, epochs2=2, frozen=True, learn_rate=0.001, lstm_type=9, max_length=75, n_hidden=512, predict_method=MEAN)
+
+gpu6: 5 ALL evaluate
 instance-5: Testing many parameters on 40000
 
 RESULTS
