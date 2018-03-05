@@ -65,6 +65,7 @@ gpu2: 5 ALL evaluate
 gpu3: Testing many parameters on 40000
 gpu4: Testing many parameters on 40000
 gpu5: 5 ALL evaluate 23: get_clf24 ClfSpacy(bat=300, dropout=0.5, lr=0.001, typ=7, max_length=100, n_hidden=512, pm=LINEAR3)
+gpu2: 5 ALL evaluate
 instance-5: Testing many parameters on 40000
 
 RESULTS

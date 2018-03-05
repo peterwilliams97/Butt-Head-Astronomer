@@ -78,6 +78,7 @@ def display_results(completed_tests, do_max, n_rank):
 
 
 def process_summary(path, n_rank):
+    print('=' * 100)
     print('path=%s' % path)
     completed_tests = load_json(path)
     xprint('run_summary_path=%s' % path)
