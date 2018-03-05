@@ -6,6 +6,7 @@ import pickle
 import gzip
 import os
 import datetime
+import sys
 import numpy as np
 import keras.backend as K
 from keras.callbacks import Callback
@@ -48,7 +49,7 @@ def xprint_init(name, do_submisision):
 
     now = datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')
     xprint('@' * 80)
-    xprint('Starting log: %s %r %r' % (now, name, xprint_path))
+    xprint('Starting log: %s %r %r prog=%r' % (now, name, xprint_path, sys.argv[0]))
 
 
 def xprint(*args, **kwargs):
@@ -80,7 +81,7 @@ def xprint(*args, **kwargs):
 if False:
     xprint_init('blah', False)
     xprint('What do you think of htis')
-    xprint('het', end = ' ')
+    xprint('het', end=' ')
     xprint('teh')
     assert False
 

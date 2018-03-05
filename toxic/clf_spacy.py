@@ -78,7 +78,7 @@ def reduce(ys_in, method):
     if method == MIN:
         return ys.min(axis=0)
     if method == MEAN:
-        return ys.mean(axis=0)      # w_n / w_1 = 1
+        return ys.mean(axis=0)                 # w_n / w_1 = 1  4th BEST
     elif method == MAX:
         return ys.max(axis=0)
     elif method == MEAN_MAX:
@@ -90,13 +90,13 @@ def reduce(ys_in, method):
     elif method == PC90:
         return np.percentile(ys, 90.0, axis=0, interpolation='higher')
     elif method == LINEAR:
-        weights = linear_weights(ys, limit=0.1)  # w_n / w_1 = 9
+        weights = linear_weights(ys, limit=0.1)  # w_n / w_1 = 9   3rd BEST
         return np.dot(weights, ys)
     elif method == LINEAR2:
-        weights = linear_weights(ys, limit=0.2)  # w_n / w_1 = 4
+        weights = linear_weights(ys, limit=0.2)  # w_n / w_1 = 4    BEST
         return np.dot(weights, ys)
     elif method == LINEAR3:
-        weights = linear_weights(ys, limit=0.3)  # w_n / w_1 = 2.3
+        weights = linear_weights(ys, limit=0.3)  # w_n / w_1 = 2.3  2nd BEST
         return np.dot(weights, ys)
     elif method == LINEAR4:
         weights = linear_weights(ys, limit=0.05)  # w_n / w_1 = 19
