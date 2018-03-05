@@ -3,7 +3,7 @@
     SpaCy deep_learning_keras.py solution to Kaggle Toxic Comment challenge
 """
 import os
-from utils import xprint_init, xprint, load_json, save_json
+from utils import xprint_init, xprint, load_json, save_json, touch
 from framework import (SUMMARY_DIR, Evaluator, set_random_seed, set_n_samples, get_n_samples_str,
     auc_score_list, show_results)
 from clf_spacy import ClfSpacy, PREDICT_METHODS_GOOD
@@ -15,6 +15,20 @@ set_n_samples(40000)
 random_seed = 10120
 run_summary_path = os.path.join(SUMMARY_DIR,
     '%s.%s.run_summary.json' % (submission_name, get_n_samples_str()))
+
+
+def get_clf40():
+    return ClfSpacy(n_hidden=256, max_length=75,  # Shape
+                    dropout=0.5, learn_rate=0.001,  # General NN config
+                    epochs=epochs, batch_size=150, frozen=frozen,
+                    lstm_type=lstm_type, predict_method=predict_method)
+
+
+def get_clf41():
+    return ClfSpacy(n_hidden=256, max_length=75,  # Shape
+                    dropout=0.5, learn_rate=0.001,  # General NN config
+                    epochs=epochs, batch_size=300, frozen=frozen,
+                    lstm_type=lstm_type, predict_method=predict_method)
 
 
 def get_clf42():
@@ -52,7 +66,7 @@ def get_clf46():
                     lstm_type=lstm_type, predict_method=predict_method)
 
 
-clf_list = [get_clf42, get_clf43, get_clf44, get_clf45, get_clf46]
+clf_list = [get_clf40, get_clf41, get_clf42, get_clf43, get_clf44, get_clf45, get_clf46]
 lstm_list = [9, 7, 8, 6]
 frozen_list = [True]
 
@@ -91,7 +105,6 @@ for n_runs0 in range(3):
                     xprint('n_completed=%d = %d + %d' % (len(completed_tests), n_completed0,
                         len(completed_tests) - n_completed0))
                 xprint('&' * 100)
-
 
 touch('completed.spacy_lstm120_flip.txt')
 xprint('$' * 100)
