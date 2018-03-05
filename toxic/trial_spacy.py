@@ -14,7 +14,7 @@ submission_name = 'spacy_lstm2'
 def get_clf():
     return ClfSpacy(n_hidden=64, max_length=100,  # Shape
                     dropout=0.5, learn_rate=0.001,  # General NN config
-                    epochs=3, batch_size=150, n_examples=-1)
+                    epochs=3, batch_size=150)
 
 
 xprint_init(submission_name, do_submission)

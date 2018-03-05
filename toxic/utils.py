@@ -7,6 +7,7 @@ import gzip
 import os
 import datetime
 import sys
+import time
 import numpy as np
 import keras.backend as K
 from keras.callbacks import Callback
@@ -236,6 +237,7 @@ class RocAucEvaluation(Callback):
         self.best_auc = 0.0
         self.best_epoch = -1
         self.top_weights = None
+        self.t0 = time.clock()
         if do_prime:
             model = load_model(model_path, config_path, was_frozen, get_embeddings)
             y_pred = model.predict(self.X_val, verbose=0)
@@ -250,9 +252,12 @@ class RocAucEvaluation(Callback):
             auc = roc_auc_score(self.y_val, y_pred)
             xprint('\nROC-AUC - epoch: {:d} - score: {:.6f}'.format(epoch + 1, auc))
             logs['val_auc'] = auc
+            dt = time.clock() - self.t0
+            self.t0 = time.clock()
 
             if auc >= self.best_auc + AUC_DELTA:
-                xprint('RocAucEvaluation.fit: auc=%.3f > best_auc=%.3f' % (auc, self.best_auc))
+                xprint('RocAucEvaluation.fit: auc=%.3f > best_auc=%.3f dt=%.1f sec' % (auc,
+                    self.best_auc, dt))
                 self.best_auc = auc
                 self.best_epoch = epoch
 
@@ -260,8 +265,8 @@ class RocAucEvaluation(Callback):
                 self.top_weights = weights[1:]
                 save_model(self.model, self.model_path, self.config_path, self.frozen)
             else:
-                 xprint('RocAucEvaluation.fit: No improvement best_epoch=%d best_auc=%.3f' %
-                    (self.best_epoch + 1, self.best_auc))
+                 xprint('RocAucEvaluation.fit: No improvement best_epoch=%d best_auc=%.3f dt=%.1f sec' %
+                    (self.best_epoch + 1, self.best_auc, dt))
 
 
 class SaveAllEpochs(Callback):
