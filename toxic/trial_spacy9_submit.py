@@ -26,7 +26,7 @@ def get_clf():
                     lstm_type=9, predict_method=PREDICT_METHODS_GOOD[0])
 
 
-xprint_init('%s.%s' % (submission_name, get_n_samples_str()), do_submisision)
+xprint_init('%s.%s' % (submission_name, get_n_samples_str()), do_submission)
 
 xprint('#' * 80)
 xprint(get_clf())
