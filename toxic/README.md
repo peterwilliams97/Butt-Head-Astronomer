@@ -59,8 +59,23 @@ multitask learning
    https://www.google.com.au/search?q=Stanford+Twitter+Sentiment+Corpus&oq=Stanford+Twitter+Sentiment+Corpus&aqs=chrome..69i57j0.1316j0j7&sourceid=chrome&ie=UTF-8
 transfer learning (jhoward)
 
+PROGRESS
+========
+gpu2: 5 ALL evaluate
+gpu3: Testing many parameters on 40000
+gpu4: Testing many parameters on 40000
+gpu5: 5 ALL evaluate 23: get_clf24 ClfSpacy(bat=300, dropout=0.5, lr=0.001, typ=7, max_length=100, n_hidden=512, pm=LINEAR3)
+instance-5: Testing many parameters on 40000
+
 RESULTS
 =======
+
+RESULTS SUMMARY: 13 - 6:ALL MEAN 2
+auc=0.9837   0: [0.972902 0.987188 0.988681 0.986164 0.981904 0.98516 ] ClfSpacy(batch=300, dropout=0.5, epochs=20, epochs2=2, frozen=True, lr=0.001, lstm_type=9, max_length=75, n_hidden=512, m=MEAN)
+auc=0.9812   1: [0.975832 0.98339  0.985774 0.979001 0.982439 0.980617] ClfSpacy(batch=300, dropout=0.5, epochs=20, epochs2=2, frozen=True, lr=0.001, lstm_type=7, max_length=75, n_hidden=512, m=MEAN)
+auc=0.9789   2: [0.976508 0.988912 0.986447 0.961075 0.978095 0.982544] ClfSpacy(batch=300, dropout=0.5, epochs=20, epochs2=2, frozen=True, lr=0.002, lstm_type=9, max_length=100, n_hidden=512, m=LINEAR)
+auc=0.9773   3: [0.971795 0.982235 0.97305  0.983214 0.97729  0.976365] ClfSpacy(batch=300, dropout=0.3, epochs=20, epochs2=2, frozen=True, lr=0.001, lstm_type=6, max_length=100, n_hidden=512, m=LINEAR)
+
 instance5/spacy_lstm20s.ALL.LINEAR2.csv
 Your submission scored 0.9723, which is not an improvement of your best score. Keep trying!
 

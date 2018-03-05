@@ -20,7 +20,7 @@ def simplify(clf_str):
         ).replace('predict_method', 'm')
 
 
-def display_results(completed_tests, do_max):
+def display_results(completed_tests, do_max, n_rank):
     n_completed = len(completed_tests)
     n_runs = min(len(v) for v in completed_tests.values())
     auc = np.zeros((n_completed, n_runs), dtype=np.float64)
@@ -70,20 +70,20 @@ def display_results(completed_tests, do_max):
         # q, p = [clf_auc[clf][1] for clf in clf_order[:2]]
         # d = q - p
         # assert d.any() > 1e-4, (q, p, clf_order[:2])
-        for i, clf in enumerate(clf_order[:2]):
+        for i, clf in enumerate(clf_order[:n_rank]):
             n_runs, auc = clf_auc[clf]
             xprint('auc=%.4f %3d: %s %s' % (auc.mean(), i, auc, clf))
 
     return best
 
 
-def process_summary(path):
+def process_summary(path, n_rank):
     print('path=%s' % path)
     completed_tests = load_json(path)
     xprint('run_summary_path=%s' % path)
     best = {}
     try:
-        best = display_results(completed_tests, False)
+        best = display_results(completed_tests, False, n_rank)
         # display_results(completed_tests, True)
     except Exception as e:
 
@@ -94,16 +94,20 @@ def process_summary(path):
 
 xprint_init('consider_results', False)
 
-path = 'logs/instance5/spacy_lstm19.9000.run_summary.json'
-process_summary(path)
+if False:
+    path = 'logs/instance5/spacy_lstm19.9000.run_summary.json'
+    path = 'logs/gpu3/spacy_lstm21_flip.40000.run_summary.json'
+    process_summary(path, 4)
+    assert False
 
 for summary_id in (3, 4, 5):
     print('summary_id=%d' % summary_id)
     summmary_dir = 'logs/instance%d' % summary_id
+    summmary_dir = 'logs/gpu%d' % summary_id
     summary_paths = glob(os.path.join(summmary_dir, '*.run_summary.json'))
     all_best = defaultdict(list)
     for path in summary_paths:
-        best = process_summary(path)
+        best = process_summary(path, 4)
         for k, v in best.items():
             all_best[k].extend(v)
 

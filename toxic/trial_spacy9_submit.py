@@ -13,10 +13,11 @@ epochs = -1
 if not do_submission:
     epochs = 40
 
-
+# gpu3: spacy_lstm21_flip.40000.log
 # auc=0.9840   9: get_clf25 ClfSpacy(batch_size=300, dropout=0.5, learn_rate=0.001, lstm_type=9, max_length=75, n_hidden=512, pm=LINEAR)
 # auc=0.9840  10: get_clf25 ClfSpacy(batch_size=300, dropout=0.5, learn_rate=0.001, lstm_type=9, max_length=75, n_hidden=512, pm=LINEAR2)
 # auc=0.9839  11: get_clf25 ClfSpacy(batch_size=300, dropout=0.5, learn_rate=0.001, lstm_type=9, max_length=75, n_hidden=512, pm=LINEAR3)
+
 
 def get_clf():
     return ClfSpacy(n_hidden=512, max_length=75,  # Shape
