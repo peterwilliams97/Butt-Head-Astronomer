@@ -49,7 +49,7 @@ def xprint_init(name, do_submisision):
 
     now = datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')
     xprint('@' * 80)
-    xprint('Starting log: %s %r %r prog=%r' % (now, name, xprint_path, sys.argv[0]))
+    xprint('Starting log: %s name=%r path=%r prog=%r' % (now, name, xprint_path, sys.argv[0]))
 
 
 def xprint(*args, **kwargs):

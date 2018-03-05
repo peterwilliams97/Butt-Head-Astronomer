@@ -5,7 +5,7 @@
 import os
 from utils import xprint_init, xprint, load_json, save_json
 from framework import (SUMMARY_DIR, Evaluator, set_random_seed, set_n_samples, get_n_samples_str,
-    auc_score_list, show_results)
+    auc_score_list, show_results, touch)
 from clf_spacy import ClfSpacy, PREDICT_METHODS_GOOD
 
 
@@ -168,7 +168,6 @@ for n_runs0 in range(3):
                     xprint('n_completed=%d = %d + %d' % (len(completed_tests), n_completed0,
                         len(completed_tests) - n_completed0))
                 xprint('&' * 100)
-
 
 touch('completed.spacy_lstm22.txt')
 xprint('$' * 100)

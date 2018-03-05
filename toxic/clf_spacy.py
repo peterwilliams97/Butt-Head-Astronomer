@@ -536,6 +536,8 @@ def build_lstm6(embeddings, shape, settings):
 
 
 def build_lstm7(embeddings, shape, settings):
+    """RELU dense layer
+    """
     model = Sequential()
     model.add(
         Embedding(
@@ -563,6 +565,7 @@ def build_lstm7(embeddings, shape, settings):
 
 
 def build_lstm8(embeddings, shape, settings):
+    """Flatten rather than pool"""
     model = Sequential()
     model.add(
         Embedding(
@@ -588,6 +591,8 @@ def build_lstm8(embeddings, shape, settings):
 
 
 def build_lstm9(embeddings, shape, settings):
+    """2 layer LSTM
+    """
     model = Sequential()
     model.add(
         Embedding(
