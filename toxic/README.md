@@ -70,6 +70,12 @@ instance-5: Testing many parameters on 40000
 RESULTS
 =======
 
+gpu3: spacy_lstm21_flip.40000.log
+auc=0.9840   9: get_clf25 ClfSpacy(batch_size=300, dropout=0.5, learn_rate=0.001, lstm_type=9, max_length=75, n_hidden=512, pm=LINEAR)
+auc=0.9840  10: get_clf25 ClfSpacy(batch_size=300, dropout=0.5, learn_rate=0.001, lstm_type=9, max_length=75, n_hidden=512, pm=LINEAR2)
+auc=0.9839  11: get_clf25 ClfSpacy(batch_size=300, dropout=0.5, learn_rate=0.001, lstm_type=9, max_length=75, n_hidden=512, pm=LINEAR3)
+
+
 RESULTS SUMMARY: 13 - 6:ALL MEAN 2
 auc=0.9837   0: [0.972902 0.987188 0.988681 0.986164 0.981904 0.98516 ] ClfSpacy(batch=300, dropout=0.5, epochs=20, epochs2=2, frozen=True, lr=0.001, lstm_type=9, max_length=75, n_hidden=512, m=MEAN)
 auc=0.9812   1: [0.975832 0.98339  0.985774 0.979001 0.982439 0.980617] ClfSpacy(batch=300, dropout=0.5, epochs=20, epochs2=2, frozen=True, lr=0.001, lstm_type=7, max_length=75, n_hidden=512, m=MEAN)

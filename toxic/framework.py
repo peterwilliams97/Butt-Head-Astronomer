@@ -60,6 +60,7 @@ def seed_random(seed=None):
 
 
 def set_random_seed(seed):
+    xprint('set_random_seed: seed=%d' % seed)
     _random_seed[0] = seed
     seed_random()
 
