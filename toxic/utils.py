@@ -281,7 +281,7 @@ class SaveAllEpochs(Callback):
 
         super(Callback, self).__init__()
 
-        print('SaveAllEpochs: model_path=%s, config_path=%s epoch_path=%s frozen=%s' % (
+        xprint('SaveAllEpochs: model_path=%s, config_path=%s epoch_path=%s frozen=%s' % (
             model_path, config_path, epoch_path, frozen))
 
         self.model_path = model_path
@@ -289,6 +289,9 @@ class SaveAllEpochs(Callback):
         self.epoch_path = epoch_path
         self.frozen = frozen
         self.epochs = load_json(self.epoch_path, {'epoch1': 0, 'epoch2': 0})
+        restarting = self.epochs['epoch1'] > 0 or self.epochs['epoch2'] > 0
+        marker = ' *** restarting' if restarting else ''
+        xprint('SaveAllEpochs: starting epochs=%s%s' % (self.epochs, marker))
 
     def on_epoch_end(self, epoch, logs={}):
         save_model(self.model, self.model_path, self.config_path, self.frozen)

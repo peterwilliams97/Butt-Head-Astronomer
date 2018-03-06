@@ -8,10 +8,11 @@ from clf_spacy import ClfSpacy, PREDICT_METHODS_GOOD
 
 
 submission_name = 'spacy_lstmx_90'
-do_submission = True
+do_submission = False
 epochs = 9
 if not do_submission:
     epochs = 40
+
 
 # gpu3: spacy_lstm21_flip.40000.log
 # auc=0.9840   9: get_clf25 ClfSpacy(batch_size=300, dropout=0.5, learn_rate=0.001, lstm_type=9, max_length=75, n_hidden=512, pm=LINEAR)

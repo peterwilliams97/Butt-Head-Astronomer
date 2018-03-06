@@ -61,7 +61,7 @@ transfer learning (jhoward)
 
 PROGRESS
 ========
-gpu2: trial_spacy11_submit.py submission ClfSpacy(n_hidden=512, max_length=100,  # Shape
+gpu2: trial_spacy11_submit.py submission ClfSpacy(n_hidden=512, max_length=100,
                     dropout=0.3, learn_rate=0.001,
                     epochs=6, batch_size=300, frozen=True,
                     lstm_type=6, predict_method=PREDICT_METHODS_GOOD[0])
@@ -69,7 +69,7 @@ gpu3: Testing many parameters on 40000
 gpu4: Testing many parameters on 40000
 gpu5: spacy_lstmx_90.ALL.submission'  prog='trial_spacy9_submit.py' ClfSpacy(batch_size=300, dropout=0.5, epochs=9, epochs2=2, frozen=True, learn_rate=0.001, lstm_type=9, max_length=75, n_hidden=512, predict_method=MEAN)
 
-gpu6: 5 ALL evaluate
+gpu6: Testing many parameters on 40000
 instance-5: Testing many parameters on 40000
 
 RESULTS
