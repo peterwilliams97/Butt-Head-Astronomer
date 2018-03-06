@@ -625,6 +625,44 @@ def build_lstm9(embeddings, shape, settings):
     return model
 
 
+def build_lstm10(embeddings, shape, settings):
+    """3 layer LSTM
+    """
+    model = Sequential()
+    model.add(
+        Embedding(
+            embeddings.shape[0],
+            embeddings.shape[1],
+            input_length=shape['max_length'],
+            trainable=False,
+            weights=[embeddings],
+            mask_zero=False
+        )
+    )
+    model.add(TimeDistributed(Dense(shape['n_hidden'], use_bias=False), name='td9a'))
+    model.add(Bidirectional(LSTM(shape['n_hidden'], return_sequences=True,
+                                 recurrent_dropout=settings['dropout'],
+                                 dropout=settings['dropout']), name='bidi9a'))
+    # model.add(GlobalMaxPool1D())
+    # model.add(BatchNormalization())
+    # model.add(Dropout(settings['dropout'] / 2.0))
+
+    # model.add(TimeDistributed(Dense(shape['n_hidden'], use_bias=False), name='td9b'))
+    model.add(Bidirectional(LSTM(shape['n_hidden'], return_sequences=True,
+                                 recurrent_dropout=settings['dropout'],
+                                 dropout=settings['dropout']), name='bidi9b'))
+    model.add(Bidirectional(LSTM(shape['n_hidden'], return_sequences=True,
+                                 recurrent_dropout=settings['dropout'],
+                                 dropout=settings['dropout']), name='bidi9c'))
+    model.add(GlobalMaxPool1D(name='mp9'))
+    model.add(BatchNormalization(name='bn9'))
+    model.add(Dropout(settings['dropout'] / 2.0, name='drop9b'))
+
+    model.add(Dense(shape['n_class'], activation='sigmoid', name='den9b'))
+    xprint('build_lstm9: embeddings=%s shape=%s' % (dim(embeddings), shape))
+    return model
+
+
 build_lstm = {
     1: build_lstm1,
     2: build_lstm2,
@@ -635,6 +673,7 @@ build_lstm = {
     7: build_lstm7,
     8: build_lstm8,
     9: build_lstm9,
+    10: build_lstm10,
 }
 
 

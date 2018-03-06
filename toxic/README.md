@@ -47,7 +47,7 @@ Twitter embeddings
 Change probability clipping
 Early stopping based on ROC
 Select classifier based on column
-Try xgboost
+Try xgboost  e.g. For blending sentence vectors
 character embeddings
 data augmentation https://arxiv.org/pdf/1502.01710.pdf
 stratify keras validation split
@@ -58,6 +58,8 @@ try turning off trainable embeddings
 multitask learning
    https://www.google.com.au/search?q=Stanford+Twitter+Sentiment+Corpus&oq=Stanford+Twitter+Sentiment+Corpus&aqs=chrome..69i57j0.1316j0j7&sourceid=chrome&ie=UTF-8
 transfer learning (jhoward)
+try a 3 layer LSTM
+try LSTM with smaller higher layers
 
 PROGRESS
 ========
@@ -77,6 +79,13 @@ instance-5: Testing many parameters on 40000
 
 RESULTS
 =======
+
+gpu3: spacy_lstm120_flip.40000.log
+RESULTS SUMMARY: 10
+auc=0.9852   9: get_clf42 ClfSpacy(batch_size=150, dropout=0.5, epochs=20, epochs2=2, frozen=True, learn_rate=0.001, lstm_type=9, max_length=75, n_hidden=512, predict_method=LINEAR)
+auc=0.9842   8: get_clf42 ClfSpacy(batch_size=150, dropout=0.5, epochs=20, epochs2=2, frozen=True, learn_rate=0.001, lstm_type=9, max_length=75, n_hidden=512, predict_method=MEAN)
+auc=0.9828   5: get_clf41 ClfSpacy(batch_size=300, dropout=0.5, epochs=20, epochs2=2, frozen=True, learn_rate=0.001, lstm_type=9, max_length=75, n_hidden=256, predict_method=LINEAR)
+auc=0.9828   6: get_clf41 ClfSpacy(batch_size=300, dropout=0.5, epochs=20, epochs2=2,
 
 instance-5: spacy_lstm22_flip.40000.log
 RESULTS SUMMARY: 20

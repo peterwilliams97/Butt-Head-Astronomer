@@ -11,6 +11,7 @@ from framework import LABEL_COLS
 
 
 np.set_printoptions(precision=6)
+do_max = True
 
 
 def simplify(clf_str):
@@ -84,7 +85,7 @@ def process_summary(path, n_rank):
     xprint('run_summary_path=%s' % path)
     best = {}
     try:
-        best = display_results(completed_tests, False, n_rank)
+        best = display_results(completed_tests, do_max, n_rank)
         # display_results(completed_tests, True)
     except Exception as e:
 
