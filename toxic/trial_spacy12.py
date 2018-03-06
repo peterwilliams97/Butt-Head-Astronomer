@@ -92,10 +92,18 @@ for n_runs0 in range(3):
 
                 set_random_seed(random_seed + n_runs0)
                 evaluator = Evaluator(n=1)
-                ok, auc_reductions = evaluator.evaluate_reductions(get_clf, PREDICT_METHODS_GOOD)
+                ok, auc_reductions, best_method = evaluator.evaluate_reductions(get_clf,
+                    PREDICT_METHODS_GOOD)
                 assert ok
 
-                for predict_method, auc in auc_reductions.items():
+                for predict_method in sorted(auc_reductions):
+                    auc = auc_reductions[predict_method]
+                    xprint('<->.' * 25)
+                    xprint('predict_method=%s' % predict_method)
+                    if predict_method == 'BEST':
+                        xprint('best_method=%s' % best_method)
+                    assert auc.all() > 0.0, auc
+
                     auc_list.append((auc, get_clf.__name__, str(get_clf())))
                     show_results(auc_list)
 

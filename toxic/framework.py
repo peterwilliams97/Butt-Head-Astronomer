@@ -213,6 +213,8 @@ def show_auc(auc):
 
 
 def show_results(auc_list):
+    """auc_list: list of auc, clf, clf_str
+    """
     results = [(i, auc, clf, clf_str) for i, (auc, clf, clf_str) in enumerate(auc_list)]
     results.sort(key=lambda x: (-x[1].mean(), x[2], x[3]))
     xprint('~' * 100)
@@ -336,20 +338,23 @@ class Evaluator:
         return True, auc
 
     def evaluate_reductions(self, get_clf, predict_methods):
+        predict_methods_all = predict_methods + ['BEST']
         auc_reductions = {method: np.zeros((self.n, len(LABEL_COLS)), dtype=np.float64)
-                          for method in predict_methods}
+                          for method in predict_methods_all}
+        best_methods = []
         for i in range(self.n):
-            ok, reductions = self._evaluate_reductions(get_clf, i, predict_methods)
+            ok, reductions, best = self._evaluate_reductions(get_clf, i, predict_methods)
+            best_methods.append(best)
             if not ok:
-                return ok, {}
-            for method in predict_methods:
+                return ok, {}, best_methods
+            for method in predict_methods_all:
                 auc = auc_reductions[method]
                 auci = reductions[method]
                 auc[i, :] = auci
                 print('evaluate_reductions: method=%s' % method)
                 show_auc(auc[:i + 1, :])
         xprint('program=%s train=%s' % (sys.argv[0], dim(self.train)))
-        return True, auc_reductions
+        return True, auc_reductions, best_methods
 
     def _evaluate_reductions(self, get_clf, i, predict_methods):
         xprint('_evaluate_reductions %3d of %d predict_methods=%s' % (i, self.n, predict_methods))
@@ -371,6 +376,7 @@ class Evaluator:
             xprint('!!! _evaluate_reductions, exception=%s' % e)
             return False, {}
 
+        # auc_reductions = {method: auc} for method in predict_methods
         auc_reductions = {}
         for method in predict_methods:
             xprint('_evaluate_reductions: method=%s' % method)
@@ -386,9 +392,24 @@ class Evaluator:
             show_best_worst(test_part, pred, n=3, do_best=False)
             auc_reductions[method] = auc
 
+        # Try combining different reductions for each column to squeeze out a little more accuracy
+        reduced_auc = np.zeros(len(LABEL_COLS), dtype=np.float64)
+        reduced_methods = [None for _ in range(len(LABEL_COLS))]
+        for j, col in enumerate(LABEL_COLS):
+            best_mean = -1.0
+            for method, auc in auc_reductions.items():
+                if auc[j].mean() > best_mean:
+                    reduced_methods[j] = method
+                    reduced_auc[j] = auc[j]
+                    best_mean = auc[j].mean()
+
+        reduced_name = 'BEST:%s' % ','.join(reduced_methods)
+        auc_reductions['BEST'] = reduced_auc
+        xprint('auc_reductions=%s' % sorted(auc_reductions))
+
         if clf is not None:
             del clf
-        return True, auc_reductions
+        return True, auc_reductions, reduced_name
 
 
 def make_submission(get_clf, submission_name):

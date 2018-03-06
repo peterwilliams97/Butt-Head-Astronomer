@@ -67,13 +67,26 @@ gpu2: trial_spacy11_submit.py submission ClfSpacy(n_hidden=512, max_length=100,
                     lstm_type=6, predict_method=PREDICT_METHODS_GOOD[0])
 gpu3: Testing many parameters on 40000
 gpu4: Testing many parameters on 40000
-gpu5: spacy_lstmx_90.ALL.submission'  prog='trial_spacy9_submit.py' ClfSpacy(batch_size=300, dropout=0.5, epochs=9, epochs2=2, frozen=True, learn_rate=0.001, lstm_type=9, max_length=75, n_hidden=512, predict_method=MEAN)
+gpu5: spacy_lstmx_90.ALL.submission'  prog='trial_spacy9_submit.py' ClfSpacy(batch_size=300, dropout=0.5, epochs=9, epochs2=2, frozen=True, learn_rate=0.001, lstm_type=9, max_length=75, n_hidden=512, predict_method=MEAN) submission=True
 
 gpu6: Testing many parameters on 40000
+
+gpu5: spacy_lstmx_90.ALL.submission'  prog='trial_spacy9_submit.py' ClfSpacy(batch_size=300, dropout=0.5, epochs=9, epochs2=2, frozen=True, learn_rate=0.001, lstm_type=9, max_length=75, n_hidden=512, predict_method=MEAN) submission=False
+
 instance-5: Testing many parameters on 40000
 
 RESULTS
 =======
+
+instance-5: spacy_lstm22_flip.40000.log
+RESULTS SUMMARY: 20
+auc=0.9848   9: get_clf25 ClfSpacy(batch_size=300, dropout=0.5, epochs=20, epochs2=2, frozen=True, learn_rate=0.001, lstm_type=9, max_length=75, n_hidden=512, predict_method=LINEAR) best_epoch=6
+
+auc=0.9848  10: get_clf25 ClfSpacy(batch_size=300, dropout=0.5, epochs=20, epochs2=2, frozen=True, learn_rate=0.001, lstm_type=9, max_length=75, n_hidden=512, predict_method=LINEAR2)
+auc=0.9847  11: get_clf25 ClfSpacy(batch_size=300, dropout=0.5, epochs=20, epochs2=2, frozen=True, learn_rate=0.001, lstm_type=9, max_length=75, n_hidden=512, predict_method=LINEAR3)
+auc=0.9844   8: get_clf25 ClfSpacy(batch_size=300, dropout=0.5, epochs=20, epochs2=2, frozen=True, learn_rate=0.001, lstm_type=9, max_length=75, n_hidden=512, predict_method=MEAN)
+auc=0.9824   4: get_clf24 ClfSpacy(batch_size=100, dropout=0.1, epochs=20, epochs2=2, frozen=True, learn_rate=0.001, lstm_type=9, max_length=100, n_hidden=512, predict_method=MEAN)
+
 
 gpu3: spacy_lstm21_flip.40000.log
 RESULTS SUMMARY: 20
