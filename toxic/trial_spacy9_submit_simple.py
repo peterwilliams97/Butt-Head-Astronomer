@@ -7,9 +7,9 @@ from framework import Evaluator, set_random_seed, make_submission, get_n_samples
 from clf_spacy import ClfSpacy, PREDICT_METHODS_GOOD
 
 do_submission = False
-set_n_samples(19999)
-set_random_seed(5000)
-submission_name = 'spacy_lstmx_90'
+set_n_samples(39999)
+set_random_seed(5001)
+submission_name = 'spacy_lstmx_901'
 epochs = 9
 if not do_submission:
     epochs = 40
