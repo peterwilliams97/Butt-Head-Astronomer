@@ -9,7 +9,7 @@ from framework import (SUMMARY_DIR, Evaluator, set_random_seed, set_n_samples, g
 from clf_spacy import ClfSpacy, PREDICT_METHODS_GOOD
 
 
-submission_name = 'spacy_lstmx_80_flip'
+submission_name = 'e_spacy_lstmx_80_flip'
 epochs = 40
 set_n_samples(20000)
 random_seed = 1236
@@ -59,11 +59,9 @@ def get_clf27():
                     lstm_type=lstm_type, predict_method=predict_method)
 
 
-
-
 clf_list = [get_clf22, get_clf23, get_clf24, get_clf25]
 lstm_list = [6, 7, 8, 9]
-frozen_list = [True]
+frozen_list = [True, False]
 
 xprint_init('%s.%s' % (submission_name, get_n_samples_str()), False)
 auc_list = []
