@@ -51,6 +51,7 @@ def linear_weights(ys, limit):
         return weights
     lo = limit
     hi = 1.0 - limit
+    assert lo <= hi
     span = hi - lo
     d = span / (n - 1)
     for i in range(n):
@@ -66,6 +67,7 @@ def exponential_weights(ys, limit):
         return weights
     lo = limit
     hi = 1.0 - limit
+    assert lo <= hi
     d = hi / lo
     assert d > 1.0
     for i in range(n):
@@ -288,9 +290,6 @@ def do_fit(train_texts, train_labels, dev_texts, dev_labels, lstm_shape, lstm_se
     lstm_type=1, max_features=None):
     """Train a Keras model on the sentences in `train_texts`
         All the sentences in a text have the text's label
-        do_fit1: Fit with frozen word embeddings
-        do_fit2: Fit with unfrozen word embeddings (after fitting with frozen embeddings) at a lower
-                learning rate
     """
 
     xprint('do_fit: train_texts=%s dev_texts=%s' % (dim(train_texts), dim(dev_texts)))
@@ -336,12 +335,12 @@ def do_fit(train_texts, train_labels, dev_texts, dev_labels, lstm_shape, lstm_se
     print('^^^X_val=%d..%d' % (X_val.min(), X_val.max()))
 
     param_list = [(lstm_settings['lr'], True)]
+    best_epochs = {}
     if not frozen:
         param_list.append((lstm_settings['lr'] * 0.1, False))
 
     for run, (learning_rate, frozen) in enumerate(param_list):
-        xprint('do_fit: run=%d learning_rate=%.3f frozen=%s' % (
-            run, learning_rate, frozen))
+        xprint('do_fit: run=%d learning_rate=%.3f frozen=%s' % (run, learning_rate, frozen))
         if run > 0:
             xprint('Reloading partially stopped model')
             model = load_model(model_path, config_path)
@@ -371,13 +370,13 @@ def do_fit(train_texts, train_labels, dev_texts, dev_labels, lstm_shape, lstm_se
             model.fit(X_train, y_train, batch_size=batch_size, epochs=epochs, callbacks=callback_list,
                       validation_data=validation_data, verbose=1)
             if validation_data is not None:
-                best_epoch = ra_val.best_epoch
+                best_epochs[run] = ra_val.best_epoch
                 ra_val.best_epoch = -1
             else:
                 save_model(model, model_path, config_path)
 
     del nlp
-    return model, best_epoch,
+    return model, best_epochs
 
 
 def get_features(word_map, docs, max_length):
@@ -855,7 +854,6 @@ class ClfSpacy:
             frozen => freeze embeddings
             2 stages of training: frozen, unfrozen
 
-
         """
         self.n_hidden = n_hidden
         self.max_length = max_length
@@ -903,6 +901,7 @@ class ClfSpacy:
 
     def fit(self, train, test_size=0.1):
         xprint('ClfSpacy.fit', '-' * 80)
+
         model_path, config_path, word_path, epoch_path = self._get_paths(True)
         if not self.force_fit:
             if (os.path.exists(model_path) and os.path.exists(config_path) and
@@ -922,14 +921,14 @@ class ClfSpacy:
                       'n_class': len(LABEL_COLS)}
         lstm_settings = {'dropout': self.dropout,
                          'lr': self.learn_rate}
-        lstm, self.best_epoch = do_fit(X_train, y_train, X_val, y_val, lstm_shape,
+        lstm, self.best_epochs = do_fit(X_train, y_train, X_val, y_val, lstm_shape,
             lstm_settings, {}, frozen=self.frozen,
             batch_size=self.batch_size, lstm_type=self.lstm_type, epochs=self.epochs,
             model_path=model_path, config_path=config_path, word_path=word_path, epoch_path=epoch_path,
             max_features=self.max_features)
 
-        assert isinstance(self.best_epoch, int), self.best_epoch
-        xprint('****: best_epoch=%s - %s Add 1 to this' % (self.best_epoch, self.description))
+        assert isinstance(self.best_epochs, dict), self.best_epochs
+        xprint('****: best_epochs=%s - %s Add 1 to this' % (self.best_epochs, self.description))
         del lstm
 
     def predict_reductions(self, test, predict_methods):

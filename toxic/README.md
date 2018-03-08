@@ -60,9 +60,37 @@ multitask learning
 transfer learning (jhoward)
 try a 3 layer LSTM
 try LSTM with smaller higher layers
+search for reduction params (linear(lo1, hi1, by order in doc) + a * linear(lo2, hi2, by auc))
 
 PROGRESS
 ========
+gpu2: 40000 test
+Mean: auc=0.975 (toxic:0.967, severe_toxic:0.984, obscene:0.982, threat:0.967, insult:0.974, identity_hate:0.973)
+--------------------------------------------------------------------------------------------------------------
+auc=0.975 +- 0.000 (0%) range=0.000 (0%)
+program=trial_spacy9_submit_simple.py train=[39999, 8]
+=========
+
+gpu4: 20000 test n=3
+ ClfSpacy(n_hidden=64, max_length=75, max_features=20000, # Shape
+                    dropout=0.5, learn_rate=0.001, frozen=False, # General NN config
+                    epochs=epochs, batch_size=300,
+                    lstm_type=6, predict_method=PREDICT_METHODS_GOOD[0])
+-------------------------------------------------------------------------------------------------------------- n=3
+    0: auc=0.975 (toxic:0.964, severe_toxic:0.982, obscene:0.979, threat:0.989, insult:0.977, identity_hate:0.960)
+    1: auc=0.965 (toxic:0.964, severe_toxic:0.989, obscene:0.982, threat:0.932, insult:0.977, identity_hate:0.944)
+    2: auc=0.969 (toxic:0.960, severe_toxic:0.974, obscene:0.976, threat:0.961, insult:0.973, identity_hate:0.969)
+ Mean: auc=0.970 (toxic:0.963, severe_toxic:0.982, obscene:0.979, threat:0.961, insult:0.976, identity_hate:0.958)
+--------------------------------------------------------------------------------------------------------------
+auc=0.970 +- 0.004 (0%) range=0.010 (1%)
+program=trial_spacy9_submit_simple.py train=[19999, 8]
+===========
+gpu3: Parameter search 20000
+gpu5: Parameter search 20000
+
+
+Old PROGRESS
+============
 Give up lstm_type=10
 Try: n_hidden=1000
 Try: auc=0.9852   0: [0.974506 0.987315 0.988518 0.992702 0.9818   0.986232] ClfSpacy(batch=150, dropout=0.5, epochs=20, epochs2=2, frozen=True, lr=0.001, lstm_type=9, max_length=75, n_hidden=512, m=MEAN) epochs?

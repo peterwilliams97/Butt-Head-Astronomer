@@ -9,12 +9,13 @@ import os
 import random
 import sys
 import time
+import traceback
 from os.path import join
 from collections import defaultdict
 from sklearn.metrics import roc_auc_score
 from sklearn.model_selection import train_test_split
 # import matplotlib.pyplot as plt
-from utils import COMMENT, DATA_ROOT, dim, xprint, load_json, save_json
+from utils import COMMENT, DATA_ROOT, dim, xprint, xprint_f, load_json, save_json
 
 
 VERBOSE = False
@@ -311,6 +312,9 @@ class Evaluator:
             print('!!! _evaluate pred=%s' % dim(pred))
         except Exception as e:
             xprint('!!! _evaluate, exception=%s' % e)
+            traceback.print_exc(file=sys.stdout)
+            if xprint_f:
+                traceback.print_exc(file=xprint_f)
             return False, auc
 
         if do_clips:
