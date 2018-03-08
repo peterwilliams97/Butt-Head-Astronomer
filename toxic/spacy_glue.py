@@ -3,6 +3,7 @@
 """
 import numpy as np
 import os
+from collections import defaultdict
 import spacy
 from utils import save_json, load_json, save_pickle, load_pickle, save_pickle_gzip, load_pickle_gzip
 
@@ -66,11 +67,18 @@ class SpacySentenceWordCache:
     def __init__(self):
         os.makedirs(SPACY_DIR, exist_ok=True)
         self.text_sents_path = os.path.join(SPACY_DIR, 'sentence.text.tokens.gzip')
+        self.text_token_count_path = os.path.join(SPACY_DIR, 'sentence.text.tokens.count.gzip')
         self.text_sents = load_pickle_gzip(self.text_sents_path, {})
+        self.text_token_count = load_pickle_gzip(self.text_token_count_path, {})
         print("SpacySentenceWordCache: sent path=%s len=%d" % (self.text_sents_path, len(self.text_sents)))
         self.text_sents_len = len(self.text_sents)
+        self.text_token_count_len = self._total_counts()
+        self.nlp = None
         self.nlp = None
         self.n_calls = 0
+
+    def _total_counts(self):
+        return sum(sum(v.values()) for v in self.text_token_count.values())
 
     def _load_nlp(self):
         if self.nlp is None:
@@ -88,26 +96,44 @@ class SpacySentenceWordCache:
             save_pickle_gzip(self.text_sents_path, self.text_sents)
             self.text_sents_len = len(self.text_sents)
 
+        if self.text_token_count_len + min_delta < self._total_counts():
+            print('_save 2: %7d = %7d + %4d %s' % (len(self.text_token_count),
+                self.text_sents_len, self._total_counts() - self.text_token_count_len,
+                self.text_token_count_path))
+            save_pickle_gzip(self.text_token_count_path, self.text_token_count)
+            self.text_token_count_len = self._total_counts()
+
     def sent_id_pipe(self, texts_in):
         """Use SpaCy tokenization and word vectors"""
-        texts = [text for text in texts_in if text not in self.text_sents]
+        loaded = set(self.text_sents) & set(self.text_token_count)
+        texts = [text for text in texts_in if text not in loaded]
+        # texts = [text for text in texts_in]
         if texts:
             nlp = self._load_nlp()
             for text, doc in zip(texts, nlp.pipe(texts)):
                 self.text_sents[text] = []
+                token_count = defaultdict(int)
                 for sent in doc.sents:
                     sent_ids = []
                     for token in sent:
                         vector_id = token.vocab.vectors.find(key=token.orth)
+                        # print('@@@ %-20r %d' % (token.text, vector_id))
                         sent_ids.append(vector_id)
+                        token_count[vector_id] += 1
                     self.text_sents[text].append(sent_ids)
+                self.text_token_count[text] = token_count
 
                 if self.n_calls % 10000 == 1:
                     print('**sent_id_pipe: n_calls=%d' % self.n_calls)
                     self._save()
                 self.n_calls += 1
 
-        return [self.text_sents[text] for text in texts_in]
+        word_count = defaultdict(int)
+        for text in texts_in:
+            for w, c in self.text_token_count[text].items():
+                word_count[w] += c
+
+        return [self.text_sents[text] for text in texts_in], word_count
 
     def flush(self):
         self._save()

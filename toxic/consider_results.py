@@ -102,10 +102,9 @@ if False:
     process_summary(path, 4)
     assert False
 
-for summary_id in (3, 4, 5):
-    print('summary_id=%d' % summary_id)
-    summmary_dir = 'logs/instance%d' % summary_id
-    summmary_dir = 'logs/gpu%d' % summary_id
+summary_dirs = ['logs/instance5'] + ['logs/gpu%d' % i for i in range(3, 8)]
+for summmary_dir in summary_dirs:
+    print('summary_dirs=%s' % summary_dirs)
     summary_paths = glob(os.path.join(summmary_dir, '*.run_summary.json'))
     all_best = defaultdict(list)
     for path in summary_paths:

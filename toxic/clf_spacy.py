@@ -1,4 +1,5 @@
 import cytoolz
+from collections import defaultdict
 import numpy as np
 from keras.models import Sequential
 from keras.layers import (LSTM, Dense, Embedding, Bidirectional, Dropout, GlobalMaxPool1D,
@@ -6,13 +7,17 @@ from keras.layers import (LSTM, Dense, Embedding, Bidirectional, Dropout, Global
 from keras.callbacks import EarlyStopping
 from keras.optimizers import Adam
 import spacy
-from functools import partial
 import os
 import time
 import math
 from framework import MODEL_DIR, LABEL_COLS, get_n_samples_str, df_to_sentences, train_test_split
-from utils import dim, xprint, RocAucEvaluation, SaveAllEpochs, Cycler, save_model, load_model
+from utils import (dim, xprint, RocAucEvaluation, SaveAllEpochs, Cycler, save_model, load_model,
+    save_json, load_json)
 from spacy_glue import SpacySentenceWordCache
+
+
+PAD = 0
+OOV = -1
 
 
 sentence_cache = SpacySentenceWordCache()
@@ -134,15 +139,17 @@ if False:
 
 class SentimentAnalyser(object):
     @classmethod
-    def load(cls, nlp, model_path, config_path, frozen, methods, max_length):
-        xprint('SentimentAnalyser.load: model_path=%s config_path=%s frozen=%s methods=%s max_length=%d' % (
-             model_path, config_path, frozen, methods, max_length))
-        get_embeds = partial(get_embeddings, vocab=nlp.vocab) if frozen else None
-        model = load_model(model_path, config_path, frozen, get_embeds)
-        return cls(model, methods=methods, max_length=max_length)
+    def load(cls, nlp, model_path, config_path, word_path, methods, max_length):
+        xprint('SentimentAnalyser.load: model_path=%s config_path=%s word_path=%s methods=%s max_length=%d' % (
+             model_path, config_path, word_path, methods, max_length))
+        model = load_model(model_path, config_path)
+        word_map = load_json(word_path)
+        word_map = {int(k): v for k, v in word_map.items()}
+        return cls(model, word_map, methods=methods, max_length=max_length)
 
-    def __init__(self, model, methods, max_length):
+    def __init__(self, model, word_map, methods, max_length):
         self._model = model
+        self.word_map = word_map
         self.methods = methods
         self.max_length = max_length
 
@@ -157,7 +164,7 @@ class SentimentAnalyser(object):
         for minibatch in cytoolz.partition_all(batch_size, docs):
             minibatch = list(minibatch)
             for doc in minibatch:
-                Xs = get_features(doc.sents, self.max_length)
+                Xs = get_features(self.word_map, doc.sents, self.max_length)
                 ys = self._model.predict(Xs)
                 if i >= interval:
                     xprint('SentimentAnalyser.pipe: %4d docs %5d sents %.1f sec' % (i, k, time.clock() - t0))
@@ -172,8 +179,13 @@ class SentimentAnalyser(object):
         xprint('SentimentAnalyser.pipe: %4d docs %5d sents %.1f sec TOTAL' % (i, k, time.clock() - t0))
 
 
-def sentence_label_generator(texts_in, labels_in, batch_size):
-    print('sentence_label_generator', len(texts_in), len(labels_in), batch_size)
+def word_count_add(word_count, wc):
+    for w, c in wc.items():
+        word_count[w] += c
+
+
+def sentence_label_generator(texts_in, labels_in, batch_size, word_count):
+    xprint('sentence_label_generator:', len(texts_in), len(labels_in), batch_size)
     sent_labels = []
 
     texts_cycler = Cycler(texts_in, batch_size)
@@ -182,7 +194,8 @@ def sentence_label_generator(texts_in, labels_in, batch_size):
     while True:
         texts = texts_cycler.batch()
         labels = labels_cycler.batch()
-        text_sents = sentence_cache.sent_id_pipe(texts)
+        text_sents, wc = sentence_cache.sent_id_pipe(texts)
+        word_count_add(word_count, wc)
         for sents, label in zip(text_sents, labels):
             for sent in sents:
                  sent_labels.append((sent, label))
@@ -223,9 +236,10 @@ def make_sentences(max_length, batch_size, texts_in, labels_in, name, n_sentence
 
     Xs = np.zeros((n_sentences, max_length), dtype='int32')
     ys = np.zeros((n_sentences, len(LABEL_COLS)), dtype='int32')
-    print('make_sentences: Xs=%s ys=%s' % (dim(Xs), dim(ys)))
+    word_count = defaultdict(int)
+    xprint('make_sentences: Xs=%s ys=%s' % (dim(Xs), dim(ys)))
 
-    gen = sentence_label_generator(texts_in, labels_in, batch_size)
+    gen = sentence_label_generator(texts_in, labels_in, batch_size, word_count)
     while n < n_sentences:
         sent_labels = next(gen)
         m = min(batch_size, n_sentences - n)
@@ -233,8 +247,10 @@ def make_sentences(max_length, batch_size, texts_in, labels_in, name, n_sentence
         for i, (sent, y) in enumerate(sent_labels[:m]):
             # assert n + i < n_sentences, (n, i, n_sentences)
             for j, vector_id in enumerate(sent[:max_length]):
-                if vector_id >= 0:
-                    Xs[n + i, j] = vector_id
+                # assert vector_id != 0
+                Xs[n + i, j] = vector_id
+                # assert Xs[n + i, j] in word_count, (n, i, j, Xs[n + i, j])
+            word_count[PAD] += max(0, max_length - len(sent))
             ys[n + i, :] = y
         n += m
         if n % N == 0 or n + 1 == n_sentences:
@@ -242,7 +258,11 @@ def make_sentences(max_length, batch_size, texts_in, labels_in, name, n_sentence
             print('^^^^%5s %7d (%5.1f%%) sents dt=%4.1f sec %3.1f sents/sec' %
                 (name, n, 100.0 * n / n_sentences, dt, n / dt))
 
-    return Xs, ys
+    # for i in range(Xs.shape[0]):
+    #     for y in range(Xs.shape[1]):
+    #         assert Xs[i, j] in word_count, (i, j, Xs[i, j])
+
+    return Xs, ys, word_count
 
 
 def count_sentences(texts_in, batch_size, name):
@@ -262,11 +282,10 @@ def count_sentences(texts_in, batch_size, name):
     return n
 
 
-def do_train(train_texts, train_labels, dev_texts, dev_labels, lstm_shape, lstm_settings,
-    lstm_optimizer, batch_size=100,
-    do_fit1=True, epochs1=5, model1_path=None, config1_path=None,
-    do_fit2=False, epochs2=2, model2_path=None, config2_path=None,
-    epoch_path=None, lstm_type=1):
+def do_fit(train_texts, train_labels, dev_texts, dev_labels, lstm_shape, lstm_settings,
+    lstm_optimizer, batch_size=100, epochs=5,
+    model_path=None, config_path=None, epoch_path=None, word_path=None,
+    lstm_type=1, max_features=None):
     """Train a Keras model on the sentences in `train_texts`
         All the sentences in a text have the text's label
         do_fit1: Fit with frozen word embeddings
@@ -274,101 +293,94 @@ def do_train(train_texts, train_labels, dev_texts, dev_labels, lstm_shape, lstm_
                 learning rate
     """
 
-    print('do_train: train_texts=%s dev_texts=%s' % (dim(train_texts), dim(dev_texts)))
-    best_epoch_frozen, best_epoch_unfrozen = -1, -1
+    xprint('do_fit: train_texts=%s dev_texts=%s' % (dim(train_texts), dim(dev_texts)))
+    best_epoch = -1
 
     n_train_sents = count_sentences(train_texts, batch_size, 'train')
-    X_train, y_train = make_sentences(lstm_shape['max_length'], batch_size,
+    X_train, y_train, word_count = make_sentences(lstm_shape['max_length'], batch_size,
         train_texts, train_labels, 'train', n_train_sents)
     validation_data = None
     if dev_texts is not None:
         n_dev_sents = count_sentences(dev_texts, batch_size, 'dev')
-        X_val, y_val = make_sentences(lstm_shape['max_length'], batch_size,
+        X_val, y_val, wc_val = make_sentences(lstm_shape['max_length'], batch_size,
             dev_texts, dev_labels, 'dev', n_dev_sents)
         validation_data = (X_val, y_val)
     sentence_cache.flush()
 
     print("Loading spaCy")
     nlp = sentence_cache._load_nlp()
-    embeddings = get_embeddings(nlp.vocab)
+    word_list, word_map = make_word_map(word_count, max_features)
+    save_json(word_path, word_map)
+    embeddings = get_embeddings(nlp.vocab, word_list)
+
+    X_train = reindex(word_map, X_train)
+    if validation_data is not None:
+        X_val = reindex(word_map, X_val)
+        validation_data = (X_val, y_val)
+
+    print('reindexed')
+
     model = build_lstm[lstm_type](embeddings, lstm_shape, lstm_settings)
     compile_lstm(model, lstm_settings['lr'])
 
+    print('built and compiled models')
+
+    # for i in range(X_train.shape[0]):
+    #     for j in range(X_train.shape[1]):
+    #         assert 0 <= X_train[i, j] < embeddings.shape[0], (i, j, X_train[i, j], dim(embeddings))
+    # for i in range(X_val.shape[0]):
+    #     for j in range(X_val.shape[1]):
+    #         assert 0 <= X_val[i, j] < embeddings.shape[0], (i, j, X_val[i, j], dim(embeddings))
+
+    print('^^^embeddings=%s' % dim(embeddings))
+    print('^^^X_train=%d..%d' % (X_train.min(), X_train.max()))
+    print('^^^X_val=%d..%d' % (X_val.min(), X_val.max()))
+
     callback_list = None
 
-    if do_fit1:
+    if validation_data is not None:
+        ra_val = RocAucEvaluation(validation_data=validation_data, interval=1,
+            model_path=model_path, config_path=config_path)
+        early = EarlyStopping(monitor='val_auc', mode='max', patience=2, verbose=1)
+        callback_list = [ra_val, early]
+    else:
+        sae = SaveAllEpochs(model_path, config_path, epoch_path, True)
+        if sae.last_epoch1() > 0:
+            xprint('Reloading partially built model 1')
+            model = load_model(model_path, config_path)
+            compile_lstm(model, lstm_settings['lr'])
+            epochs -= sae.last_epoch1()
+        callback_list = [sae]
+
+    if epochs > 0:
+        print('!^^^embeddings=%s' % dim(embeddings))
+        print('!^^^X_train=%d..%d' % (X_train.min(), X_train.max()))
+        print('!^^^X_val=%d..%d' % (X_val.min(), X_val.max()))
+
+        model.fit(X_train, y_train, batch_size=batch_size, epochs=epochs, callbacks=callback_list,
+                  validation_data=validation_data, verbose=1)
         if validation_data is not None:
-            ra_val = RocAucEvaluation(validation_data=validation_data, interval=1, frozen=True,
-                model_path=model1_path, config_path=config1_path)
-            early = EarlyStopping(monitor='val_auc', mode='max', patience=2, verbose=1)
-            callback_list = [ra_val, early]
+            best_epoch = ra_val.best_epoch
+            ra_val.best_epoch = -1
         else:
-            sae = SaveAllEpochs(model1_path, config1_path, epoch_path, True)
-            if sae.last_epoch1() > 0:
-                xprint('Reloading partially built model 1')
-                get_embeds = partial(get_embeddings, vocab=nlp.vocab)
-                model = load_model(model1_path, config1_path, True, get_embeds)
-                compile_lstm(model, lstm_settings['lr'])
-                epochs1 -= sae.last_epoch1()
-            callback_list = [sae]
-
-        if epochs1 > 0:
-            model.fit(X_train, y_train, batch_size=batch_size, epochs=epochs1,
-                      validation_data=validation_data, callbacks=callback_list, verbose=1)
-            if validation_data is not None:
-                best_epoch_frozen = ra_val.best_epoch
-                ra_val.best_epoch = -1
-            else:
-                save_model(model, model1_path, config1_path, True)
-
-    if do_fit2:
-         # Reload the best model so far, if it exists
-        if os.path.exists(model1_path) and os.path.exists(config1_path):
-            model = load_model(model1_path, config1_path, True,
-                partial(get_embeddings, vocab=nlp.vocab))
-        xprint("Unfreezing")
-        for layer in model.layers:
-            layer.trainable = True
-        compile_lstm(model, lstm_settings['lr'] / 10)
-        if validation_data is not None:
-            # Reset early stopping
-            ra_val = RocAucEvaluation(validation_data=validation_data, interval=1,
-                frozen=False, was_frozen=True,
-                get_embeddings=partial(get_embeddings, vocab=nlp.vocab),
-                do_prime=True, model_path=model1_path, config_path=config1_path)
-            early = EarlyStopping(monitor='val_auc', mode='max', patience=2, verbose=1)
-            callback_list = [ra_val, early]
-        else:
-            sae = SaveAllEpochs(model2_path, config2_path, epoch_path, False)
-            if sae.last_epoch2() > 0:
-                xprint('Reloading partially built model 2')
-                get_embeds = partial(get_embeddings, vocab=nlp.vocab)
-                model = load_model(model2_path, config2_path, False)
-                compile_lstm(model, lstm_settings['lr'])
-                epochs2 -= sae.last_epoch2()
-            callback_list = [sae]
-
-        if epochs2 > 0:
-            model.fit(X_train, y_train, batch_size=batch_size, epochs=epochs2,
-                  validation_data=validation_data, callbacks=callback_list, verbose=1)
-            best_epoch_unfrozen = ra_val.best_epoch
-            if validation_data is None:
-                save_model(model, model2_path, config2_path, False)
+            save_model(model, model_path, config_path)
 
     del nlp
-    return model, (best_epoch_frozen, best_epoch_unfrozen)
+    return model, best_epoch,
 
 
-def get_features(docs, max_length):
+def get_features(word_map, docs, max_length):
+    """This works because PAD == 0
+    """
     docs = list(docs)
-    Xs = np.zeros((len(docs), max_length), dtype='int32')
+    oov_idx = word_map[OOV]
+    Xs = np.ones((len(docs), max_length), dtype='int32') * word_map[PAD]
     for i, doc in enumerate(docs):
         for j, token in enumerate(doc):
             if j >= max_length:
                 break
             vector_id = token.vocab.vectors.find(key=token.orth)
-            if vector_id >= 0:
-                Xs[i, j] = vector_id
+            Xs[i, j] = word_map.get(vector_id, oov_idx)
     return Xs
 
 
@@ -717,29 +729,87 @@ build_lstm = {
 
 
 def compile_lstm(model, learn_rate):
-    model.compile(optimizer=Adam(lr=learn_rate), loss='binary_crossentropy',
-                  metrics=['accuracy'])
+    model.compile(optimizer=Adam(lr=learn_rate), loss='binary_crossentropy', metrics=['accuracy'])
     xprint('compile_lstm: learn_rate=%g' % learn_rate)
     model.summary(print_fn=xprint)
     return model
 
 
-def get_embeddings(vocab):
-    return vocab.vectors.data
+def make_word_map(word_count, max_features, verbose=True):
+    xprint('make_word_map: word_count=%d max_features=%d' % (len(word_count), max_features))
+    ordinary = [w for w in word_count if w > 0]
+
+    # Keep the most commmon `max_features` words in the embedding
+    # words = [-1 (OOV), 0 (PAD), word ids]
+    # special = words[:2]
+    # ordinary = words[2:]
+    ordinary.sort(key=lambda w: (-word_count[w], w))
+    ordinary_keep = ordinary[:max_features - 2]
+    word_list = [OOV, PAD] + ordinary_keep
+    word_map = {w: i for i, w in enumerate(word_list)}
+
+    if verbose:
+        wc_all = {w: word_count[w] for w in ordinary}
+        wc_keep = {w: word_count[w] for w in ordinary_keep}
+        n_a = len(wc_all)
+        m_a = sum(wc_all.values())
+        r_a = m_a / n_a
+        n_k = len(wc_keep)
+        m_k = sum(wc_keep.values())
+        r_k = m_k / n_k
+        xprint('  all : unique=%d total=%d ave repeats=%.1f' % (n_a, m_a, r_a))
+        xprint('  keep: unique=%d total=%d ave repeats=%.1f' % (n_k, m_k, r_k))
+        xprint('  frac: unique=%.3f total=%.3f repeats=%.3f' % (n_k / n_a, m_k / m_a, r_k / r_a))
+
+    return word_list, word_map
 
 
-def predict_reductions(model_path, config_path, frozen, texts, methods, max_length):
-    print('predict_reductions(model_path=%s, config_path=%s, frozen=%s, texts=%s, methods=%s, '
+def get_embeddings(vocab, word_list):
+    embed_size = vocab.vectors.data.shape[1]
+    emb_mean, emb_std = vocab.vectors.data.mean(), vocab.vectors.data.std()
+    xprint('emb_mean=%.3f emb_std=%.3f' % (emb_mean, emb_std))
+
+    embeddings = np.empty((len(word_list), embed_size), dtype=np.float32)
+    embeddings[0, :] = np.random.normal(emb_mean, emb_std, embed_size)   # OOV
+    embeddings[1, :] = np.zeros(embed_size, dtype=np.float32)  # PAD
+    embeddings[2:, :] = vocab.vectors.data[word_list[2:], :]
+
+    xprint('get_embeddings: vocab=%s word_list=%d -> embeddings=%s' % (
+        dim(vocab.vectors.data), len(word_list), dim(embeddings)))
+
+    return embeddings
+
+
+def reindex(word_map, X):
+    oov_idx = word_map[OOV]
+    assert oov_idx == 0, oov_idx
+    values = list(word_map.values())
+    assert min(values) == 0, min(values)
+    assert max(values) == len(word_map) - 1, (max(values), len(word_map))
+
+    X2 = X.copy()
+    for i in range(X.shape[0]):
+        for j in range(X.shape[1]):
+            X2[i, j] = word_map.get(X[i, j], oov_idx)
+
+    # for i in range(X.shape[0]):
+    #     for j in range(X.shape[1]):
+    #         assert 0 <= X2[i, j] < len(word_map), ([i, j], X2[i, j], len(word_map))
+    return X2
+
+
+def predict_reductions(model_path, config_path, word_path, texts, methods, max_length):
+    xprint('predict_reductions(model_path=%s, config_path=%s, word_path=%s, texts=%s, methods=%s, '
           'max_length=%d)' %
-          (model_path, config_path, frozen, dim(texts), methods, max_length))
+          (model_path, config_path, word_path, dim(texts), methods, max_length))
 
     nlp = spacy.load('en_core_web_lg')
     print('----- pipe_names=%s' % nlp.pipe_names)
     nlp.pipeline = [
         ('tagger', nlp.tagger),
         ('parser', nlp.parser),
-        ('sa', SentimentAnalyser.load(nlp, model_path, config_path, frozen,
-                                      methods=methods, max_length=max_length))
+        ('sa', SentimentAnalyser.load(nlp, model_path, config_path, word_path, methods=methods,
+                                      max_length=max_length))
     ]
     print('+++++ pipe_names=%s' % nlp.pipe_names)
 
@@ -759,9 +829,9 @@ def get_model_dir(model_name, fold):
 
 class ClfSpacy:
 
-    def __init__(self, n_hidden=64, max_length=100,  # Shape
+    def __init__(self, n_hidden=64, max_length=100, max_features=20000,  # Shape
         dropout=0.5, learn_rate=0.001,  # General NN config
-        epochs=5, epochs2=2, batch_size=100, frozen=True, lstm_type=1, predict_method=MEAN, force_fit=False):
+        epochs=5, batch_size=100, lstm_type=1, predict_method=MEAN, force_fit=False):
         """
             n_hidden: Number of elements in the LSTM layer
             max_length: Max length of comment text
@@ -769,32 +839,29 @@ class ClfSpacy:
 
             frozen => freeze embeddings
             2 stages of training: frozen, unfrozen
-            if frozen and model1 exists: frozen training is done. Nothing more to do
-            if not frozen and model2 exists: unfrozen training is done. Nothing more to do
-            if not frozen and not model2 exists:
-                if not model1 exists: do frozen training
-                do unfrozen training
+
 
         """
         self.n_hidden = n_hidden
         self.max_length = max_length
         self.dropout = dropout
         self.learn_rate = learn_rate
+        self.max_features = max_features
         self.epochs = epochs
-        self.epochs2 = epochs2
         self.batch_size = batch_size
-        self.frozen = frozen
         self.lstm_type = lstm_type
         self.predict_method = predict_method
 
         self.description = ', '.join('%s=%s' % (k, v) for k, v in sorted(self.__dict__.items()))
-        self.model_name = 'lstm_spacy.%s_%03d_%03d_%.3f_%.3f.%s.%d.epochs%d' % (get_n_samples_str(),
-            n_hidden, max_length, dropout, learn_rate, frozen, lstm_type, epochs)
+        self.model_name = 'lstm_spacy_e.%s.%03d_%03d_%05d_%.3f_%.3f.%s.epochs%d' % (
+            get_n_samples_str(),
+            n_hidden, max_length, max_features,
+            dropout, learn_rate, lstm_type, epochs)
 
         self.force_fit = force_fit
         self._shown_paths = False
 
-        self.best_epochs = (-1, -1)
+        self.best_epoch = -1
         assert lstm_type in build_lstm, self.description
 
     def __repr__(self):
@@ -805,39 +872,27 @@ class ClfSpacy:
         if create_dir:
             os.makedirs(model_dir, exist_ok=True)
         # RocAucEvaluation saves the trainable part of the model
-        model1_path = os.path.join(model_dir, 'model')
-        config1_path = os.path.join(model_dir, 'config.json')
-        model2_path = os.path.join(model_dir, 'model2')
-        config2_path = os.path.join(model_dir, 'config2.json')
+        model_path = os.path.join(model_dir, 'model')
+        config_path = os.path.join(model_dir, 'config.json')
+        word_path = os.path.join(model_dir, 'words.json')
         epoch_path = os.path.join(model_dir, 'epochs.json')
         if not self._shown_paths:
-            xprint('model1_path=%s exists=%s' % (model1_path, os.path.exists(model1_path)))
-            xprint('config1_path=%s exists=%s' % (config1_path, os.path.exists(config1_path)))
-            xprint('model2_path=%s exists=%s' % (model2_path, os.path.exists(model2_path)))
-            xprint('config2_path=%s exists=%s' % (config1_path, os.path.exists(config2_path)))
+            xprint('model_path=%s exists=%s' % (model_path, os.path.exists(model_path)))
+            xprint('config_path=%s exists=%s' % (config_path, os.path.exists(config_path)))
+            xprint('word_path=%s exists=%s' % (word_path, os.path.exists(word_path)))
             xprint('epoch_path=%s exists=%s' % (epoch_path, os.path.exists(epoch_path)))
             self._shown_paths = True
-        return (model1_path, config1_path), (model2_path, config2_path), epoch_path
+        return model_path, config_path, word_path, epoch_path
 
     def fit(self, train, test_size=0.1):
-        print('ClfSpacy.fit', '-' * 80)
-        (model1_path, config1_path), (model2_path, config2_path), epoch_path = self._get_paths(True)
+        xprint('ClfSpacy.fit', '-' * 80)
+        model_path, config_path, word_path, epoch_path = self._get_paths(True)
         if not self.force_fit:
-            if self.frozen:
-                if (os.path.exists(model1_path) and os.path.exists(config1_path) and
-                    SaveAllEpochs.epoch_dict(epoch_path)['epoch1'] == self.epochs):
-                    xprint('model1_path already exists. re-using')
-                    return
-            else:
-                if (os.path.exists(model2_path) and os.path.exists(config2_path) and
-                    SaveAllEpochs.epoch_dict(epoch_path)['epoch2'] == self.epochs2):
-                    xprint('model2_path already exists. re-using')
-                    return
-        do_fit1 = (not (os.path.exists(model1_path) and os.path.exists(config1_path)) or
-                   SaveAllEpochs.epoch_dict(epoch_path)['epoch1'] < self.epochs)
-        do_fit2 = (not self.frozen and (not (os.path.exists(model2_path) and
-                                             os.path.exists(config2_path)) or
-                   SaveAllEpochs.epoch_dict(epoch_path)['epoch2'] < self.epochs2))
+            if (os.path.exists(model_path) and os.path.exists(config_path) and
+                os.path.exists(word_path) and
+                SaveAllEpochs.epoch_dict(epoch_path)['epoch1'] == self.epochs):
+                xprint('model_path already exists. re-using')
+                return
 
         y_train = train[LABEL_COLS].values
         X_train = df_to_sentences(train)
@@ -850,42 +905,26 @@ class ClfSpacy:
                       'n_class': len(LABEL_COLS)}
         lstm_settings = {'dropout': self.dropout,
                          'lr': self.learn_rate}
-        lstm, self.best_epochs = do_train(X_train, y_train, X_val, y_val, lstm_shape, lstm_settings,
-            {}, batch_size=self.batch_size, lstm_type=self.lstm_type,
-            do_fit1=do_fit1, epochs1=self.epochs, model1_path=model1_path, config1_path=config1_path,
-            do_fit2=do_fit2, epochs2=self.epochs2, model2_path=model2_path, config2_path=config2_path,
-            epoch_path=epoch_path)
+        lstm, self.best_epoch = do_fit(X_train, y_train, X_val, y_val, lstm_shape,
+            lstm_settings, {},
+            batch_size=self.batch_size, lstm_type=self.lstm_type, epochs=self.epochs,
+            model_path=model_path, config_path=config_path, word_path=word_path, epoch_path=epoch_path,
+            max_features=self.max_features)
 
-        assert do_fit1
-        if do_fit1:
-            assert os.path.exists(model1_path), model1_path
-            assert os.path.exists(config1_path), config1_path
-        if do_fit2:
-            assert os.path.exists(model2_path), model2_path
-            assert os.path.exists(config2_path), config2_path
-
-        print('****: best_epochs=%s - %s Add 1 to these' % (self.best_epochs, self.description))
+        assert isinstance(self.best_epoch, int), self.best_epoch
+        xprint('****: best_epoch=%s - %s Add 1 to this' % (self.best_epoch, self.description))
         del lstm
 
     def predict_reductions(self, test, predict_methods):
-        print('ClfSpacy.predict', '-' * 80)
+        print('ClfSpacy.predict_reductions', '-' * 80)
         X_test = df_to_sentences(test)
-        (model1_path, config1_path), (model2_path, config2_path), _ = self._get_paths(False)
-        frozen = self.frozen
-        if not frozen and not (os.path.exists(model2_path) and os.path.exists(config2_path)):
-            xprint('unfrozen but no improvement over frozen. Using frozen')
-            frozen = True
-
-        if frozen:
-            model_path, config_path = model1_path, config1_path
-        else:
-            model_path, config_path = model2_path, config2_path
+        model_path, config_path, word_path, _ = self._get_paths(False)
 
         assert os.path.exists(model_path), model_path
         assert os.path.exists(config_path), config_path
 
-        return predict_reductions(model_path, config_path, frozen, X_test, methods=predict_methods,
-            max_length=self.max_length)
+        return predict_reductions(model_path, config_path, word_path, X_test,
+            predict_methods, self.max_length,)
 
     def predict(self, test):
         reductions = self.predict_reductions(test, predict_methods=[self.predict_method])

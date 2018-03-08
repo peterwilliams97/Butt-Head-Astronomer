@@ -3,9 +3,13 @@
     Another Keras solution to Kaggle Toxic Comment challenge
 """
 from utils import xprint_init, xprint
-from framework import evaluate, make_submission
+from framework import Evaluator, make_submission, set_n_samples, get_n_samples_str, set_random_seed
 from clf_lstm_glove import ClfLstmGlove
 
+
+do_submission = False
+set_n_samples(19999)
+set_random_seed(5000)
 
 # Classifier parameters
 embed_name = '840B'
@@ -17,21 +21,24 @@ learning_rate = [# 0.007, 0.007, 0.005,
                  0.002, 0.003, 0.000]
 dropout = 0.1
 
+
 submission_name = 'lstm_glove_%s_%3d_%3d_%4d_%.3f.XXXX' % (embed_name, embed_size, maxlen,
     max_features, dropout)
 
 
 def get_clf():
     return ClfLstmGlove(embed_name=embed_name, embed_size=embed_size, maxlen=maxlen,
-        max_features=max_features, dropout=dropout, epochs=epochs, learning_rate=learning_rate)
+        max_features=max_features, dropout=dropout, epochs=epochs, learning_rate=learning_rate,
+        n_folds=1)
 
 
-xprint_init(submission_name)
+xprint_init('%s.%s' % (submission_name, get_n_samples_str()), do_submission)
 xprint(get_clf())
 if False:
     make_submission(get_clf, submission_name)
 else:
-    evaluate(get_clf, n=3)
+     evaluator = Evaluator(n=1)
+     evaluator.evaluate(get_clf)
 
 xprint('embed_size, maxlen, max_features =', embed_size, maxlen, max_features)
 xprint(get_clf())

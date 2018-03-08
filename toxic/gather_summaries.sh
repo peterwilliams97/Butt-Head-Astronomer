@@ -8,7 +8,7 @@ pwd
 gcloud compute scp "instance-5:/home/pcadmin/code/Butt-Head-Astronomer/toxic/run.summaries/*" .
 
 
-for i in `seq 2 6`;
+for i in `seq 2 7`;
         do
                 echo Gathering summaries $i
                 cd $TOXIC_LOGS/gpu$i

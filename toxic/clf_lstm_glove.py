@@ -135,6 +135,7 @@ class RocAucEvaluation(Callback):
 
 def get_embeddings(tokenizer, embed_name, embed_size, max_features):
     """Returns: embedding matrix n_words x embed_size
+                n_words <= max_features
     """
     assert embed_name in GLOVE_SETS, embed_name
     embeddings_index = get_embeddings_index(embed_name, embed_size)
@@ -147,8 +148,8 @@ def get_embeddings(tokenizer, embed_name, embed_size, max_features):
     xprint('emb_mean=%.3f emb_std=%.3f' % (emb_mean, emb_std))
 
     word_index = tokenizer.word_index
-    nb_words = min(max_features, len(word_index))
-    embedding_matrix = np.random.normal(emb_mean, emb_std, (nb_words, embed_size))
+    n_words = min(max_features, len(word_index))
+    embedding_matrix = np.random.normal(emb_mean, emb_std, (n_words, embed_size))
     for word, i in word_index.items():
         if i >= max_features:
             continue
@@ -187,11 +188,13 @@ def get_model(n_hidden, tokenizer, embed_name, embed_size, maxlen, max_features,
 
     # Add AUC to metrics !@#$
     model.compile(loss=loss, optimizer='nadam', metrics=['accuracy'])
+    model.summary(print_fn=xprint)
 
     return model
 
 
 def train_tokenizer(train, max_features):
+    xprint('train_tokenizer: train=%s max_features=%d' % (dim(train), max_features))
     sentences = df_to_sentences(train)
     tokenizer = text.Tokenizer(num_words=max_features)
     tokenizer.fit_on_texts(list(sentences))
@@ -221,7 +224,8 @@ def get_model_path(model_name, fold):
 
 class ClfLstmGlove:
 
-    def __init__(self, n_hidden=50, embed_name='6B', embed_size=50, maxlen=100, max_features=20000, dropout=0.1,
+    def __init__(self, n_hidden=50, embed_name='6B', embed_size=50, maxlen=100, max_features=20000,
+        dropout=0.1,
         epochs=3, batch_size=64, learning_rate=[0.002, 0.003, 0.000], n_folds=2):
         """
             embed_size: Size of embedding vectors

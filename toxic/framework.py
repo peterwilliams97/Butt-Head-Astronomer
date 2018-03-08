@@ -351,7 +351,7 @@ class Evaluator:
                 auc = auc_reductions[method]
                 auci = reductions[method]
                 auc[i, :] = auci
-                print('evaluate_reductions: method=%s' % method)
+                xprint('evaluate_reductions: method=%s' % method)
                 show_auc(auc[:i + 1, :])
         xprint('program=%s train=%s' % (sys.argv[0], dim(self.train)))
         return True, auc_reductions, best_methods

@@ -63,19 +63,34 @@ try LSTM with smaller higher layers
 
 PROGRESS
 ========
+Give up lstm_type=10
+Try: n_hidden=1000
+Try: auc=0.9852   0: [0.974506 0.987315 0.988518 0.992702 0.9818   0.986232] ClfSpacy(batch=150, dropout=0.5, epochs=20, epochs2=2, frozen=True, lr=0.001, lstm_type=9, max_length=75, n_hidden=512, m=MEAN) epochs?
+
 gpu2: trial_spacy11_submit.py submission ClfSpacy(n_hidden=512, max_length=100,
                     dropout=0.3, learn_rate=0.001,
                     epochs=6, batch_size=300, frozen=True,
                     lstm_type=6, predict_method=PREDICT_METHODS_GOOD[0])
 gpu3: Testing many parameters on 40000
 gpu4: Testing many parameters on 40000
-gpu5: spacy_lstmx_90.ALL.submission'  prog='trial_spacy9_submit.py' ClfSpacy(batch_size=300, dropout=0.5, epochs=9, epochs2=2, frozen=True, learn_rate=0.001, lstm_type=9, max_length=75, n_hidden=512, predict_method=MEAN) submission=True
+gpu5: spacy_lstmx_90.ALL.submission  prog='trial_spacy9_submit.py' ClfSpacy(batch_size=300, dropout=0.5, epochs=9, epochs2=2, frozen=True, learn_rate=0.001, lstm_type=9, max_length=75, n_hidden=512, predict_method=MEAN) submission=True
 
 gpu6: Testing many parameters on 40000
 
-gpu5: spacy_lstmx_90.ALL.submission'  prog='trial_spacy9_submit.py' ClfSpacy(batch_size=300, dropout=0.5, epochs=9, epochs2=2, frozen=True, learn_rate=0.001, lstm_type=9, max_length=75, n_hidden=512, predict_method=MEAN) submission=False
+gpu7: spacy_lstmx_90.ALL.submission'  prog='trial_spacy9_submit.py' ClfSpacy(batch_size=300, dropout=0.5, epochs=9, epochs2=2, frozen=True, learn_rate=0.001, lstm_type=9, max_length=75, n_hidden=512, predict_method=MEAN) submission=False
 
 instance-5: Testing many parameters on 40000
+
+
+SUBMISSIONS
+===========
+gpu5: spacy_lstmx_90.ALL.LINEAR.csv
+Your submission scored 0.9760, which is not an improvement of your best score. Keep trying!
+spacy_lstmx_90.ALL.submission
+ensembled with NB: ubmission scored 0.9805, which is not an improvement of your best score.
+
+gpu2: spacy_lstmx_110.ALL.MEAN.csv
+Your submission scored 0.9724, which is not an improvement of your best score. Keep trying!
 
 RESULTS
 =======

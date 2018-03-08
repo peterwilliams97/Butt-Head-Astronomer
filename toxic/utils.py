@@ -182,31 +182,24 @@ def save_pickle_gzip(path, obj):
     rename(temp_pickle, path)
 
 
-def load_model(model_path, config_path, frozen, get_embeddings):
-    assert frozen == (get_embeddings is not None), (model_path, config_path, frozen, get_embeddings)
+def load_model(model_path, config_path):
 
     with open(config_path, 'rt') as f:
         model = model_from_json(f.read())
     weights = load_pickle(model_path)
-
-    if frozen:
-        embeddings = get_embeddings()
-        weights = [embeddings] + weights
     model.set_weights(weights)
 
-    xprint('load_model: model_path=%s frozen=%s weights=%s' % (model_path, frozen, dim(weights)))
+    xprint('load_model: model_path=%s weights=%s' % (model_path, dim(weights)))
     return model
 
 
-def save_model(model, model_path, config_path, frozen):
-    print('save_model: model_path=%r config_path=%r frozen=%s ' % (model_path, config_path, frozen), end='')
-    assert isinstance(model_path, str) and isinstance(config_path, str) and isinstance(frozen, bool)
+def save_model(model, model_path, config_path):
+    print('save_model: model_path=%r config_path=%r ' % (model_path, config_path), end='')
+    assert isinstance(model_path, str) and isinstance(config_path, str)
     assert config_path.endswith('.json'), config_path
 
     weights = model.get_weights()
-    print('weights=%s' % dim(weights))
-    if frozen:
-        weights = weights[1:]
+    xprint('weights=%s' % dim(weights))
 
     save_pickle(model_path, weights)
     with open(config_path, 'wt') as f:
@@ -221,25 +214,21 @@ class RocAucEvaluation(Callback):
     """
 
     def __init__(self, validation_data=(), interval=1, model_path=None, config_path=None,
-        frozen=False, was_frozen=True, get_embeddings=None, do_prime=False):
+        do_prime=False):
         super(Callback, self).__init__()
 
-        print('validation_data=%s interval=%s, model_path=%s, config_path=%s '
-              'frozen=%s was_frozen=%s get_embeddings=%s, do_prime=%s' % (
-            len(validation_data), interval, model_path, config_path,
-            frozen, was_frozen, get_embeddings, do_prime))
+        print('validation_data=%s interval=%s, model_path=%s, config_path=%s do_prime=%s' % (
+            len(validation_data), interval, model_path, config_path, do_prime))
 
         self.interval = interval
         self.X_val, self.y_val = validation_data
         self.model_path = model_path
         self.config_path = config_path
-        self.frozen = frozen
         self.best_auc = 0.0
         self.best_epoch = -1
-        self.top_weights = None
         self.t0 = time.clock()
         if do_prime:
-            model = load_model(model_path, config_path, was_frozen, get_embeddings)
+            model = load_model(model_path, config_path)
             y_pred = model.predict(self.X_val, verbose=0)
             auc = roc_auc_score(self.y_val, y_pred)
             xprint('\nROC-AUC - epoch: {:d} - score: {:.6f}'.format(0, auc))
@@ -261,9 +250,7 @@ class RocAucEvaluation(Callback):
                 self.best_auc = auc
                 self.best_epoch = epoch
 
-                weights = self.model.get_weights()
-                self.top_weights = weights[1:]
-                save_model(self.model, self.model_path, self.config_path, self.frozen)
+                save_model(self.model, self.model_path, self.config_path)
             else:
                  xprint('RocAucEvaluation.fit: No improvement best_epoch=%d best_auc=%.3f dt=%.1f sec' %
                     (self.best_epoch + 1, self.best_auc, dt))
@@ -277,36 +264,29 @@ class SaveAllEpochs(Callback):
     def epoch_dict(epoch_path, default={'epoch1': 0, 'epoch2': 0}):
         return load_json(epoch_path, default)
 
-    def __init__(self, model_path, config_path, epoch_path, frozen):
+    def __init__(self, model_path, config_path, epoch_path):
 
         super(Callback, self).__init__()
 
-        xprint('SaveAllEpochs: model_path=%s, config_path=%s epoch_path=%s frozen=%s' % (
-            model_path, config_path, epoch_path, frozen))
+        xprint('SaveAllEpochs: model_path=%s, config_path=%s epoch_path=%s' % (
+            model_path, config_path, epoch_path))
 
         self.model_path = model_path
         self.config_path = config_path
         self.epoch_path = epoch_path
-        self.frozen = frozen
         self.epochs = load_json(self.epoch_path, {'epoch1': 0, 'epoch2': 0})
         restarting = self.epochs['epoch1'] > 0 or self.epochs['epoch2'] > 0
         marker = ' *** restarting' if restarting else ''
         xprint('SaveAllEpochs: starting epochs=%s%s' % (self.epochs, marker))
 
     def on_epoch_end(self, epoch, logs={}):
-        save_model(self.model, self.model_path, self.config_path, self.frozen)
-        if self.frozen:
-            self.epochs['epoch1'] += 1
-        else:
-            self.epochs['epoch2'] += 1
+        save_model(self.model, self.model_path, self.config_path)
+        self.epochs['epoch1'] += 1
         save_json(self.epoch_path, self.epochs)
         xprint('SaveAllEpochs: epochs=%s' % self.epochs)
 
-    def last_epoch1(self):
+    def last_epoch(self):
         return SaveAllEpochs.epoch_dict(self.epoch_path, self.epochs)['epoch1']
-
-    def last_epoch2(self):
-        return SaveAllEpochs.epoch_dict(self.epoch_path, self.epochs)['epoch2']
 
 
 class Cycler:
