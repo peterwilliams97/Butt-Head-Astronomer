@@ -337,9 +337,15 @@ def do_fit(train_texts, train_labels, dev_texts, dev_labels, lstm_shape, lstm_se
 
     param_list = [(lstm_settings['lr'], True)]
     if not frozen:
-        param_list.append((lstm_settings['lr'] * 0.2, True))
+        param_list.append((lstm_settings['lr'] * 0.1, True))
 
-    for learning_rate, frozen in param_list:
+    for run, (learning_rate, frozen) in enumerate(param_list):
+        xprint('do_fit: run=%d learning_rate=%.3f frozen=%s' % (
+            run, learning_rate, frozen))
+        if run > 0:
+            xprint('Reloading partially stopped model')
+            model = load_model(model_path, config_path)
+
         compile_lstm(model, learning_rate, frozen)
         callback_list = None
 
