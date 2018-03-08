@@ -12,7 +12,7 @@ set_random_seed(5000)
 submission_name = 'spacy_lstmx_901'
 epochs = 9
 if not do_submission:
-    epochs = 1
+    epochs = 40
 
 
 # gpu3: spacy_lstm21_flip.40000.log

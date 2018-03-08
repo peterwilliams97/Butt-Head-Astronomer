@@ -351,7 +351,7 @@ def do_fit(train_texts, train_labels, dev_texts, dev_labels, lstm_shape, lstm_se
 
         if validation_data is not None:
             ra_val = RocAucEvaluation(validation_data=validation_data, interval=1,
-                model_path=model_path, config_path=config_path)
+                model_path=model_path, config_path=config_path, do_prime=run > 0)
             early = EarlyStopping(monitor='val_auc', mode='max', patience=2, verbose=1)
             callback_list = [ra_val, early]
         else:
