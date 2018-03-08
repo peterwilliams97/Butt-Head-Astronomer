@@ -19,36 +19,36 @@ run_summary_path = os.path.join(SUMMARY_DIR,
 
 
 def get_clf31():
-    return ClfSpacy(n_hidden=n_hidden, max_length=75,  # Shape
+    return ClfSpacy(n_hidden=n_hidden, max_length=100,  # Shape
                     dropout=0.3, learn_rate=0.001,  # General NN config
                     epochs=epochs, batch_size=150, frozen=frozen,
                     lstm_type=lstm_type, predict_method=predict_method)
 
 
 def get_clf32():
-    return ClfSpacy(n_hidden=n_hidden, max_length=75,  # Shape
+    return ClfSpacy(n_hidden=n_hidden, max_length=100,  # Shape
                     dropout=0.3, learn_rate=0.001, learn_rate_unfrozen=0.0,  # General NN config
                     epochs=epochs, batch_size=150, frozen=frozen,
                     lstm_type=lstm_type, predict_method=predict_method)
 
 
 def get_clf33():
-    return ClfSpacy(n_hidden=n_hidden, max_length=75, max_features=30000,  # Shape
+    return ClfSpacy(n_hidden=n_hidden, max_length=100, max_features=30000,  # Shape
                     dropout=0.3, learn_rate=0.001,  # General NN config
                     epochs=epochs, batch_size=150, frozen=frozen,
                     lstm_type=lstm_type, predict_method=predict_method)
 
 
 def get_clf34():
-    return ClfSpacy(n_hidden=n_hidden, max_length=75, max_features=15000,  # Shape
-                    dropout=0.3, learn_rate=0.005,  # General NN config
+    return ClfSpacy(n_hidden=n_hidden, max_length=100, max_features=15000,  # Shape
+                    dropout=0.3, learn_rate=0.001,  # General NN config
                     epochs=epochs, batch_size=150, frozen=frozen,
                     lstm_type=lstm_type, predict_method=predict_method)
 
 
 def get_clf35():
     return ClfSpacy(n_hidden=n_hidden, max_length=100,  # Shape
-                    dropout=0.3, learn_rate=0.005,   # General NN config
+                    dropout=0.3, learn_rate=0.003,   # General NN config
                     epochs=epochs, batch_size=150, frozen=frozen,
                     lstm_type=lstm_type, predict_method=predict_method)
 
@@ -56,12 +56,12 @@ def get_clf35():
 def get_clf36():
     return ClfSpacy(n_hidden=n_hidden, max_length=100,  # Shape
                     dropout=0.3, learn_rate=0.001,  # General NN config
-                    epochs=epochs, batch_size=50, frozen=frozen,
+                    epochs=epochs, batch_size=100, frozen=frozen,
                     lstm_type=lstm_type, predict_method=predict_method)
 
 
 def get_clf37():
-    return ClfSpacy(n_hidden=n_hidden, max_length=75,  # Shape
+    return ClfSpacy(n_hidden=n_hidden, max_length=150,  # Shape
                     dropout=0.3, learn_rate=0.001,  # General NN config
                     epochs=epochs, batch_size=150, frozen=frozen,
                     lstm_type=lstm_type, predict_method=predict_method)
