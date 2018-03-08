@@ -321,7 +321,6 @@ def do_fit(train_texts, train_labels, dev_texts, dev_labels, lstm_shape, lstm_se
     print('reindexed')
 
     model = build_lstm[lstm_type](embeddings, lstm_shape, lstm_settings)
-    compile_lstm(model, lstm_settings['lr'], frozen)
 
     print('built and compiled models')
 
@@ -336,34 +335,40 @@ def do_fit(train_texts, train_labels, dev_texts, dev_labels, lstm_shape, lstm_se
     print('^^^X_train=%d..%d' % (X_train.min(), X_train.max()))
     print('^^^X_val=%d..%d' % (X_val.min(), X_val.max()))
 
-    callback_list = None
+    param_list = [(lstm_settings['lr'], True)]
+    if not frozen:
+        param_list.append((lstm_settings['lr'] * 0.2, True))
 
-    if validation_data is not None:
-        ra_val = RocAucEvaluation(validation_data=validation_data, interval=1,
-            model_path=model_path, config_path=config_path)
-        early = EarlyStopping(monitor='val_auc', mode='max', patience=2, verbose=1)
-        callback_list = [ra_val, early]
-    else:
-        sae = SaveAllEpochs(model_path, config_path, epoch_path, True)
-        if sae.last_epoch1() > 0:
-            xprint('Reloading partially built model 1')
-            model = load_model(model_path, config_path)
-            compile_lstm(model, lstm_settings['lr'])
-            epochs -= sae.last_epoch1()
-        callback_list = [sae]
+    for learning_rate, frozen in param_list:
+        compile_lstm(model, learning_rate, frozen)
+        callback_list = None
 
-    if epochs > 0:
-        print('!^^^embeddings=%s' % dim(embeddings))
-        print('!^^^X_train=%d..%d' % (X_train.min(), X_train.max()))
-        print('!^^^X_val=%d..%d' % (X_val.min(), X_val.max()))
-
-        model.fit(X_train, y_train, batch_size=batch_size, epochs=epochs, callbacks=callback_list,
-                  validation_data=validation_data, verbose=1)
         if validation_data is not None:
-            best_epoch = ra_val.best_epoch
-            ra_val.best_epoch = -1
+            ra_val = RocAucEvaluation(validation_data=validation_data, interval=1,
+                model_path=model_path, config_path=config_path)
+            early = EarlyStopping(monitor='val_auc', mode='max', patience=2, verbose=1)
+            callback_list = [ra_val, early]
         else:
-            save_model(model, model_path, config_path)
+            sae = SaveAllEpochs(model_path, config_path, epoch_path, True)
+            if sae.last_epoch1() > 0:
+                xprint('Reloading partially built model 1')
+                model = load_model(model_path, config_path)
+                compile_lstm(model, learning_rate, frozen)
+                epochs -= sae.last_epoch1()
+            callback_list = [sae]
+
+        if epochs > 0:
+            print('!^^^embeddings=%s' % dim(embeddings))
+            print('!^^^X_train=%d..%d' % (X_train.min(), X_train.max()))
+            print('!^^^X_val=%d..%d' % (X_val.min(), X_val.max()))
+
+            model.fit(X_train, y_train, batch_size=batch_size, epochs=epochs, callbacks=callback_list,
+                      validation_data=validation_data, verbose=1)
+            if validation_data is not None:
+                best_epoch = ra_val.best_epoch
+                ra_val.best_epoch = -1
+            else:
+                save_model(model, model_path, config_path)
 
     del nlp
     return model, best_epoch,
@@ -834,7 +839,7 @@ def get_model_dir(model_name, fold):
 class ClfSpacy:
 
     def __init__(self, n_hidden=64, max_length=100, max_features=20000,  # Shape
-        dropout=0.5, learn_rate=0.001, frozen=False, # General NN config
+        dropout=0.5, learn_rate=0.001, frozen=False,  # General NN config
         epochs=5, batch_size=100, lstm_type=1, predict_method=MEAN, force_fit=False):
         """
             n_hidden: Number of elements in the LSTM layer

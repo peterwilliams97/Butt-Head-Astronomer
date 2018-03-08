@@ -7,8 +7,8 @@ from framework import Evaluator, set_random_seed, make_submission, get_n_samples
 from clf_spacy import ClfSpacy, PREDICT_METHODS_GOOD
 
 do_submission = False
-set_n_samples(39999)
-set_random_seed(5001)
+set_n_samples(19999)
+set_random_seed(5000)
 submission_name = 'spacy_lstmx_901'
 epochs = 9
 if not do_submission:
@@ -49,4 +49,11 @@ ClfSpacy(n_hidden=64, max_length=75, max_features=20000, # Shape
                     lstm_type=6, predict_method=PREDICT_METHODS_GOOD[0])
  Mean: auc=0.975 (toxic:0.965, severe_toxic:0.982, obscene:0.979, threat:0.989, insult:0.976, identity_hate:0.961)
 
+
+return ClfSpacy(n_hidden=64, max_length=75, max_features=20000, # Shape
+                    dropout=0.5, learn_rate=0.001, frozen=False, # General NN config
+                    epochs=epochs, batch_size=300,
+                    lstm_type=6, predict_method=PREDICT_METHODS_GOOD[0])
+Mean: auc=0.965 (toxic:0.962, severe_toxic:0.980, obscene:0.980, threat:0.943, insult:0.974, identity_hate:0.952)
+-
 """
