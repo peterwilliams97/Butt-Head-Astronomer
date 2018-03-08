@@ -13,7 +13,7 @@ for i in `seq 2 6`;
                 echo Gathering logs $i
                 cd $TOXIC_LOGS/gpu$i
                 pwd
-                gcloud compute scp "gpu$i:/home/pcadmin/code/Butt-Head-Astronomer/toxic/logs/*" .
+                gcloud compute scp "gpu$i:/home/pcadmin/code/Butt-Head-Astronomer/toxic/logs/e*" .
         done
 
 echo done

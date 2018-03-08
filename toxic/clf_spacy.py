@@ -139,48 +139,6 @@ if False:
     assert False
 
 
-class SentimentAnalyser(object):
-    @classmethod
-    def load(cls, nlp, model_path, config_path, word_path, methods, max_length):
-        xprint('SentimentAnalyser.load: model_path=%s config_path=%s word_path=%s methods=%s max_length=%d' % (
-             model_path, config_path, word_path, methods, max_length))
-        model = load_model(model_path, config_path)
-        word_map = load_json(word_path)
-        word_map = {int(k): v for k, v in word_map.items()}
-        return cls(model, word_map, methods=methods, max_length=max_length)
-
-    def __init__(self, model, word_map, methods, max_length):
-        self._model = model
-        self.word_map = word_map
-        self.methods = methods
-        self.max_length = max_length
-
-    def __del__(self):
-        del self._model
-
-    def pipe(self, docs, batch_size=1000, n_threads=-1):
-        interval = 10
-        t0 = time.clock()
-        i = 0
-        k = 0
-        for minibatch in cytoolz.partition_all(batch_size, docs):
-            minibatch = list(minibatch)
-            for doc in minibatch:
-                Xs = get_features(self.word_map, doc.sents, self.max_length)
-                ys = self._model.predict(Xs)
-                if i >= interval:
-                    xprint('SentimentAnalyser.pipe: %4d docs %5d sents %.1f sec' % (i, k, time.clock() - t0))
-                    interval *= 2
-                for method in self.methods:
-                    y = reduce(ys, method=method)
-                    assert len(y.shape) == 1 and len(y) == ys.shape[1], (ys.shape, y.shape)
-                    doc.user_data[method] = y
-                yield doc
-                i += 1
-                k += ys.shape[0]
-        xprint('SentimentAnalyser.pipe: %4d docs %5d sents %.1f sec TOTAL' % (i, k, time.clock() - t0))
-
-
 def word_count_add(word_count, wc):
     for w, c in wc.items():
         word_count[w] += c
@@ -293,7 +251,7 @@ def do_fit(train_texts, train_labels, dev_texts, dev_labels, lstm_shape, lstm_se
     """
 
     xprint('do_fit: train_texts=%s dev_texts=%s' % (dim(train_texts), dim(dev_texts)))
-    best_epoch = -1
+    best_epochs = {}
 
     n_train_sents = count_sentences(train_texts, batch_size, 'train')
     X_train, y_train, word_count = make_sentences(lstm_shape['max_length'], batch_size,
@@ -337,7 +295,7 @@ def do_fit(train_texts, train_labels, dev_texts, dev_labels, lstm_shape, lstm_se
     param_list = [(lstm_settings['lr'], True)]
     best_epochs = {}
     if not frozen:
-        param_list.append((lstm_settings['lr'] * 0.1, False))
+        param_list.append((lstm_settings['lr_unfrozen'], False))
 
     for run, (learning_rate, frozen) in enumerate(param_list):
         xprint('do_fit: run=%d learning_rate=%.3f frozen=%s' % (run, learning_rate, frozen))
@@ -837,6 +795,48 @@ def predict_reductions(model_path, config_path, word_path, texts, methods, max_l
     return reductions
 
 
+class SentimentAnalyser(object):
+    @classmethod
+    def load(cls, nlp, model_path, config_path, word_path, methods, max_length):
+        xprint('SentimentAnalyser.load: model_path=%s config_path=%s word_path=%s methods=%s max_length=%d' % (
+             model_path, config_path, word_path, methods, max_length))
+        model = load_model(model_path, config_path)
+        word_map = load_json(word_path)
+        word_map = {int(k): v for k, v in word_map.items()}
+        return cls(model, word_map, methods=methods, max_length=max_length)
+
+    def __init__(self, model, word_map, methods, max_length):
+        self._model = model
+        self.word_map = word_map
+        self.methods = methods
+        self.max_length = max_length
+
+    def __del__(self):
+        del self._model
+
+    def pipe(self, docs, batch_size=1000, n_threads=-1):
+        interval = 10
+        t0 = time.clock()
+        i = 0
+        k = 0
+        for minibatch in cytoolz.partition_all(batch_size, docs):
+            minibatch = list(minibatch)
+            for doc in minibatch:
+                Xs = get_features(self.word_map, doc.sents, self.max_length)
+                ys = self._model.predict(Xs)
+                if i >= interval:
+                    xprint('SentimentAnalyser.pipe: %4d docs %5d sents %.1f sec' % (i, k, time.clock() - t0))
+                    interval *= 2
+                for method in self.methods:
+                    y = reduce(ys, method=method)
+                    assert len(y.shape) == 1 and len(y) == ys.shape[1], (ys.shape, y.shape)
+                    doc.user_data[method] = y
+                yield doc
+                i += 1
+                k += ys.shape[0]
+        xprint('SentimentAnalyser.pipe: %4d docs %5d sents %.1f sec TOTAL' % (i, k, time.clock() - t0))
+
+
 def get_model_dir(model_name, fold):
     return os.path.join(MODEL_DIR, '%s.fold%d' % (model_name, fold))
 
@@ -844,7 +844,7 @@ def get_model_dir(model_name, fold):
 class ClfSpacy:
 
     def __init__(self, n_hidden=64, max_length=100, max_features=20000,  # Shape
-        dropout=0.5, learn_rate=0.001, frozen=False,  # General NN config
+        dropout=0.5, learn_rate=0.001, learn_rate_unfrozen=0.0001, frozen=False,  # General NN config
         epochs=5, batch_size=100, lstm_type=1, predict_method=MEAN, force_fit=False):
         """
             n_hidden: Number of elements in the LSTM layer
@@ -859,6 +859,7 @@ class ClfSpacy:
         self.max_length = max_length
         self.dropout = dropout
         self.learn_rate = learn_rate
+        self.learn_rate_unfrozen = learn_rate_unfrozen
         self.frozen = frozen
         self.max_features = max_features
         self.epochs = epochs
@@ -920,7 +921,8 @@ class ClfSpacy:
                       'max_length': self.max_length,
                       'n_class': len(LABEL_COLS)}
         lstm_settings = {'dropout': self.dropout,
-                         'lr': self.learn_rate}
+                         'lr': self.learn_rate,
+                         'lr_unfrozen': self.learn_rate_unfrozen}
         lstm, self.best_epochs = do_fit(X_train, y_train, X_val, y_val, lstm_shape,
             lstm_settings, {}, frozen=self.frozen,
             batch_size=self.batch_size, lstm_type=self.lstm_type, epochs=self.epochs,
