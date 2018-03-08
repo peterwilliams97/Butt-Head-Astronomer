@@ -23,7 +23,7 @@ if not do_submission:
 
 def get_clf():
     return ClfSpacy(n_hidden=64, max_length=75, max_features=20000, # Shape
-                    dropout=0.5, learn_rate=0.001,  # General NN config
+                    dropout=0.5, learn_rate=0.001, frozen=False, # General NN config
                     epochs=epochs, batch_size=300,
                     lstm_type=6, predict_method=PREDICT_METHODS_GOOD[0])
 
@@ -43,7 +43,10 @@ xprint('$' * 80)
 touch('completed.spacy_lstmx_90.txt')
 
 """
-instance5/spacy_lstm20s.ALL.LINEAR2.csv
-Your submission scored 0.9723, which is not an improvement of your best score. Keep trying!
+ClfSpacy(n_hidden=64, max_length=75, max_features=20000, # Shape
+                    dropout=0.5, learn_rate=0.001,  # General NN config
+                    epochs=epochs, batch_size=300,
+                    lstm_type=6, predict_method=PREDICT_METHODS_GOOD[0])
+ Mean: auc=0.975 (toxic:0.965, severe_toxic:0.982, obscene:0.979, threat:0.989, insult:0.976, identity_hate:0.961)
 
 """

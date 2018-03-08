@@ -283,7 +283,7 @@ def count_sentences(texts_in, batch_size, name):
 
 
 def do_fit(train_texts, train_labels, dev_texts, dev_labels, lstm_shape, lstm_settings,
-    lstm_optimizer, batch_size=100, epochs=5,
+    lstm_optimizer, batch_size=100, epochs=5, frozen=True,
     model_path=None, config_path=None, epoch_path=None, word_path=None,
     lstm_type=1, max_features=None):
     """Train a Keras model on the sentences in `train_texts`
@@ -321,7 +321,7 @@ def do_fit(train_texts, train_labels, dev_texts, dev_labels, lstm_shape, lstm_se
     print('reindexed')
 
     model = build_lstm[lstm_type](embeddings, lstm_shape, lstm_settings)
-    compile_lstm(model, lstm_settings['lr'])
+    compile_lstm(model, lstm_settings['lr'], frozen)
 
     print('built and compiled models')
 
@@ -728,7 +728,11 @@ build_lstm = {
 }
 
 
-def compile_lstm(model, learn_rate):
+def compile_lstm(model, learn_rate, frozen):
+    if not frozen:
+        for layer in model.layers:
+            layer.trainable = True
+
     model.compile(optimizer=Adam(lr=learn_rate), loss='binary_crossentropy', metrics=['accuracy'])
     xprint('compile_lstm: learn_rate=%g' % learn_rate)
     model.summary(print_fn=xprint)
@@ -830,7 +834,7 @@ def get_model_dir(model_name, fold):
 class ClfSpacy:
 
     def __init__(self, n_hidden=64, max_length=100, max_features=20000,  # Shape
-        dropout=0.5, learn_rate=0.001,  # General NN config
+        dropout=0.5, learn_rate=0.001, frozen=False, # General NN config
         epochs=5, batch_size=100, lstm_type=1, predict_method=MEAN, force_fit=False):
         """
             n_hidden: Number of elements in the LSTM layer
@@ -846,6 +850,7 @@ class ClfSpacy:
         self.max_length = max_length
         self.dropout = dropout
         self.learn_rate = learn_rate
+        self.frozen = frozen
         self.max_features = max_features
         self.epochs = epochs
         self.batch_size = batch_size
@@ -853,10 +858,11 @@ class ClfSpacy:
         self.predict_method = predict_method
 
         self.description = ', '.join('%s=%s' % (k, v) for k, v in sorted(self.__dict__.items()))
-        self.model_name = 'lstm_spacy_e.%s.%03d_%03d_%05d_%.3f_%.3f.%s.epochs%d' % (
+        self.model_name = 'lstm_spacy_e.%s.%03d_%03d_%05d_%.3f_%.3f.fr_%s.%s.epochs%d' % (
             get_n_samples_str(),
             n_hidden, max_length, max_features,
-            dropout, learn_rate, lstm_type, epochs)
+            dropout, learn_rate, frozen,
+            lstm_type, epochs)
 
         self.force_fit = force_fit
         self._shown_paths = False
@@ -906,7 +912,7 @@ class ClfSpacy:
         lstm_settings = {'dropout': self.dropout,
                          'lr': self.learn_rate}
         lstm, self.best_epoch = do_fit(X_train, y_train, X_val, y_val, lstm_shape,
-            lstm_settings, {},
+            lstm_settings, {}, frozen=self.frozen,
             batch_size=self.batch_size, lstm_type=self.lstm_type, epochs=self.epochs,
             model_path=model_path, config_path=config_path, word_path=word_path, epoch_path=epoch_path,
             max_features=self.max_features)
