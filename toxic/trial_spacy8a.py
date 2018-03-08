@@ -9,7 +9,7 @@ from framework import (SUMMARY_DIR, Evaluator, set_random_seed, set_n_samples, g
 from clf_spacy import ClfSpacy, PREDICT_METHODS_GOOD
 
 
-submission_name = 'e_spacy_lstmx_80a'
+submission_name = 'e_spacy_lstmx_81a'
 epochs = 40
 set_n_samples(20000)
 random_seed = 2236
