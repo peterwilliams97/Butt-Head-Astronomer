@@ -298,7 +298,7 @@ def do_fit(train_texts, train_labels, dev_texts, dev_labels, lstm_shape, lstm_se
         param_list.append((lstm_settings['lr_unfrozen'], False))
 
     for run, (learning_rate, frozen) in enumerate(param_list):
-        xprint('do_fit: run=%d learning_rate=%.3f frozen=%s' % (run, learning_rate, frozen))
+        xprint('do_fit: run=%d learning_rate=%g frozen=%s' % (run, learning_rate, frozen))
         if run > 0:
             xprint('Reloading partially stopped model')
             model = load_model(model_path, config_path)
@@ -844,7 +844,7 @@ def get_model_dir(model_name, fold):
 class ClfSpacy:
 
     def __init__(self, n_hidden=64, max_length=100, max_features=20000,  # Shape
-        dropout=0.5, learn_rate=0.001, learn_rate_unfrozen=0.0001, frozen=False,  # General NN config
+        dropout=0.5, learn_rate=0.001, learn_rate_unfrozen=0.0, frozen=False,  # General NN config
         epochs=5, batch_size=100, lstm_type=1, predict_method=MEAN, force_fit=False):
         """
             n_hidden: Number of elements in the LSTM layer

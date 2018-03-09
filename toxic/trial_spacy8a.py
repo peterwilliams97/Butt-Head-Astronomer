@@ -18,7 +18,7 @@ run_summary_path = os.path.join(SUMMARY_DIR,
 
 
 def get_clf22():
-    return ClfSpacy(n_hidden=n_hidden, max_length=100,  # Shape
+    return ClfSpacy(n_hidden=16, max_length=50,  # Shape
                     dropout=0.5, learn_rate=0.001,  # General NN config
                     epochs=epochs, batch_size=150, frozen=frozen,
                     lstm_type=lstm_type, predict_method=predict_method)

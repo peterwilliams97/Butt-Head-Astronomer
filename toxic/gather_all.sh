@@ -9,7 +9,7 @@ gcloud compute scp "instance-5:/home/pcadmin/code/Butt-Head-Astronomer/toxic/run
 gcloud compute scp "instance-5:/home/pcadmin/code/Butt-Head-Astronomer/toxic/logs/*" .
 
 
-for i in `seq 2 6`;
+for i in `seq 2 7`;
         do
                 echo Gathering summaries and logs $i
                 cd $TOXIC_LOGS/gpu$i

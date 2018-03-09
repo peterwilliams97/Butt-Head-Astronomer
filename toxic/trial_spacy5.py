@@ -130,7 +130,7 @@ def get_clf25():
 
 clf_list = [get_clfx]  # , get_clf22, get_clf23, get_clf24, get_clf25]
 lstm_list = [6, 8]
-frozen_list = [True]
+frozen_list = [False]
 
 xprint_init(submission_name, False)
 auc_list = []

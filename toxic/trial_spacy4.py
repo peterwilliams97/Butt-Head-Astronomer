@@ -102,7 +102,7 @@ def get_clf15():
 
 clf_list = [get_clf12, get_clf13]
 lstm_list = [6, 8]
-frozen_list = [True]
+frozen_list = [False]
 frozen = True
 
 xprint_init(submission_name, False)
@@ -112,35 +112,34 @@ completed_tests = set(run_summary.get('completed', []))
 
 for get_clf in clf_list:
     for lstm_type in lstm_list:
-        for frozen in frozen_list:
-            for predict_method in PREDICT_METHODS:
-                xprint('#' * 80)
-                clf_str = str(get_clf())
-                xprint(clf_str)
-                if clf_str in completed_tests:
-                    xprint('skipping')
-                    continue
-                set_random_seed(1234)
-                evaluator = Evaluator(n=1)
-                ok, auc0 = evaluator.evaluate(get_clf)
-                auc_list.append((auc0, get_clf.__name__, str(get_clf())))
-                results = [(i, auc, clf, clf_str) for i, (auc, clf, clf_str) in enumerate(auc_list)]
-                results.sort(key=lambda x: (-x[1].mean(), x[2], x[3]))
-                xprint('~' * 100)
-                xprint('RESULTS SO FAR: %d' % len(results))
-                for i, auc, clf, clf_str in results:
-                    xprint('$' * 100)
-                    xprint('auc=%.4f %3d: %s %s' % (auc.mean(), i, clf, clf_str))
-                    show_auc(auc)
-                xprint('^' * 100)
-                xprint('RESULTS SUMMARY: %d' % len(results))
-                for i, auc, clf, clf_str in results:
-                    xprint('auc=%.4f %3d: %s %s' % (auc.mean(), i, clf, clf_str))
+        for predict_method in PREDICT_METHODS:
+            xprint('#' * 80)
+            clf_str = str(get_clf())
+            xprint(clf_str)
+            if clf_str in completed_tests:
+                xprint('skipping')
+                continue
+            set_random_seed(1234)
+            evaluator = Evaluator(n=1)
+            ok, auc0 = evaluator.evaluate(get_clf)
+            auc_list.append((auc0, get_clf.__name__, str(get_clf())))
+            results = [(i, auc, clf, clf_str) for i, (auc, clf, clf_str) in enumerate(auc_list)]
+            results.sort(key=lambda x: (-x[1].mean(), x[2], x[3]))
+            xprint('~' * 100)
+            xprint('RESULTS SO FAR: %d' % len(results))
+            for i, auc, clf, clf_str in results:
+                xprint('$' * 100)
+                xprint('auc=%.4f %3d: %s %s' % (auc.mean(), i, clf, clf_str))
+                show_auc(auc)
+            xprint('^' * 100)
+            xprint('RESULTS SUMMARY: %d' % len(results))
+            for i, auc, clf, clf_str in results:
+                xprint('auc=%.4f %3d: %s %s' % (auc.mean(), i, clf, clf_str))
 
-                completed_tests.add(clf_str)
-                run_summary['completed'] = sorted(completed_tests)
-                save_json(run_summary_path, run_summary)
-                xprint('n_completed=%d' % len(completed_tests))
-                xprint('&' * 100)
+            completed_tests.add(clf_str)
+            run_summary['completed'] = sorted(completed_tests)
+            save_json(run_summary_path, run_summary)
+            xprint('n_completed=%d' % len(completed_tests))
+            xprint('&' * 100)
 
 xprint('$' * 100)

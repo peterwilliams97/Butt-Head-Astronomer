@@ -68,7 +68,7 @@ def get_clf46():
 
 clf_list = [get_clf45, get_clf40, get_clf43, get_clf44, get_clf46, get_clf41, get_clf42]
 lstm_list = [10, 9]
-frozen_list = [True]
+frozen_list = [False]
 
 xprint_init('%s.%s' % (submission_name, get_n_samples_str()), False)
 auc_list = []

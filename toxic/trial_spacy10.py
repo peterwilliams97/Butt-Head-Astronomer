@@ -83,7 +83,7 @@ def get_clf33():
 clf_list = [get_clf25, get_clf26, get_clf27, get_clf28, get_clf29, get_clf30, get_clf31, get_clf32,
     get_clf33]
 lstm_list = [9]
-frozen_list = [True]
+frozen_list = [False]
 
 xprint_init('%s.%s' % (submission_name, get_n_samples_str()), False)
 auc_list = []

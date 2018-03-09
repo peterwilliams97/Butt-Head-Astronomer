@@ -131,7 +131,7 @@ def get_clf25():
 
 clf_list = [get_clf22, get_clf23, get_clf24, get_clf25]
 lstm_list = [7, 6, 8, 9]
-frozen_list = [True]
+frozen_list = [False]
 
 xprint_init('%s.%s' % (submission_name, get_n_samples_str()), False)
 auc_list = []
