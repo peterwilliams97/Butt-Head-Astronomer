@@ -6,7 +6,7 @@ echo Gathering summaries and logs instance-5
 cd $TOXIC_LOGS/instance5
 pwd
 gcloud compute scp "instance-5:/home/pcadmin/code/Butt-Head-Astronomer/toxic/run.summaries/*" .
-gcloud compute scp "instance-5:/home/pcadmin/code/Butt-Head-Astronomer/toxic/logs/*" .
+gcloud compute scp "instance-5:/home/pcadmin/code/Butt-Head-Astronomer/toxic/logs/e*" .
 
 
 for i in `seq 2 7`;
@@ -15,7 +15,7 @@ for i in `seq 2 7`;
                 cd $TOXIC_LOGS/gpu$i
                 pwd
                 gcloud compute scp "gpu$i:/home/pcadmin/code/Butt-Head-Astronomer/toxic/run.summaries/*" .
-                gcloud compute scp "gpu$i:/home/pcadmin/code/Butt-Head-Astronomer/toxic/logs/*" .
+                gcloud compute scp "gpu$i:/home/pcadmin/code/Butt-Head-Astronomer/toxic/logs/e*" .
         done
 
 echo done
