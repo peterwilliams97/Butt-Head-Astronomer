@@ -34,6 +34,9 @@ https://github.com/facebookresearch/fastText#obtaining-word-vectors-for-out-of-v
 http://forums.fast.ai/t/language-model-in-thai/9874
 SpaCy
   Second classifier based on lemmas, POS, named entities
+Add sentence remainders until maxlen is exhausted  <-- closer to bigrams
+Reduce embedding dimensionaliyty. Which size is best for sentiment classification?
+Smaller batch size
 
 https://arxiv.org/abs/1802.00385
 AllenNlp Elmo

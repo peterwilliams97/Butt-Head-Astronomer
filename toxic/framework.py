@@ -311,6 +311,7 @@ class Evaluator:
             print('_evaluate %d predict duration=%.1f sec' % (i, time.clock() - t0))
             print('!!! _evaluate pred=%s' % dim(pred))
         except Exception as e:
+            raise
             xprint('!!! _evaluate, exception=%s' % e)
             traceback.print_exc(file=sys.stdout)
             if xprint_f:

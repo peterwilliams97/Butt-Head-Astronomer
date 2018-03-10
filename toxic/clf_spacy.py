@@ -264,7 +264,7 @@ def do_fit(train_texts, train_labels, dev_texts, dev_labels, lstm_shape, lstm_se
         validation_data = (X_val, y_val)
     sentence_cache.flush()
 
-    print("Loading spaCy")
+    xprint("Loading spaCy")
     nlp = sentence_cache._load_nlp()
     word_list, word_map = make_word_map(word_count, max_features)
     save_json(word_path, word_map)
@@ -775,8 +775,10 @@ def predict_reductions(model_path, config_path, word_path, texts, methods, max_l
           'max_length=%d)' %
           (model_path, config_path, word_path, dim(texts), methods, max_length))
 
-    nlp = spacy.load('en_core_web_lg')
+    nlp = sentence_cache._load_nlp()
     print('----- pipe_names=%s' % nlp.pipe_names)
+    nlp.add_pipe(nlp.create_pipe('tagger'))
+    nlp.add_pipe(nlp.create_pipe('parser'))
     nlp.pipeline = [
         ('tagger', nlp.tagger),
         ('parser', nlp.parser),

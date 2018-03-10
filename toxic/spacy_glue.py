@@ -5,12 +5,27 @@ import numpy as np
 import os
 from collections import defaultdict
 import spacy
-from utils import save_json, load_json, save_pickle, load_pickle, save_pickle_gzip, load_pickle_gzip
+from spacy.language import Language
+from utils import (xprint, save_json, load_json, save_pickle, load_pickle, save_pickle_gzip,
+    load_pickle_gzip)
 
 
 SPACY_VECTOR_SIZE = 300  # To match SpaCY vectors
 SPACY_VECTOR_TYPE = np.float32
-SPACY_DIR = 'spacy.cache'
+SPACY_ROOT = 'spacy.cache'
+GLOVE50 = 'glove.6B.50'
+
+EMBEDDING_TYPE = GLOVE50
+
+
+if EMBEDDING_TYPE == GLOVE50:
+    VECTORS_PATH = os.path.expanduser('~/data/glove.6B/glove.6B.50d.txt')
+    assert os.path.exists(VECTORS_PATH), VECTORS_PATH
+    VECTORS_DIM = 50
+    SPACY_DIR = os.path.join(SPACY_ROOT, GLOVE50)
+else:
+    SPACY_DIR = SPACY_ROOT
+    VECTORS_PATH = None
 
 
 class SpacyCache:
@@ -62,6 +77,52 @@ class SpacyCache:
         self._save()
 
 
+def load_foreign_embeddings():
+    local_path = os.path.join(SPACY_DIR, 'nlp.embeddings.gzip')
+
+    if not os.path.exists(local_path):
+        # start off with a blank Language class
+        print('load_foreign_embeddings: loading original')
+        nlp = Language()
+        with open(VECTORS_PATH, 'rb') as f:
+            # header = f.readline()
+            # nr_row, nr_dim = header.split()
+            # nlp.vocab.clear_vectors(n_dim)
+            for i, line in enumerate(f):
+                if i % 50000 == 1000:
+                    print('^^^', i)
+                line = line.decode('utf8')
+                # pieces = line.split()
+                # word = pieces[0]
+                # vector = np.asarray([float(v) for v in pieces[1:]], dtype='f')
+
+                parts = line.strip().split()
+                word = parts[0]
+                vector = np.asarray(parts[1:], dtype='float32')
+
+                nlp.vocab.set_vector(word, vector)  # add the vectors to the vocab
+
+        #     embeddings_index = {}
+        # with open(embeddings_path, 'rb') as f:
+        #     t0 = time.clock()
+        #     for i, line in enumerate(f):
+        #         parts = line.strip().split()
+        #         embeddings_index[parts[0]] = np.asarray(parts[1:], dtype='float32')
+        #         if (i + 1) % 200000 == 0:
+        #             print('%7d embeddings %4.1f sec' % (i + 1, time.clock() - t0))
+        # xprint('%7d embeddings %4.1f sec' % (len(embeddings_index), time.clock() - t0))
+
+        save_pickle_gzip(local_path, nlp)
+
+    nlp = load_pickle_gzip(local_path)
+
+    # test the vectors and similarity
+    text = 'class colspan'
+    doc = nlp(text)
+    print('load_foreign_embeddings:', text, doc[0].similarity(doc[1]))
+    return nlp
+
+
 class SpacySentenceWordCache:
 
     def __init__(self):
@@ -70,12 +131,30 @@ class SpacySentenceWordCache:
         self.text_token_count_path = os.path.join(SPACY_DIR, 'sentence.text.tokens.count.gzip')
         self.text_sents = load_pickle_gzip(self.text_sents_path, {})
         self.text_token_count = load_pickle_gzip(self.text_token_count_path, {})
-        print("SpacySentenceWordCache: sent path=%s len=%d" % (self.text_sents_path, len(self.text_sents)))
+        xprint("SpacySentenceWordCache: sent path=%s len=%d" % (self.text_sents_path, len(self.text_sents)))
         self.text_sents_len = len(self.text_sents)
         self.text_token_count_len = self._total_counts()
         self.nlp = None
-        self.nlp = None
+        self.nlp = self._load_nlp()
         self.n_calls = 0
+
+    def sentence_lengths(self):
+        n_docs = len(self.text_sents)
+        n_sents = sum(len(sent) for sent in self.text_sents.values())
+        lens = []
+        for sents in self.text_sents.values():
+            lens.extend(len(v) for v in sents)
+        assert len(lens) == n_sents, (len(lens), n_sents)
+        thresholds = [(t, len([n for n in lens if n <= t])) for t in (25, 50, 75, 100, 500, 5000)]
+        lens = np.array(lens)
+        xprint('n_docs=%d' % n_docs)
+        xprint('n_sents=%d' % n_sents)
+        xprint('sents per doc=%.1f' % (n_sents / n_docs))
+        xprint('sentence lengths: min mean max= %.1f %.1f %.1f' % (np.min(lens), np.mean(lens),
+            np.max(lens)))
+        xprint('thresholds')
+        for t, n in thresholds:
+            xprint('%6d: %8d %.3f' % (t, n, n / n_sents))
 
     def _total_counts(self):
         return sum(sum(v.values()) for v in self.text_token_count.values())
@@ -83,7 +162,10 @@ class SpacySentenceWordCache:
     def _load_nlp(self):
         if self.nlp is None:
             print("Loading SpacySentenceWordCache")
-            nlp = spacy.load('en_core_web_lg')
+            # nlp = spacy.load('en_vectors_web_lg')
+            nlp = load_foreign_embeddings()
+            nlp.add_pipe(nlp.create_pipe('tagger'))
+            nlp.add_pipe(nlp.create_pipe('parser'))
             nlp.add_pipe(nlp.create_pipe('sentencizer'))
             self.nlp = nlp
         return self.nlp
@@ -190,3 +272,18 @@ class SpacySentenceCharCache:
 
     def flush(self):
         self._save()
+
+
+if __name__ == '__main__':
+    sentence_cache = SpacySentenceWordCache()
+    sentence_cache.sentence_lengths()
+    nlp = sentence_cache._load_nlp()
+    nlp.pipeline = [
+        ('tagger', nlp.tagger),
+        ('parser', nlp.parser),
+    ]
+    print('+++++ pipe_names=%s' % nlp.pipe_names)
+
+    texts = ['I am number %d' % i for i in range(10)]
+    for i, doc in enumerate(nlp.pipe(texts, batch_size=1)):
+        print(i, doc)
