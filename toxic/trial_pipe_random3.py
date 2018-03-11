@@ -10,12 +10,11 @@ from framework import (SUMMARY_DIR, Evaluator, set_random_seed, set_n_samples, g
     auc_score_list, show_results)
 from clf_pipe import ClfPipe
 from reductions import PREDICT_METHODS_GOOD
-from embeddings import GLOVE_COMBOS
 
 
-submission_name = 'p_trial_pipe_005'
+submission_name = 'p_trial_pipe_007'
 epochs = 40
-random_seed = 50003
+random_seed = 50007
 set_n_samples(19999)
 run_summary_path = os.path.join(SUMMARY_DIR,
     '%s.%s.run_summary.json' % (submission_name, get_n_samples_str()))
@@ -26,8 +25,7 @@ run_summary_path = os.path.join(SUMMARY_DIR,
 #      max_features=20000, max_length=10, n_hidden=16, predict_method=MEAN)
 
 def get_clf():
-    print('$$$', embed_name, embed_size)
-    return ClfPipe(embed_name=embed_name, embed_size=embed_size,
+    return ClfPipe(embed_name='840B', embed_size=300,
                    max_features=max_features, max_length=max_length,  # Shape
                    n_hidden=n_hidden,
                    dropout=dropout, learn_rate=0.001,  # General NN config
@@ -37,15 +35,13 @@ def get_clf():
 
 params_list = []
 for lstm_type in [6, 9]:
-    for embed_name, embed_size in GLOVE_COMBOS:
-        for max_length in [50, 75, 100, 150]:
-            for max_features in [10000, 20000, 30000]:
-                for n_hidden in [64, 128, 256]:
-                    for dropout in [0.1, 0.3, 0.5]:
-                        for learn_rate in [0.001, 0.002]:
-                            params = (lstm_type, embed_name, embed_size, max_length, max_features,
-                                      n_hidden, dropout, learn_rate)
-                            params_list.append(params)
+    for max_length in [50, 75, 100, 150]:
+        for max_features in [20000, 25000, 30000, 40000]:
+            for n_hidden in [64, 128, 256]:
+                for dropout in [0.1, 0.3, 0.5]:
+                    for learn_rate in [0.001, 0.002]:
+                        params = (lstm_type, max_length, max_features, n_hidden, dropout, learn_rate)
+                        params_list.append(params)
 
 print('params_list=%d' % len(params_list))
 random.seed(time.time())
@@ -64,7 +60,7 @@ n_completed0 = len(completed_tests)
 for n_runs0 in range(2):
     print('n_completed0=%d n_runs0=%d' % (n_completed0, n_runs0))
 
-    for p_i, (lstm_type, embed_name, embed_size, max_length, max_features,
+    for p_i, (lstm_type, max_length, max_features,
          n_hidden, dropout, learn_rate) in enumerate(params_list):
 
             xprint('#' * 80)
