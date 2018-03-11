@@ -15,7 +15,7 @@ from embeddings import get_embeddings, PAD, OOV
 tokenizer = SpacySentenceTokenizer()
 
 
-class ClfSpacy:
+class ClfPipe:
 
     def __init__(self, n_hidden=64, max_length=100, max_features=20000,  # Shape
         embed_name=None, embed_size=None,
@@ -60,7 +60,7 @@ class ClfSpacy:
         assert lstm_type in build_lstm, self.description
 
     def __repr__(self):
-        return 'ClfSpacy(%s)' % self.description
+        return 'ClfPipe(%s)' % self.description
 
     def _get_paths(self, create_dir):
         model_dir = get_model_dir(self.model_name, 0)
@@ -80,7 +80,7 @@ class ClfSpacy:
         return model_path, config_path, word_path, epoch_path
 
     def fit(self, train, test_size=0.1):
-        xprint('ClfSpacy.fit', '-' * 80)
+        xprint('ClfPipe.fit', '-' * 80)
 
         model_path, config_path, word_path, epoch_path = self._get_paths(True)
         if not self.force_fit:
@@ -114,7 +114,7 @@ class ClfSpacy:
         del lstm
 
     def predict_reductions(self, test, predict_methods):
-        print('ClfSpacy.predict_reductions', '-' * 80)
+        print('ClfPipe.predict_reductions', '-' * 80)
         X_test = df_to_sentences(test)
         model_path, config_path, word_path, _ = self._get_paths(False)
 
@@ -126,7 +126,7 @@ class ClfSpacy:
 
     def predict(self, test):
         reductions = self.predict_reductions(test, predict_methods=[self.predict_method])
-        print('ClfSpacy.predict', '-' * 80)
+        print('ClfPipe.predict', '-' * 80)
         return reductions[self.predict_method]
 
 

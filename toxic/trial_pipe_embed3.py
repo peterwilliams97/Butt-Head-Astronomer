@@ -6,34 +6,35 @@ import os
 from utils import xprint_init, xprint, load_json, save_json
 from framework import (SUMMARY_DIR, Evaluator, set_random_seed, set_n_samples, get_n_samples_str,
     auc_score_list, show_results)
-from clf_pipe import ClfSpacy
+from clf_pipe import ClfPipe
 from reductions import PREDICT_METHODS_GOOD
 from embeddings import GLOVE_COMBOS
 
 
 submission_name = 'trial_pipe_003'
-epochs = 2
+epochs = 40
+random_seed = 50003
 set_n_samples(19999)
 run_summary_path = os.path.join(SUMMARY_DIR,
     '%s.%s.run_summary.json' % (submission_name, get_n_samples_str()))
 
 
-# ClfSpacy(batch_size=150, dropout=0.1, embed_name=6B, embed_size=50, epochs=2,
+# ClfPipe(batch_size=150, dropout=0.1, embed_name=6B, embed_size=50, epochs=2,
 #     frozen=False, learn_rate=0.001, learn_rate_unfrozen=0.0, lowercase=True, lstm_type=6,
 #      max_features=20000, max_length=10, n_hidden=16, predict_method=MEAN)
 
 def get_clf42():
     print('$$$', embed_name, embed_size)
-    return ClfSpacy(embed_name=embed_name, embed_size=embed_size,
-                    max_features=20000, max_length=100,  # Shape
-                    n_hidden=64,
-                    dropout=0.5, learn_rate=0.001,  # General NN config
-                    batch_size=150,
-                    epochs=epochs, lstm_type=lstm_type, predict_method=predict_method)
+    return ClfPipe(embed_name=embed_name, embed_size=embed_size,
+                   max_features=20000, max_length=100,  # Shape
+                   n_hidden=64,
+                   dropout=0.5, learn_rate=0.001,  # General NN config
+                   batch_size=150,
+                   epochs=epochs, lstm_type=lstm_type, predict_method=predict_method)
 
 
 clf_list = [get_clf42]  # , get_clf22, get_clf23, get_clf24, get_clf25]
-lstm_list = [6]
+lstm_list = [6, 9]
 
 xprint_init(submission_name, False)
 auc_list = []
