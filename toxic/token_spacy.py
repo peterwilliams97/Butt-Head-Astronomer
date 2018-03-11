@@ -89,7 +89,7 @@ class SpacySentenceTokenizer:
 
     def sentence_tokens(self, texts_in, lowercase):
         """Use SpaCy tokenization """
-        assert lowercase
+        # assert lowercase
         loaded = set(self.text_sents) & set(self.text_token_count)
         texts = [text for text in texts_in if text not in loaded]
         # texts = [text for text in texts_in]
