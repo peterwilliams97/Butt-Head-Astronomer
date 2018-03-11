@@ -64,8 +64,8 @@ class SpacySentenceTokenizer:
 
     def _load_nlp(self):
         if self.nlp is None:
-            # model = 'en_vectors_web_lg'
-            model = 'en'
+            model = 'en_vectors_web_lg'
+            # model = 'en'
             print("Loading SpacySentenceWordCache: %s" % model)
             nlp = spacy.load(model)
             nlp.add_pipe(nlp.create_pipe('sentencizer'))
