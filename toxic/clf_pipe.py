@@ -236,7 +236,7 @@ def apply_word_index(max_length, sents_list, word_index, texts_in, labels_in, na
     oov_idx = word_index[OOV]
 
     t0 = time.clock()
-    N = max(1, n_sentences // 5)
+    N = max(10000, n_sentences // 5)
     # assert N > 1000, (n_sentences, N)
     i = 0
     for text, sents, y in zip(texts_in, sents_list, labels_in):
@@ -246,8 +246,9 @@ def apply_word_index(max_length, sents_list, word_index, texts_in, labels_in, na
             ys[order[i]] = y
             if i % N == 0 or (i + 1) == n_sentences:
                 dt = max(time.clock() - t0, 1.0)
-                print('~~~%5s %7d (%5.1f%%) sents dt=%4.1f sec %3.1f sents/sec' %
-                    (name, i, 100.0 * i / n_sentences, dt, i / dt))
+                if dt > 2.0:
+                    print('~~~%5s %7d (%5.1f%%) sents dt=%4.1f sec %3.1f sents/sec' %
+                         (name, i, 100.0 * i / n_sentences, dt, i / dt))
             i += 1
 
     return Xs, ys
