@@ -109,6 +109,10 @@ def dim(x):
     return _dim(x)
 
 
+def dim2(x):
+    return '%s %g - %g - %g' % (dim(x), x.min(), x.mean(), x.max())
+
+
 def rename(src, dst):
     if os.path.exists(dst):
         os.remove(dst)
@@ -217,8 +221,9 @@ class RocAucEvaluation(Callback):
         do_prime=False):
         super(Callback, self).__init__()
 
-        print('validation_data=%s interval=%s, model_path=%s, config_path=%s do_prime=%s' % (
-            len(validation_data), interval, model_path, config_path, do_prime))
+        xprint('RocAucEvaluation: validation_data=%s interval=%s, model_path=%s, config_path=%s '
+               'do_prime=%s' % (
+               len(validation_data), interval, model_path, config_path, do_prime))
 
         self.interval = interval
         self.X_val, self.y_val = validation_data
@@ -238,6 +243,11 @@ class RocAucEvaluation(Callback):
     def on_epoch_end(self, epoch, logs={}):
         if epoch % self.interval == 0:
             y_pred = self.model.predict(self.X_val, verbose=0)
+
+            print('\non_epoch_end: X_val=%s' % dim2(self.X_val))
+            print('on_epoch_end: y_val=%s' % dim2(self.y_val))
+            print('on_epoch_end: y_pred=%s' % dim2(y_pred))
+
             auc = roc_auc_score(self.y_val, y_pred)
             xprint('\nROC-AUC - epoch: {:d} - score: {:.6f}'.format(epoch + 1, auc))
             logs['val_auc'] = auc

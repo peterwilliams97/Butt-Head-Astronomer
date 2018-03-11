@@ -29,14 +29,26 @@ import os
 import time
 from os.path import join
 import numpy as np
-from utils import DATA_ROOT, dim, xprint
+from utils import DATA_ROOT, dim, xprint, load_pickle_gzip, save_pickle_gzip
+from token_spacy import islowercase
 
+
+PAD = '[PAD]'
+OOV = '[OOV]'
+
+EMBEDDINGS_DIR = 'embeddings'
 
 GLOVE_SETS = {
     'twitter': ('glove.twitter.27B', tuple([25, 50, 100, 200])),
     '6B': ('glove.6B', tuple([50, 100, 200, 300])),
     '840B': ('glove.840B.300d', tuple([300]))
 }
+
+
+def local_path(path):
+    name = os.path.basename(path)
+    name = os.path.splitext(name)[0]
+    return join(EMBEDDINGS_DIR, '%s.gzip' % name)
 
 
 def valid_embedding(embed_name, embed_size):
@@ -83,23 +95,42 @@ def get_embeddings_index(embed_name, embed_size):
         assert embed_name in GLOVE_SETS, embed_name
         embeddings_path = get_embedding_path(embed_name, embed_size)
         xprint('get_embeddings_index: embeddings_path=%s' % embeddings_path)
-        embeddings_index = {}
-        with open(embeddings_path, 'rb') as f:
-            t0 = time.clock()
-            for i, line in enumerate(f):
-                parts = line.strip().split()
-                embeddings_index[parts[0]] = np.asarray(parts[1:], dtype='float32')
-                if (i + 1) % 200000 == 0:
-                    print('%7d embeddings %4.1f sec' % (i + 1, time.clock() - t0))
-        xprint('%7d embeddings %4.1f sec' % (len(embeddings_index), time.clock() - t0))
+
+        os.makedirs(EMBEDDINGS_DIR, exist_ok=True)
+        embeddings_local = local_path(embeddings_path)
+
+        if not os.path.exists(embeddings_local):
+            embeddings_index = {}
+            with open(embeddings_path, 'rb') as f:
+                t0 = time.clock()
+                for i, line in enumerate(f):
+                    parts = line.strip().split()
+                    embeddings_index[str(parts[0], 'utf-8')] = np.asarray(parts[1:], dtype='float32')
+                    if (i + 1) % 200000 == 0:
+                        print('%7d embeddings %4.1f sec' % (i + 1, time.clock() - t0))
+            save_pickle_gzip(embeddings_local, embeddings_index)
+            xprint('%7d embeddings %4.1f sec -> %r' % (len(embeddings_index), time.clock() - t0,
+                embeddings_local))
+
+        embeddings_index = load_pickle_gzip(embeddings_local)
+
     return embeddings_index
+
+
+def test_embeddings(embed_name, embed_size):
+    ei = get_embeddings_index(embed_name, embed_size)
+    assert ei
+    keys = sorted(ei)
+    print([embed_name, embed_size], len(ei), type(keys[0]), keys[:10])
+    assert isinstance(keys[0], str)
 
 
 if False:
     for embed_name, (glove_name, glove_sizes) in GLOVE_SETS.items():
         for embed_size in glove_sizes:
-            ei = get_embeddings_index(embed_name, embed_size)
-            assert ei
+            test_embeddings(embed_name, embed_size)
+if False:
+    test_embeddings('6B', 50)
 
 
 def get_embeddings(embed_name, embed_size, max_features, word_list, word_index):
@@ -116,14 +147,34 @@ def get_embeddings(embed_name, embed_size, max_features, word_list, word_index):
     emb_mean, emb_std = all_embs.mean(), all_embs.std()
     xprint('emb_mean=%.3f emb_std=%.3f' % (emb_mean, emb_std))
 
-    embeddings = np.empty((len(word_list), embed_size), dtype=np.float32)
-    embeddings[0, :] = np.random.normal(emb_mean, emb_std, embed_size)   # OOV
+    for i, w in enumerate(word_list[2:]):
+        assert islowercase(w), (i, w)
+
+    vocab = [OOV, PAD] + [word for word in word_list if word in embeddings_index]
+    vocab = vocab[:max_features]
+    oov = [word for word in word_list if word not in embeddings_index]
+    assert vocab, (len(word_list), len(word_index), len(embeddings_index),
+         word_list[:20], sorted(embeddings_index)[:20])
+
+    embeddings = np.random.normal(emb_mean, emb_std, (len(vocab), embed_size))
+    # embeddings[0, :] = np.random.normal(emb_mean, emb_std, embed_size)   # OOV
     embeddings[1, :] = np.zeros(embed_size, dtype=np.float32)  # PAD
-    for i, word in enumerate(word_list[2:]):
-        embeddings[i:, :] = embeddings_index.get(word)
+    for i, word in enumerate(vocab[2:]):
+        embeddings[i:, :] = embeddings_index[word]
 
-    xprint('get_embeddings: embed_name, embed_size, max_features, word_list, word_index -> embeddings=%s'
-        % (embed_name, embed_size, max_features, len(word_list), len(word_index), dim(embeddings)))
+    xprint('get_embeddings: oov=%d %s' % (len(oov), [(w, word_index[w]) for w in oov[:50]]))
 
-    return embeddings
+    xprint('get_embeddings: embed_name=%s embed_size=%d'
+           '\n max_features=%d word_list=%d word_index=%d'
+           '\n -> embeddings_index=%d'
+           '\n -> embeddings=%s vocab=%d=%.3f'
+        % (embed_name, embed_size, max_features, len(word_list), len(word_index),
+           len(embeddings_index), dim(embeddings), len(vocab), len(vocab) / len(word_list)))
 
+    reduced_index = {w: i for i, w in enumerate(vocab)}
+    xprint('get_embeddings: reduced_index= %d - %d (%d values)' % (
+        min(reduced_index.values()),
+        max(reduced_index.values()),
+        len(reduced_index)))
+    assert 0 <= min(reduced_index.values()) and max(reduced_index.values()) < embeddings.shape[0]
+    return embeddings, reduced_index

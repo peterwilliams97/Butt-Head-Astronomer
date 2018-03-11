@@ -68,6 +68,9 @@ try a 3 layer LSTM
 try LSTM with smaller higher layers
 search for reduction params (linear(lo1, hi1, by order in doc) + a * linear(lo2, hi2, by auc))
 
+better tokenization
+get_embeddings: oov=1163  "don't",  "i'm", 'it´s',  '20mins', '82.209.225.33', "i'll"
+
 PROGRESS
 ========
 gpu2: 40000 test

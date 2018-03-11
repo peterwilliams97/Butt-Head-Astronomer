@@ -4,6 +4,7 @@
 import numpy as np
 import os
 from collections import defaultdict
+import re
 import spacy
 from spacy.language import Language
 from utils import (xprint, save_json, load_json, save_pickle, load_pickle, save_pickle_gzip,
@@ -13,6 +14,15 @@ from utils import (xprint, save_json, load_json, save_pickle, load_pickle, save_
 SPACY_VECTOR_SIZE = 300  # To match SpaCY vectors
 SPACY_VECTOR_TYPE = np.float32
 SPACY_DIR = 'spacy.sentence.tokens'
+RE_SPACE = re.compile(r'\s+', re.DOTALL | re.MULTILINE)
+
+
+def islowercase(w):
+    if not w.isalpha():
+        return True
+    if not all(ord(c) < 128 for c in w):
+        return True
+    return w.islower()
 
 
 class SpacySentenceTokenizer:
@@ -27,7 +37,7 @@ class SpacySentenceTokenizer:
         self.text_sents_len = len(self.text_sents)
         self.text_token_count_len = self._total_counts()
         self.nlp = None
-        self.nlp = self._load_nlp()
+        self.nlp = self._load_nlp()  # !@#$
         self.n_calls = 0
 
     def show_sentence_lengths(self):
@@ -56,8 +66,10 @@ class SpacySentenceTokenizer:
 
     def _load_nlp(self):
         if self.nlp is None:
-            print("Loading SpacySentenceWordCache: en_vectors_web_lg")
-            nlp = spacy.load('en_vectors_web_lg')
+            # model = 'en_vectors_web_lg'
+            model = 'en'
+            print("Loading SpacySentenceWordCache: %s" % model)
+            nlp = spacy.load(model)
             nlp.add_pipe(nlp.create_pipe('sentencizer'))
             self.nlp = nlp
         return self.nlp
@@ -77,8 +89,9 @@ class SpacySentenceTokenizer:
             save_pickle_gzip(self.text_token_count_path, self.text_token_count)
             self.text_token_count_len = self._total_counts()
 
-    def sentence_tokens(self, texts_in):
+    def sentence_tokens(self, texts_in, lowercase):
         """Use SpaCy tokenization """
+        assert lowercase
         loaded = set(self.text_sents) & set(self.text_token_count)
         texts = [text for text in texts_in if text not in loaded]
         # texts = [text for text in texts_in]
@@ -88,7 +101,7 @@ class SpacySentenceTokenizer:
                 self.text_sents[text] = []
                 token_count = defaultdict(int)
                 for sent in doc.sents:
-                    words = [token.text for token in sent]
+                    words = [token.text for token in sent if not RE_SPACE.search(token.text)]
                     self.text_sents[text].append(words)
                     for w in words:
                         token_count[w] += 1
@@ -99,11 +112,28 @@ class SpacySentenceTokenizer:
                     self._save()
                 self.n_calls += 1
 
+        if lowercase:
+            for text in texts_in:
+                self.text_sents[text] = [[w.lower() for w in sent]
+                                         for sent in self.text_sents[text]]
+                for sent in self.text_sents[text]:
+                    for w in sent:
+                        assert islowercase(w), (w, sent, text[:200])
+
+            for text in texts_in:
+                for sent in self.text_sents[text]:
+                    for w in sent:
+                        assert islowercase(w), (w, sent, text[:200])
+
         word_count = defaultdict(int)
         for text in texts_in:
             for w, c in self.text_token_count[text].items():
+                if lowercase:
+                    w = w.lower()
                 word_count[w] += c
+                assert islowercase(w), (w)
 
+        # print('!!!', [self.text_sents[text] for text in texts_in[:2]])
         return [self.text_sents[text] for text in texts_in], word_count
 
     def flush(self):
