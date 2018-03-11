@@ -13,7 +13,7 @@ from reductions import PREDICT_METHODS_GOOD
 from embeddings import GLOVE_COMBOS
 
 
-submission_name = 'p_trial_pipe_004'
+submission_name = 'p_trial_pipe_005'
 epochs = 40
 random_seed = 50003
 set_n_samples(19999)

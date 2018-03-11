@@ -157,7 +157,7 @@ def do_fit(train_texts, train_labels, dev_texts, dev_labels, lstm_shape, lstm_se
 
     X_train, y_train = apply_word_index(max_length, X_sents, reduced_index, train_texts, train_labels, 'train')
     if dev_texts is not None:
-        X_val, y_val = apply_word_index(max_length, y_sents, reduced_index, train_texts, train_labels, 'dev')
+        X_val, y_val = apply_word_index(max_length, y_sents, reduced_index, dev_texts, dev_labels, 'dev')
         validation_data = (X_val, y_val)
 
     print('^^^embeddings=%s' % dim(embeddings))
