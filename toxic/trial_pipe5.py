@@ -12,7 +12,7 @@ from reductions import PREDICT_METHODS_GOOD
 
 submission_name = 'trial_lstm17y'
 epochs = 2
-set_n_samples(999)
+set_n_samples(19999)
 run_summary_path = os.path.join(SUMMARY_DIR,
     '%s.%s.run_summary.json' % (submission_name, get_n_samples_str()))
 

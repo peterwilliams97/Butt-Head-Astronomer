@@ -18,6 +18,7 @@ tokenizer = SpacySentenceTokenizer()
 class ClfSpacy:
 
     def __init__(self, n_hidden=64, max_length=100, max_features=20000,  # Shape
+        embed_name=None, embed_size=None,
         dropout=0.5, learn_rate=0.001, learn_rate_unfrozen=0.0, frozen=False,  # General NN config
         epochs=5, batch_size=100, lstm_type=1, predict_method=MEAN, force_fit=False):
         """
@@ -29,6 +30,7 @@ class ClfSpacy:
             2 stages of training: frozen, unfrozen
 
         """
+        assert embed_name is not None
         self.n_hidden = n_hidden
         self.max_length = max_length
         self.dropout = dropout
@@ -40,6 +42,9 @@ class ClfSpacy:
         self.batch_size = batch_size
         self.lstm_type = lstm_type
         self.predict_method = predict_method
+
+        self.embed_name, self.embed_size = embed_name, embed_size
+        self.lowercase = self.embed_name != '840B'
 
         self.description = ', '.join('%s=%s' % (k, v) for k, v in sorted(self.__dict__.items()))
         self.model_name = 'lstm_spacy_e.%s.%03d_%03d_%05d_%.3f_%.3f.fr_%s.%s.epochs%d' % (
@@ -101,7 +106,8 @@ class ClfSpacy:
             lstm_settings, {}, frozen=self.frozen,
             batch_size=self.batch_size, lstm_type=self.lstm_type, epochs=self.epochs,
             model_path=model_path, config_path=config_path, word_path=word_path, epoch_path=epoch_path,
-            max_features=self.max_features)
+            max_features=self.max_features,
+            embed_name=self.embed_name, embed_size=self.embed_size, lowercase=self.lowercase)
 
         assert isinstance(self.best_epochs, dict), self.best_epochs
         xprint('****: best_epochs=%s - %s Add 1 to this' % (self.best_epochs, self.description))
@@ -116,7 +122,7 @@ class ClfSpacy:
         assert os.path.exists(config_path), config_path
 
         return predict_reductions(model_path, config_path, word_path, X_test,
-            predict_methods, self.max_length,)
+            predict_methods, self.max_length, self.lowercase)
 
     def predict(self, test):
         reductions = self.predict_reductions(test, predict_methods=[self.predict_method])
@@ -127,12 +133,10 @@ class ClfSpacy:
 def do_fit(train_texts, train_labels, dev_texts, dev_labels, lstm_shape, lstm_settings,
     lstm_optimizer, batch_size=100, epochs=5, frozen=True,
     model_path=None, config_path=None, epoch_path=None, word_path=None,
-    lstm_type=1, max_features=None):
+    lstm_type=1, max_features=None, embed_name=None, embed_size=None, lowercase=False):
     """Train a Keras model on the sentences in `train_texts`
         All the sentences in a text have the text's label
     """
-    embed_name, embed_size = '6B', 50
-    lowercase = embed_name in {'6B'}
     max_length = lstm_shape['max_length']
 
     xprint('do_fit: train_texts=%s dev_texts=%s' % (dim(train_texts), dim(dev_texts)))
@@ -143,10 +147,11 @@ def do_fit(train_texts, train_labels, dev_texts, dev_labels, lstm_shape, lstm_se
     if dev_texts is not None:
         y_sents, _, _ = extract_sentences(max_features, dev_texts, lowercase, 'dev')
     tokenizer.flush()
-    save_json(word_path, word_index)
 
     embeddings, reduced_index = get_embeddings(embed_name, embed_size, max_features, word_list, word_index)
     assert 0 <= min(reduced_index.values()) and max(reduced_index.values()) < embeddings.shape[0]
+    save_json(word_path, reduced_index)
+    del word_index
 
     X_train, y_train = apply_word_index(max_length, X_sents, reduced_index, train_texts, train_labels, 'train')
     if dev_texts is not None:
@@ -277,8 +282,8 @@ def make_word_index(word_count, max_features, verbose=True):
     return word_list, word_index
 
 
-def predict_reductions(model_path, config_path, word_path, texts, methods, max_length):
-    text_score = predict_scores(model_path, config_path, word_path, texts, max_length)
+def predict_reductions(model_path, config_path, word_path, texts, methods, max_length, lowercase):
+    text_score = predict_scores(model_path, config_path, word_path, texts, max_length, lowercase)
 
     reductions = {method: np.zeros((len(texts), len(LABEL_COLS)), dtype=np.float32)
                   for method in methods}
@@ -290,7 +295,7 @@ def predict_reductions(model_path, config_path, word_path, texts, methods, max_l
     return reductions
 
 
-def predict_scores(model_path, config_path, word_path, texts_in, max_length):
+def predict_scores(model_path, config_path, word_path, texts_in, max_length, lowercase):
     xprint('predict_reductions(model_path=%s, config_path=%s, word_path=%s, texts=%s, max_length=%d)'
            % (model_path, config_path, word_path, dim(texts_in), max_length))
 
@@ -298,10 +303,9 @@ def predict_scores(model_path, config_path, word_path, texts_in, max_length):
     word_index = load_json(word_path)
     oov_idx = word_index[OOV]
 
-    text_sents, word_count = tokenizer.sentence_tokens(texts_in)
+    sents_list, word_count = tokenizer.sentence_tokens(texts_in, lowercase)
     text_score = {}
-    for text in texts_in:
-        sents = text_sents[text]
+    for text, sents in zip(texts_in, sents_list):
         Xs = np.ones((len(sents), max_length), dtype='int32') * word_index[PAD]
         for i, sent in enumerate(sents):
             for j, word in enumerate(sent):

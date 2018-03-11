@@ -160,6 +160,7 @@ temp_pickle = 'temp.pkl'
 
 
 def save_pickle(path, obj):
+    print('save_pickle: path=%r obj=%s' % (path, type(obj)))
     with open(temp_pickle, 'wb') as f:
         pickle.dump(obj, f)
     rename(temp_pickle, path)
@@ -181,6 +182,7 @@ temp_pickle_gzip = 'temp.pkl.gzip'
 
 
 def save_pickle_gzip(path, obj):
+    print('save_pickle_gzip: path=%r obj=%s' % (path, type(obj)))
     with gzip.open(temp_pickle, 'wb') as f:
         pickle.dump(obj, f)
     rename(temp_pickle, path)

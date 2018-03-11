@@ -6,9 +6,7 @@ import os
 from collections import defaultdict
 import re
 import spacy
-from spacy.language import Language
-from utils import (xprint, save_json, load_json, save_pickle, load_pickle, save_pickle_gzip,
-    load_pickle_gzip)
+from utils import xprint, save_json, save_pickle_gzip, load_pickle_gzip
 
 
 SPACY_VECTOR_SIZE = 300  # To match SpaCY vectors
@@ -116,14 +114,14 @@ class SpacySentenceTokenizer:
             for text in texts_in:
                 self.text_sents[text] = [[w.lower() for w in sent]
                                          for sent in self.text_sents[text]]
-                for sent in self.text_sents[text]:
-                    for w in sent:
-                        assert islowercase(w), (w, sent, text[:200])
+                # for sent in self.text_sents[text]:
+                #     for w in sent:
+                #         assert islowercase(w), (w, sent, text[:200])
 
-            for text in texts_in:
-                for sent in self.text_sents[text]:
-                    for w in sent:
-                        assert islowercase(w), (w, sent, text[:200])
+            # for text in texts_in:
+            #     for sent in self.text_sents[text]:
+            #         for w in sent:
+            #             assert islowercase(w), (w, sent, text[:200])
 
         word_count = defaultdict(int)
         for text in texts_in:
@@ -131,7 +129,7 @@ class SpacySentenceTokenizer:
                 if lowercase:
                     w = w.lower()
                 word_count[w] += c
-                assert islowercase(w), (w)
+                # assert islowercase(w), (w)
 
         # print('!!!', [self.text_sents[text] for text in texts_in[:2]])
         return [self.text_sents[text] for text in texts_in], word_count
