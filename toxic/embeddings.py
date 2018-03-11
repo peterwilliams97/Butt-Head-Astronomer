@@ -165,8 +165,8 @@ def get_embeddings(embed_name, embed_size, max_features, word_list, word_index):
     emb_mean, emb_std = all_embs.mean(), all_embs.std()
     xprint('emb_mean=%.3f emb_std=%.3f' % (emb_mean, emb_std))
 
-    for i, w in enumerate(word_list[2:]):
-        assert islowercase(w), (i, w)
+    # for i, w in enumerate(word_list[2:]):
+    #     assert islowercase(w), (i, w)
 
     vocab = [OOV, PAD] + [word for word in word_list if word in embeddings_index]
     vocab = vocab[:max_features]
