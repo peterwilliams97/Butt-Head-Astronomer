@@ -219,8 +219,8 @@ def extract_sentences(max_features, texts_in, lowercase, name):
     sents_list, word_count = tokenizer.sentence_tokens(texts_in, lowercase)
     word_list, word_index = make_word_index(word_count, max_features)
 
-    for i, w in enumerate(word_list[2:]):
-        assert islowercase(w), (i, w, lowercase)
+    # for i, w in enumerate(word_list[2:]):
+    #     assert islowercase(w), (i, w, lowercase)
 
     return sents_list, word_list, word_index
 
