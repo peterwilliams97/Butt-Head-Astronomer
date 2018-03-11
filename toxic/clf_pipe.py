@@ -46,12 +46,9 @@ class ClfPipe:
         self.embed_name, self.embed_size = embed_name, embed_size
         self.lowercase = self.embed_name != '840B'
 
-        self.description = ', '.join('%s=%s' % (k, v) for k, v in sorted(self.__dict__.items()))
-        self.model_name = 'lstm_spacy_e.%s.%03d_%03d_%05d_%.3f_%.3f.fr_%s.%s.epochs%d' % (
-            get_n_samples_str(),
-            n_hidden, max_length, max_features,
-            dropout, learn_rate, frozen,
-            lstm_type, epochs)
+        D = self.__dict__
+        self.description = ', '.join('%s=%s' % (k, v) for k, v in sorted(D.items()))
+        self.model_name = 'pipe.%s' % '-'.join(str(D[k]) for k in sorted(D))
 
         self.force_fit = force_fit
         self._shown_paths = False

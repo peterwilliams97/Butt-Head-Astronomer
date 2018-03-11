@@ -2,8 +2,8 @@
 
 pushd ~/data
 
-mkdir glove.twitter.27
-pushd glove.twitter.27
+mkdir glove.twitter.27B
+pushd glove.twitter.27B
 wget http://nlp.stanford.edu/data/glove.twitter.27B.zip
 unzip glove.twitter.27B.zip
 popd
