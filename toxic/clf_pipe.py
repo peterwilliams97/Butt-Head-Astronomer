@@ -47,8 +47,13 @@ class ClfPipe:
         self.lowercase = self.embed_name != '840B'
 
         D = self.__dict__
-        self.description = ', '.join('%s=%s' % (k, v) for k, v in sorted(D.items()))
-        self.model_name = 'pipe.%s' % '-'.join(str(D[k]) for k in sorted(D))
+        description = ', '.join('%s=%s' % (k, v) for k, v in sorted(D.items()))
+        model_name = 'pipe.%s' % '-'.join(str(D[k]) for k in sorted(D))
+        # xprint('model_name=%s' % model_name)
+        self.description = description
+        self.model_name = model_name
+        xprint('model_name=%s' % self.model_name)
+        # assert False
 
         self.force_fit = force_fit
         self._shown_paths = False

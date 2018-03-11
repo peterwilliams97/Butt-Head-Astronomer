@@ -378,6 +378,7 @@ class Evaluator:
             xprint('_evaluate_reductions: reductions=%s' % {k: dim(v)
                 for k, v in reductions.items()})
         except Exception as e:
+            raise
             xprint('!!! _evaluate_reductions, exception=%s' % e)
             return False, {}
 
