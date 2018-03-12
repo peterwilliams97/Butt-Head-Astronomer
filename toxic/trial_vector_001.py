@@ -13,9 +13,9 @@ from reductions import PREDICT_METHODS_GOOD
 
 
 submission_name = 'v_trial_vector_001'
-epochs = 1
+epochs = 40
 random_seed = 60001
-set_n_samples(19999)
+set_n_samples(20000)
 run_summary_path = os.path.join(SUMMARY_DIR,
     '%s.%s.run_summary.json' % (submission_name, get_n_samples_str()))
 
@@ -44,7 +44,7 @@ for lstm_type in [6, 9]:
 
 print('params_list=%d' % len(params_list))
 random.seed(time.time())
-# random.shuffle(params_list)
+random.shuffle(params_list)
 print('params_list=%d' % len(params_list))
 for i, params in enumerate(params_list[:10]):
     print(i, params)
