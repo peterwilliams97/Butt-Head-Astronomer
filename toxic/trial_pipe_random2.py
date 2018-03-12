@@ -26,7 +26,7 @@ def get_clf23():
                    n_hidden=256, max_length=100,  # Shape
                    dropout=0.3, learn_rate=0.001,  # General NN config
                    epochs=epochs, batch_size=150,
-                   lstm_type=lstm_type, predict_method=PREDICT_METHODS_GOOD[0])
+                   lstm_type=lstm_type, predict_method=predict_method)
 
 
 get_clf = get_clf23
@@ -54,6 +54,7 @@ for n_runs0 in range(2):
     print('n_completed0=%d n_runs0=%d' % (n_completed0, n_runs0))
     for p_i, (lstm_type, embed_name, embed_size) in enumerate(params_list):
             xprint('#' * 80)
+            predict_method = PREDICT_METHODS_GOOD[0]
             clf_str = str(get_clf())
             xprint('params %d: %s' % (p_i, clf_str))
             runs = completed_tests.get(clf_str, [])

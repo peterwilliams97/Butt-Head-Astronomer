@@ -8,29 +8,28 @@ import random
 from utils import xprint_init, xprint, load_json, save_json, touch
 from framework import (SUMMARY_DIR, Evaluator, set_random_seed, set_n_samples, get_n_samples_str,
     auc_score_list, show_results)
-from clf_pipe import ClfPipe
+from clf_vector import ClfVector
 from reductions import PREDICT_METHODS_GOOD
 
 
-submission_name = 'p_trial_pipe_007'
-epochs = 40
-random_seed = 50007
+submission_name = 'v_trial_vector_001'
+epochs = 1
+random_seed = 60001
 set_n_samples(19999)
 run_summary_path = os.path.join(SUMMARY_DIR,
     '%s.%s.run_summary.json' % (submission_name, get_n_samples_str()))
 
 
-# ClfPipe(batch_size=150, dropout=0.1, embed_name=6B, embed_size=50, epochs=2,
+# ClfVector(batch_size=150, dropout=0.1, embed_name=6B, embed_size=50, epochs=2,
 #     frozen=False, learn_rate=0.001, learn_rate_unfrozen=0.0, lowercase=True, lstm_type=6,
 #      max_features=20000, max_length=10, n_hidden=16, predict_method=MEAN)
 
 def get_clf():
-    return ClfPipe(embed_name='840B', embed_size=300,
-                   max_features=max_features, max_length=max_length,  # Shape
-                   n_hidden=n_hidden,
-                   dropout=dropout, learn_rate=learn_rate,  # General NN config
-                   batch_size=150,
-                   epochs=epochs, lstm_type=lstm_type, predict_method=predict_method)
+    return ClfVector(max_features=max_features, max_length=max_length,  # Shape
+                     n_hidden=n_hidden,
+                     dropout=dropout, learn_rate=learn_rate,  # General NN config
+                     batch_size=150,
+                     epochs=epochs, lstm_type=lstm_type, predict_method=predict_method)
 
 
 params_list = []
@@ -45,7 +44,7 @@ for lstm_type in [6, 9]:
 
 print('params_list=%d' % len(params_list))
 random.seed(time.time())
-random.shuffle(params_list)
+# random.shuffle(params_list)
 print('params_list=%d' % len(params_list))
 for i, params in enumerate(params_list[:10]):
     print(i, params)
@@ -96,5 +95,5 @@ for n_runs0 in range(2):
                     len(completed_tests) - n_completed0))
             xprint('&' * 100)
 
-touch('completed.p_trial_pipe_004.txt')
+touch('completed.v_trial_vector_001.txt')
 xprint('$' * 100)

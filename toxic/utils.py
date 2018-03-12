@@ -220,20 +220,23 @@ class RocAucEvaluation(Callback):
     """
 
     def __init__(self, validation_data=(), interval=1, model_path=None, config_path=None,
-        do_prime=False):
+        epoch_path=None, do_prime=False):
         super(Callback, self).__init__()
 
         xprint('RocAucEvaluation: validation_data=%s interval=%s, model_path=%s, config_path=%s '
-               'do_prime=%s' % (
-               len(validation_data), interval, model_path, config_path, do_prime))
+               'epoch_path=%s do_prime=%s' % (len(validation_data), interval,
+                model_path, config_path, epoch_path, do_prime))
 
         self.interval = interval
         self.X_val, self.y_val = validation_data
         self.model_path = model_path
         self.config_path = config_path
+        self.epoch_path = epoch_path
+        self.epochs = load_json(epoch_path, {})
+        self.epoch0 = self.epochs.get('epoch1', 0)
         self.best_auc = 0.0
         self.best_epoch = -1
-        self.t0 = time.clock()
+        self.t0 = time.perf_counter()
         if do_prime:
             model = load_model(model_path, config_path)
             y_pred = model.predict(self.X_val, verbose=0)
@@ -253,14 +256,16 @@ class RocAucEvaluation(Callback):
             auc = roc_auc_score(self.y_val, y_pred)
             xprint('\nROC-AUC - epoch: {:d} - score: {:.6f}'.format(epoch + 1, auc))
             logs['val_auc'] = auc
-            dt = time.clock() - self.t0
-            self.t0 = time.clock()
+            dt = time.perf_counter() - self.t0
+            self.t0 = time.perf_counter()
 
             if auc >= self.best_auc + AUC_DELTA:
                 xprint('RocAucEvaluation.fit: auc=%.3f > best_auc=%.3f dt=%.1f sec' % (auc,
                     self.best_auc, dt))
                 self.best_auc = auc
                 self.best_epoch = epoch
+                self.epochs['epoch1'] = self.epoch0 + epoch
+                save_json(self.epoch_path, self.epochs)
 
                 save_model(self.model, self.model_path, self.config_path)
             else:
