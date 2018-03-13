@@ -12,7 +12,7 @@ from utils import xprint, save_pickle, load_pickle
 SPACY_VECTOR_SIZE = 300  # To match SpaCY vectors
 SPACY_VECTOR_TYPE = np.float32
 SPACY_DIR_ = 'spacy.sentence.tokens'
-RE_SPACE = re.compile(r'\s+', re.DOTALL | re.MULTILINE)
+RE_SPACE = re.compile(r'^\s+$', re.DOTALL | re.MULTILINE)
 
 
 def islowercase(w):
@@ -98,6 +98,9 @@ class SpacySentenceTokenizer:
         # texts = [text for text in texts_in]
         if texts:
             nlp = self._load_nlp()
+            vectors = nlp.vocab.vectors
+            lowered = defaultdict(int)
+
             if self.method == 0:
                 for text, doc in zip(texts, nlp.pipe(texts)):
                     tokens = [token for token in doc if not RE_SPACE.search(token.text)]
@@ -113,10 +116,17 @@ class SpacySentenceTokenizer:
                 for text, doc in zip(texts, nlp.pipe(texts)):
                     tokens = []
                     for sent in doc.sents:
-                        toks = [token for token in doc if not RE_SPACE.search(token.text)]
+                        toks = [token.text for token in doc if not RE_SPACE.search(token.text)]
                         # print(' toks= %d %s' % (len(toks), toks))
                         tokens.extend(toks)
                     # print(' tokens=%d %s' % (len(tokens), tokens))
+
+                    for i, w in enumerate(tokens):
+                        if vectors.find(key=w) < 1:
+                            w_l = w.lower()
+                            if vectors.find(key=w_l) >= 0:
+                                tokens[i] = w_l
+                                lowered[w] += 1
 
                     sentences = []
                     i = 0
@@ -129,7 +139,7 @@ class SpacySentenceTokenizer:
 
                     # sentences = [tokens[i:i + max_length] for i in range(0, len(tokens), stride)]
 
-                    self.sent_texts[text] = [[t.text for t in sent] for sent in sentences]
+                    self.sent_texts[text] = sentences # [[t.text for t in sent] for sent in sentences]
                     self.token_count[text] = get_token_count(tokens)
                     # print('sentences=%s' % ['%d: %s\n' % (i, s) for i, s in enumerate(sentences)])
                     # assert False
@@ -144,6 +154,8 @@ class SpacySentenceTokenizer:
             for w, c in self.token_count[text].items():
                 word_count[w] += c
 
+        print('lowered=%d %d %s' % (len(lowered), sum(lowered.values()), sorted(lowered)[:20]))
+
         # print('!!!', [self.sent_texts[text] for text in texts_in[:2]])
         return [self.sent_texts[text] for text in texts_in], word_count
 
@@ -153,8 +165,8 @@ class SpacySentenceTokenizer:
 
 def get_token_count(tokens):
     token_count = defaultdict(int)
-    for t in tokens:
-        token_count[t.text] += 1
+    for w in tokens:
+        token_count[w] += 1
     return token_count
 
 

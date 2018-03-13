@@ -14,7 +14,7 @@ from reductions import PREDICT_METHODS_GOOD
 
 submission_name = 'v_trial_vector_001c'
 epochs = 40
-random_seed = 60001
+random_seed = 60002
 set_n_samples(20000)
 run_summary_path = os.path.join(SUMMARY_DIR,
     '%s.%s.run_summary.json' % (submission_name, get_n_samples_str()))
@@ -34,17 +34,17 @@ def get_clf():
 
 params_list = []
 for lstm_type in [6, 9]:
-    for max_length in [20, 50]: # [50, 75, 100, 150]:
-        for max_features in [20000]: # [20000, 25000, 30000, 40000]:
+    for max_length in [20, 50]:  # [50, 75, 100, 150]:
+        for max_features in [20000]:  # [20000, 25000, 30000, 40000]:
             for n_hidden in [64, 128, 256]:
-                for dropout in [0.1, 0.3, 0.5]:  # [0.1, 0.3, 0.5]:
+                for dropout in [0.5]:  # [0.1, 0.3, 0.5]:
                     for learn_rate in [0.001, 0.002]:
                         params = (lstm_type, max_length, max_features, n_hidden, dropout, learn_rate)
                         params_list.append(params)
 
 print('params_list=%d' % len(params_list))
 random.seed(time.time())
-# random.shuffle(params_list)
+random.shuffle(params_list)
 print('params_list=%d' % len(params_list))
 for i, params in enumerate(params_list[:10]):
     print(i, params)

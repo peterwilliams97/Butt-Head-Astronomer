@@ -293,7 +293,7 @@ def build_lstm10(embeddings, shape, settings):
     model.add(Dropout(settings['dropout'] / 2.0, name='drop9b'))
 
     model.add(Dense(shape['n_class'], activation='sigmoid', name='den9b'))
-    xprint('build_lstm9: embeddings=%s shape=%s' % (dim(embeddings), shape))
+    xprint('build_lstm10: embeddings=%s shape=%s' % (dim(embeddings), shape))
     return model
 
 
@@ -331,7 +331,32 @@ def build_lstm11(embeddings, shape, settings):
     model.add(Dropout(settings['dropout'] / 2.0, name='drop9b'))
 
     model.add(Dense(shape['n_class'], activation='sigmoid', name='den9b'))
-    xprint('build_lstm9: embeddings=%s shape=%s' % (dim(embeddings), shape))
+    xprint('build_lstm11: embeddings=%s shape=%s' % (dim(embeddings), shape))
+    return model
+
+
+def build_lstm12(embeddings, shape, settings):
+    """build_lstm6 with more dropout"""
+    model = Sequential()
+    model.add(
+        Embedding(
+            embeddings.shape[0],
+            embeddings.shape[1],
+            input_length=shape['max_length'],
+            trainable=False,
+            weights=[embeddings],
+            mask_zero=False
+        )
+    )
+    model.add(TimeDistributed(Dense(shape['n_hidden'], use_bias=False), name='td6'))
+    model.add(Bidirectional(LSTM(shape['n_hidden'], return_sequences=True,
+                                 recurrent_dropout=settings['dropout'],
+                                 dropout=settings['dropout'])))
+    model.add(GlobalMaxPool1D())
+    model.add(BatchNormalization())
+    model.add(Dropout(settings['dropout']))
+    model.add(Dense(shape['n_class'], activation='sigmoid'))
+    xprint('build_lstm12: embeddings=%s shape=%s' % (dim(embeddings), shape))
     return model
 
 
@@ -347,6 +372,8 @@ build_lstm = {
     9: build_lstm9,
     10: build_lstm10,
     11: build_lstm11,
+    12: build_lstm12,
+
 }
 
 
