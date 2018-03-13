@@ -257,7 +257,7 @@ class RocAucEvaluation(Callback):
             # print('on_epoch_end: y_val=%s' % dim2(self.y_val))
             # print('on_epoch_end: y_pred=%s' % dim2(y_pred))
 
-            auc = roc_auc_score(self.y_val, y_pred, sample_weight=self.self.w_val)
+            auc = roc_auc_score(self.y_val, y_pred, sample_weight=self.w_val)
             xprint('\nROC-AUC - epoch: {:d} - score: {:.6f} {}'.format(epoch + 1, auc, self.epoch_key))
             logs['val_auc'] = auc
             dt = time.perf_counter() - self.t0
