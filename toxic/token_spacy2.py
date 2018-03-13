@@ -25,7 +25,8 @@ def islowercase(w):
 
 class SpacySentenceTokenizer:
 
-    def __init__(self, method=1):
+    def __init__(self, method=2):
+        assert method == 2, method
         self.method = method
         spacy_dir = '%s.%d' % (SPACY_DIR_, method)
         os.makedirs(spacy_dir, exist_ok=True)
@@ -83,7 +84,7 @@ class SpacySentenceTokenizer:
             self.sent_texts_len = len(self.sent_texts)
 
         if self.token_count_len + min_delta < self._total_counts():
-            print('_save 2: %7d = %7d + %4d %s' % (len(self.token_count),
+            print('_save 2: %7d = %7d + %4d %s' % (self._total_counts(),
                 self.token_count_len, self._total_counts() - self.token_count_len,
                 self.token_count_path))
             save_pickle(self.token_count_path, self.token_count)
@@ -101,60 +102,57 @@ class SpacySentenceTokenizer:
             vectors = nlp.vocab.vectors
             lowered = defaultdict(int)
 
-            if self.method == 0:
-                for text, doc in zip(texts, nlp.pipe(texts)):
-                    tokens = [token for token in doc if not RE_SPACE.search(token.text)]
-                    sentences = [tokens[i:i + max_length] for i in range(0, len(tokens), stride)]
-                    self.sent_texts[text] = [[t.text for t in sent] for sent in sentences]
-                    self.token_count[text] = get_token_count(tokens)
+            texts_clean = [txt.replace('´', "'") for txt in texts]
 
-                    if self.n_calls % 10000 == 1:
-                        print('**token_lists: n_calls=%d' % self.n_calls)
-                        self._save()
-                    self.n_calls += 1
-            elif self.method == 1:
-                for text, doc in zip(texts, nlp.pipe(texts)):
+            for text, doc in zip(texts, nlp.pipe(texts_clean)):
+                if self.method == 0:
+                    tokens = [token.text for token in doc if not RE_SPACE.search(token.text)]
+                elif self.method in (1, 2):
                     tokens = []
                     for sent in doc.sents:
                         toks = [token.text for token in doc if not RE_SPACE.search(token.text)]
                         # print(' toks= %d %s' % (len(toks), toks))
                         tokens.extend(toks)
-                    # print(' tokens=%d %s' % (len(tokens), tokens))
-
+                else:
+                    assert False, 'Bad method=%d' % self.method
+                if self.method == 2:
                     for i, w in enumerate(tokens):
                         if vectors.find(key=w) < 1:
                             w_l = w.lower()
-                            if vectors.find(key=w_l) >= 0:
+                            if w_l != w and vectors.find(key=w_l) >= 0:
+                                tokens[i] = w_l
+                                lowered[w] += 1
+                                continue
+                            w_l = w.upper()
+                            if w_l != w and vectors.find(key=w_l) >= 0:
                                 tokens[i] = w_l
                                 lowered[w] += 1
 
-                    sentences = []
-                    i = 0
-                    while True:
-                        sentences.append(tokens[i:i + max_length])
-                        delta = 10 if i > 0 else 0
-                        if i + max_length + delta >= len(tokens):
-                            break
-                        i += stride
+                sentences = []
+                i = 0
+                while True:
+                    sentences.append(tokens[i:i + max_length])
+                    delta = 10 if i > 0 else 0
+                    if i + max_length + delta >= len(tokens):
+                        break
+                    i += stride
 
-                    # sentences = [tokens[i:i + max_length] for i in range(0, len(tokens), stride)]
+                self.sent_texts[text] = sentences  # [[t.text for t in sent] for sent in sentences]
+                self.token_count[text] = get_token_count(tokens)
+                # print('sentences=%s' % ['%d: %s\n' % (i, s) for i, s in enumerate(sentences)])
+                # assert False
 
-                    self.sent_texts[text] = sentences # [[t.text for t in sent] for sent in sentences]
-                    self.token_count[text] = get_token_count(tokens)
-                    # print('sentences=%s' % ['%d: %s\n' % (i, s) for i, s in enumerate(sentences)])
-                    # assert False
+                if self.n_calls % 10000 == 1:
+                    print('**token_lists: n_calls=%d' % self.n_calls)
+                    self._save()
+                self.n_calls += 1
 
-                    if self.n_calls % 10000 == 1:
-                        print('**token_lists: n_calls=%d' % self.n_calls)
-                        self._save()
-                    self.n_calls += 1
+            print('lowered=%d %d %s' % (len(lowered), sum(lowered.values()), sorted(lowered)[:20]))
 
         word_count = defaultdict(int)
         for text in texts_in:
             for w, c in self.token_count[text].items():
                 word_count[w] += c
-
-        print('lowered=%d %d %s' % (len(lowered), sum(lowered.values()), sorted(lowered)[:20]))
 
         # print('!!!', [self.sent_texts[text] for text in texts_in[:2]])
         return [self.sent_texts[text] for text in texts_in], word_count
@@ -163,9 +161,9 @@ class SpacySentenceTokenizer:
         self._save()
 
 
-def get_token_count(tokens):
+def get_token_count(words):
     token_count = defaultdict(int)
-    for w in tokens:
+    for w in words:
         token_count[w] += 1
     return token_count
 
