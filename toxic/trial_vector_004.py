@@ -12,9 +12,9 @@ from clf_vector import ClfVector
 from reductions import PREDICT_METHODS_GOOD
 
 
-submission_name = 'v_trial_vector_004'
+submission_name = 'v_trial_vector_004a'
 epochs = 40
-random_seed = 60004
+random_seed = 60014
 set_n_samples(20000)
 run_summary_path = os.path.join(SUMMARY_DIR,
     '%s.%s.run_summary.json' % (submission_name, get_n_samples_str()))

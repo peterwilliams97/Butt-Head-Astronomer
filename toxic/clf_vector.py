@@ -158,13 +158,14 @@ def do_fit(train_texts, train_labels, dev_texts, dev_labels, lstm_shape, lstm_se
     assert 0 <= min(word_index.values()) and max(word_index.values()) < embeddings.shape[0]
     save_json(word_path, word_index)
 
-    X_train, y_train = apply_word_index(max_length, X_sents, word_index, train_texts, train_labels, 'train')
+    X_train, w_train, y_train = apply_word_index(max_length, X_sents, word_index, train_texts, train_labels, 'train')
     if dev_texts is not None:
-        X_val, y_val = apply_word_index(max_length, y_sents, word_index, dev_texts, dev_labels, 'dev')
+        X_val, _, y_val = apply_word_index(max_length, y_sents, word_index, dev_texts, dev_labels, 'dev')
         validation_data = (X_val, y_val)
 
     print('^^^embeddings=%s' % dim(embeddings))
     print('^^^X_train=%d..%d' % (X_train.min(), X_train.max()))
+    print('^^^w_train=%g..%g mean=%g' % (w_train.min(), w_train.max(), w_train.mean()))
     print('^^^X_val=%d..%d' % (X_val.min(), X_val.max()))
     assert 0 <= X_train.min() and X_train.max() < embeddings.shape[0]
     assert 0 <= X_val.min() and X_val.max() < embeddings.shape[0]
@@ -208,7 +209,8 @@ def do_fit(train_texts, train_labels, dev_texts, dev_labels, lstm_shape, lstm_se
         print('!^^^X_train=%d..%d' % (X_train.min(), X_train.max()))
         print('!^^^X_val=%d..%d' % (X_val.min(), X_val.max()))
 
-        model.fit(X_train, y_train, batch_size=batch_size, epochs=epochs, callbacks=callback_list,
+        model.fit(X_train, y_train, sample_weight=w_train,
+                  batch_size=batch_size, epochs=epochs, callbacks=callback_list,
                   validation_data=validation_data, verbose=1)
         if validation_data is not None:
             best_epochs[run] = ra_val.best_epoch
@@ -229,6 +231,7 @@ def apply_word_index(max_length, sent_texts, word_index, texts_in, labels_in, na
 
     # PAD = 0 so Xs is all PADs to start with
     Xs = np.zeros((n_sentences, max_length), dtype='int32')
+    weights = np.zeros(n_sentences, dtype=np.float32)
     ys = np.zeros((n_sentences, len(LABEL_COLS)), dtype='int32')
     xprint('extract_sentences: Xs=%s ys=%s' % (dim(Xs), dim(ys)))
 
@@ -241,9 +244,11 @@ def apply_word_index(max_length, sent_texts, word_index, texts_in, labels_in, na
     # assert N > 1000, (n_sentences, N)
     i = 0
     for sents, y in zip(sent_texts, labels_in):
+        wgt = 1.0 / len(sents)
         for sent in sents:
             for j, word in enumerate(sent[:max_length]):
                 Xs[order[i], j] = word_index.get(word, oov_idx)
+            weights[order[i]] = wgt
             ys[order[i]] = y
             if i % N == 0 or (i + 1) == n_sentences:
                 dt = max(time.perf_counter() - t0, 1.0)
@@ -252,36 +257,8 @@ def apply_word_index(max_length, sent_texts, word_index, texts_in, labels_in, na
                          (name, i, 100.0 * i / n_sentences, dt, i / dt))
             i += 1
 
-    return Xs, ys
-
-
-# def make_word_index(word_count, max_features, verbose=True):
-#     xprint('make_word_index: word_count=%d max_features=%d' % (len(word_count), max_features))
-#     ordinary = list(word_count)
-
-#     # Keep the most commmon `max_features` words in the embedding
-#     # words = [-1 (OOV), 0 (PAD), word ids]
-#     # special = words[:2]
-#     # ordinary = words[2:]
-#     ordinary.sort(key=lambda w: (-word_count[w], w))
-#     word_list = [PAD] + ordinary
-#     word_index = {w: i for i, w in enumerate(word_list)}
-
-#     if verbose:
-#         ordinary_keep = ordinary[:max_features - 2]
-#         wc_all = {w: word_count[w] for w in ordinary}
-#         wc_keep = {w: word_count[w] for w in ordinary_keep}
-#         n_a = len(wc_all)
-#         m_a = sum(wc_all.values())
-#         r_a = m_a / n_a
-#         n_k = len(wc_keep)
-#         m_k = sum(wc_keep.values())
-#         r_k = m_k / n_k
-#         xprint('  all : unique=%d total=%d ave repeats=%.1f' % (n_a, m_a, r_a))
-#         xprint('  keep: unique=%d total=%d ave repeats=%.1f' % (n_k, m_k, r_k))
-#         xprint('  frac: unique=%.3f total=%.3f repeats=%.3f' % (n_k / n_a, m_k / m_a, r_k / r_a))
-
-#     return word_list, word_index
+    weights /= weights.mean()
+    return Xs, weights, ys
 
 
 def get_spacy_embeddings(max_features, word_count):
@@ -338,6 +315,19 @@ def get_spacy_embeddings(max_features, word_count):
         len(word_index)))
     assert 0 <= min(word_index.values()) and max(word_index.values()) < embeddings.shape[0]
     return embeddings, word_index
+
+
+def compute_reduction_weights(model_path, config_path, word_path, texts, methods, max_length):
+    text_ys = predict_ys(model_path, config_path, word_path, texts, max_length)
+
+    reductions = {method: np.zeros((len(texts), len(LABEL_COLS)), dtype=np.float32)
+                  for method in methods}
+    for i, text in enumerate(texts):
+        ys = text_ys[text]
+        for method in methods:
+            reductions[method][i, :] = reduce(ys, method)
+
+    return reductions
 
 
 def predict_reductions(model_path, config_path, word_path, texts, methods, max_length):

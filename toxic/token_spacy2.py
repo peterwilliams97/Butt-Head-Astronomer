@@ -25,10 +25,11 @@ def islowercase(w):
 
 class SpacySentenceTokenizer:
 
-    def __init__(self, method):
+    def __init__(self, method, max_words=500):
 
         self.method = method
-        spacy_dir = '%s.%d' % (SPACY_DIR_, method)
+        self.max_words = max_words
+        spacy_dir = '%s.%d.%d' % (SPACY_DIR_, method, max_words)
         os.makedirs(spacy_dir, exist_ok=True)
         self.sent_texts_path = os.path.join(spacy_dir, 'sentence.text.tokens.pkl')
         self.token_count_path = os.path.join(spacy_dir, 'sentence.text.tokens.count.pkl')
@@ -114,6 +115,8 @@ class SpacySentenceTokenizer:
                         toks = [token.text for token in doc if not RE_SPACE.search(token.text)]
                         # print(' toks= %d %s' % (len(toks), toks))
                         tokens.extend(toks)
+                        if len(tokens) >= self.max_words:
+                            break
                 else:
                     assert False, 'Bad method=%d' % self.method
                 if self.method == 2:
@@ -129,6 +132,7 @@ class SpacySentenceTokenizer:
                                 tokens[i] = w_l
                                 lowered[w] += 1
 
+                tokens = tokens[:self.max_words]
                 sentences = []
                 i = 0
                 while True:
