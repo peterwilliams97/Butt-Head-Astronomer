@@ -13,14 +13,15 @@ from reductions import reduce, MEAN
 
 OOV = '[OOV]'
 PAD = '[PAD]'
-tokenizer = SpacySentenceTokenizer()
+tokenizer = None
 
 
 class ClfVector:
 
     def __init__(self, n_hidden=64, max_length=100, max_features=20000,  # Shape
         dropout=0.5, learn_rate=0.001, learn_rate_unfrozen=0.0, frozen=False,  # General NN config
-        epochs=5, batch_size=100, lstm_type=1, predict_method=MEAN, force_fit=False):
+        epochs=5, batch_size=100, lstm_type=1, predict_method=MEAN, token_method=None,
+        force_fit=False):
         """
             n_hidden: Number of elements in the LSTM layer
             max_length: Max length of comment text
@@ -30,6 +31,7 @@ class ClfVector:
             2 stages of training: frozen, unfrozen
 
         """
+        global tokenizer
         self.n_hidden = n_hidden
         self.max_length = max_length
         self.dropout = dropout
@@ -39,6 +41,7 @@ class ClfVector:
         self.epochs = epochs
         self.batch_size = batch_size
         self.lstm_type = lstm_type
+        self.token_method = token_method
 
         D = self.__dict__
         model_name = 'pipe.%s' % '-'.join(str(D[k]) for k in sorted(D))
@@ -59,6 +62,8 @@ class ClfVector:
 
         self.best_epoch = -1
         assert lstm_type in build_lstm, self.description
+
+        tokenizer = SpacySentenceTokenizer(method=self.token_method)
 
     def __repr__(self):
         return 'ClfVector(%s)' % self.description

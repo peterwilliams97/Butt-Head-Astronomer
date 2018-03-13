@@ -25,8 +25,8 @@ def islowercase(w):
 
 class SpacySentenceTokenizer:
 
-    def __init__(self, method=2):
-        assert method == 2, method
+    def __init__(self, method):
+
         self.method = method
         spacy_dir = '%s.%d' % (SPACY_DIR_, method)
         os.makedirs(spacy_dir, exist_ok=True)
@@ -34,7 +34,8 @@ class SpacySentenceTokenizer:
         self.token_count_path = os.path.join(spacy_dir, 'sentence.text.tokens.count.pkl')
         self.sent_texts = load_pickle(self.sent_texts_path, {})
         self.token_count = load_pickle(self.token_count_path, {})
-        xprint("SpacySentenceWordCache: sent path=%s len=%d" % (self.sent_texts_path, len(self.sent_texts)))
+        xprint("SpacySentenceWordCache: method=%d sent path=%s len=%d" % (self.method,
+            self.sent_texts_path, len(self.sent_texts)))
         self.sent_texts_len = len(self.sent_texts)
         self.token_count_len = self._total_counts()
         self.nlp = None
