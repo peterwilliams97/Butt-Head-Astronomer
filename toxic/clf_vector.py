@@ -116,7 +116,7 @@ class ClfVector:
             lstm_settings, {},
             batch_size=self.batch_size, lstm_type=self.lstm_type, epochs=self.epochs,
             model_path=model_path, config_path=config_path, word_path=word_path, epoch_path=epoch_path,
-            max_features=self.max_features)
+            max_features=self.max_features, single_oov=self.single_oov)
 
         assert isinstance(epoch_dict, dict), epoch_dict
         xprint('****: best_epochs=%s - %s ' % (epoch_dict, self.description))
@@ -272,6 +272,9 @@ def get_spacy_embeddings(max_features, word_count, single_oov):
     # Use these vectors to create our embedding matrix, with random initialization for words
     # that aren't in GloVe. We'll use the same mean and stdev of embeddings the GloVe has when
     # generating the random init.
+
+
+    assert isinstance(single_oov, bool), single_oov
 
     nlp = tokenizer._load_nlp()
     vectors = nlp.vocab.vectors
