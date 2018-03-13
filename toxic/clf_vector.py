@@ -292,6 +292,8 @@ def get_spacy_embeddings(max_features, word_count):
     data = nlp.vocab.vectors.data
     embed_size = data.shape[1]
     emb_mean, emb_std = data.mean(), data.std()
+
+    xprint('get_spacy_embeddings: max_features=%d word_count=%d' % (max_features, len(word_count)))
     xprint('get_spacy_embeddings: data=%s emb_mean=%.3f emb_std=%.3f range=%.3f %.3f' % (dim(data),
         emb_mean, emb_std, data.min(), data.max()))
 
@@ -312,6 +314,9 @@ def get_spacy_embeddings(max_features, word_count):
         w_vid = word_vid[word]
         if w_vid >= 0:
             embeddings[i:, :] = data[w_vid, :]
+
+    xprint('get_spacy_embeddings: embeddings=%s mean=%.3f std=%.3f range=%.3f %.3f' % (dim(embeddings),
+        embeddings.mean(), embeddings.std(), embeddings.min(), embeddings.max()))
 
     xprint('get_spacy_embeddings: oov=%d %s' % (len(oov), [(w, word_vid[w]) for w in oov[:50]]))
 
