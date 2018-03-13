@@ -21,6 +21,7 @@ class ClfVector:
     def __init__(self, n_hidden=64, max_length=100, max_features=20000,  # Shape
         dropout=0.5, learn_rate=0.001, learn_rate_unfrozen=0.0, frozen=False,  # General NN config
         epochs=5, batch_size=100, lstm_type=1, predict_method=MEAN, token_method=None,
+        single_oov=False,
         force_fit=False):
         """
             n_hidden: Number of elements in the LSTM layer
@@ -42,6 +43,7 @@ class ClfVector:
         self.batch_size = batch_size
         self.lstm_type = lstm_type
         self.token_method = token_method
+        self.single_oov = single_oov
 
         D = self.__dict__
         model_name = 'pipe.%s' % '-'.join(str(D[k]) for k in sorted(D))
@@ -140,7 +142,7 @@ class ClfVector:
 def do_fit(train_texts, train_labels, dev_texts, dev_labels, lstm_shape, lstm_settings,
     lstm_optimizer, batch_size=100, epochs=5,
     model_path=None, config_path=None, epoch_path=None, word_path=None,
-    lstm_type=1, max_features=None):
+    lstm_type=1, max_features=None, single_oov=None):
     """Train a Keras model on the sentences in `train_texts`
         All the sentences in a text have the text's label
     """
@@ -154,7 +156,7 @@ def do_fit(train_texts, train_labels, dev_texts, dev_labels, lstm_shape, lstm_se
         y_sents, _ = tokenizer.token_lists(dev_texts, max_length)
     tokenizer.flush()
 
-    embeddings, word_index = get_spacy_embeddings(max_features, word_count)
+    embeddings, word_index = get_spacy_embeddings(max_features, word_count, single_oov)
     assert 0 <= min(word_index.values()) and max(word_index.values()) < embeddings.shape[0]
     save_json(word_path, word_index)
 
@@ -263,7 +265,7 @@ def apply_word_index(max_length, sent_texts, word_index, texts_in, labels_in, na
     return Xs, weights, ys
 
 
-def get_spacy_embeddings(max_features, word_count):
+def get_spacy_embeddings(max_features, word_count, single_oov):
     """Returns: embedding matrix n_words x embed_size
                 n_words <= max_features
     """
@@ -277,13 +279,15 @@ def get_spacy_embeddings(max_features, word_count):
     embed_size = data.shape[1]
     emb_mean, emb_std = data.mean(), data.std()
 
-    xprint('get_spacy_embeddings: max_features=%d word_count=%d' % (max_features, len(word_count)))
+    xprint('get_spacy_embeddings: max_features=%d word_count=%d single_oov=%s' % (max_features,
+        len(word_count), single_oov))
     xprint('get_spacy_embeddings: data=%s emb_mean=%.3f emb_std=%.3f range=%.3f %.3f' % (dim(data),
         emb_mean, emb_std, data.min(), data.max()))
 
     word_list = sorted(word_count, key=lambda w: (-word_count[w], w))
     word_vid = {w: vectors.find(key=w) for w in word_list}
-    # vocab = [PAD] + [word for word in word_list if word_index[word] >= 0]
+    if single_oov:
+        word_list = [w for w in word_list if word_vid[w] >= 0]
     vocab = [OOV, PAD] + word_list
     vocab = vocab[:max_features]
     oov = [word for word in word_list if word_vid[word] < 0]
@@ -292,7 +296,6 @@ def get_spacy_embeddings(max_features, word_count):
     embeddings = np.random.normal(emb_mean, emb_std, (len(vocab), embed_size)).astype(np.float32)
     xprint('get_spacy_embeddings: embeddings=%s mean=%.3f std=%.3f range=%.3f %.3f' % (dim(embeddings),
         embeddings.mean(), embeddings.std(), embeddings.min(), embeddings.max()))
-    # embeddings[0, :] = np.random.normal(emb_mean, emb_std, embed_size)   # OOV
     embeddings[1, :] = np.zeros(embed_size, dtype=np.float32)  # PAD
     for i, word in enumerate(vocab[2:]):
         w_vid = word_vid[word]
