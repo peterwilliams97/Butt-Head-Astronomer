@@ -160,10 +160,11 @@ temp_pickle = 'temp.pkl'
 
 
 def save_pickle(path, obj):
-    print('save_pickle: path=%r obj=%s' % (path, type(obj)))
+    print('save_pickle: path=%r obj=%s' % (path, type(obj)), end='')
     with open(temp_pickle, 'wb') as f:
         pickle.dump(obj, f)
     rename(temp_pickle, path)
+    print(' - saved')
 
 
 def load_pickle_gzip(path, default=None):
@@ -182,10 +183,11 @@ temp_pickle_gzip = 'temp.pkl.gzip'
 
 
 def save_pickle_gzip(path, obj):
-    print('save_pickle_gzip: path=%r obj=%s' % (path, type(obj)))
+    print('save_pickle_gzip: path=%r obj=%s' % (path, type(obj)), end='')
     with gzip.open(temp_pickle, 'wb') as f:
         pickle.dump(obj, f)
     rename(temp_pickle, path)
+    print(' - saved')
 
 
 def load_model(model_path, config_path):
