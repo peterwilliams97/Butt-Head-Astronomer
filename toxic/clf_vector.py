@@ -318,7 +318,8 @@ def get_spacy_embeddings(max_features, word_count):
     xprint('get_spacy_embeddings: embeddings=%s mean=%.3f std=%.3f range=%.3f %.3f' % (dim(embeddings),
         embeddings.mean(), embeddings.std(), embeddings.min(), embeddings.max()))
 
-    xprint('get_spacy_embeddings: oov=%d %s' % (len(oov), [(w, word_vid[w]) for w in oov[:50]]))
+    xprint('get_spacy_embeddings: oov=%d=%.3f %s' % (len(oov), len(oov) / len(word_count),
+        [(w, word_vid[w]) for w in oov[:50]]))
 
     xprint('get_spacy_embeddings:'
            '\n max_features=%d word_list=%d word_index=%d data=%s'

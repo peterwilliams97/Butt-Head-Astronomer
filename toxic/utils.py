@@ -250,9 +250,9 @@ class RocAucEvaluation(Callback):
         if epoch % self.interval == 0:
             y_pred = self.model.predict(self.X_val, verbose=0)
 
-            print('\non_epoch_end: X_val=%s' % dim2(self.X_val))
-            print('on_epoch_end: y_val=%s' % dim2(self.y_val))
-            print('on_epoch_end: y_pred=%s' % dim2(y_pred))
+            # print('\non_epoch_end: X_val=%s' % dim2(self.X_val))
+            # print('on_epoch_end: y_val=%s' % dim2(self.y_val))
+            # print('on_epoch_end: y_pred=%s' % dim2(y_pred))
 
             auc = roc_auc_score(self.y_val, y_pred)
             xprint('\nROC-AUC - epoch: {:d} - score: {:.6f} {}'.format(epoch + 1, auc, self.epoch_key))
