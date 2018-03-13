@@ -303,12 +303,12 @@ class Evaluator:
         clf = None
         try:
             clf = get_clf()
-            t0 = time.clock()
+            t0 = time.perf_counter()
             clf.fit(train_part)
-            print('_evaluate %d fit duration=%.1f sec' % (i, time.clock() - t0))
-            t0 = time.clock()
+            print('_evaluate %d fit duration=%.1f sec' % (i, time.perf_counter() - t0))
+            t0 = time.perf_counter()
             pred = clf.predict(test_part)
-            print('_evaluate %d predict duration=%.1f sec' % (i, time.clock() - t0))
+            print('_evaluate %d predict duration=%.1f sec' % (i, time.perf_counter() - t0))
             print('!!! _evaluate pred=%s' % dim(pred))
         except Exception as e:
             raise
@@ -369,12 +369,12 @@ class Evaluator:
         clf = None
         try:
             clf = get_clf()
-            t0 = time.clock()
+            t0 = time.perf_counter()
             clf.fit(train_part)
-            xprint('_evaluate_reductions %d fit duration=%.1f sec' % (i, time.clock() - t0))
-            t0 = time.clock()
+            xprint('_evaluate_reductions %d fit duration=%.1f sec' % (i, time.perf_counter() - t0))
+            t0 = time.perf_counter()
             reductions = clf.predict_reductions(test_part, predict_methods)
-            xprint('_evaluate_reductions: %d predict duration=%.1f sec' % (i, time.clock() - t0))
+            xprint('_evaluate_reductions: %d predict duration=%.1f sec' % (i, time.perf_counter() - t0))
             xprint('_evaluate_reductions: reductions=%s' % {k: dim(v)
                 for k, v in reductions.items()})
         except Exception as e:

@@ -72,23 +72,24 @@ class ClfVector:
         config_path = os.path.join(model_dir, 'config.json')
         word_path = os.path.join(model_dir, 'words.json')
         epoch_path = os.path.join(model_dir, 'epochs.json')
+        epoch_dict = load_json(epoch_path, {})
         if not self._shown_paths:
             xprint('model_path=%s exists=%s' % (model_path, os.path.exists(model_path)))
             xprint('config_path=%s exists=%s' % (config_path, os.path.exists(config_path)))
             xprint('word_path=%s exists=%s' % (word_path, os.path.exists(word_path)))
             xprint('epoch_path=%s exists=%s' % (epoch_path, os.path.exists(epoch_path)))
-            xprint('epoch_dict=%s' % SaveAllEpochs.epoch_dict(epoch_path))
+            xprint('epoch_dict=%s' % epoch_dict)
             self._shown_paths = True
-        return model_path, config_path, word_path, epoch_path
+        return model_path, config_path, word_path, epoch_path, epoch_dict
 
     def fit(self, train, test_size=0.1):
         xprint('ClfVector.fit', '-' * 80)
 
-        model_path, config_path, word_path, epoch_path = self._get_paths(True)
+        model_path, config_path, word_path, epoch_path, epoch_dict = self._get_paths(True)
         if not self.force_fit:
             if (os.path.exists(model_path) and os.path.exists(config_path) and
                 os.path.exists(word_path) and
-                SaveAllEpochs.epoch_dict(epoch_path)['epoch1'] == self.epochs):
+                epoch_dict.get('done2', False)):
                 xprint('model_path already exists. re-using')
                 return
 
@@ -104,20 +105,20 @@ class ClfVector:
         lstm_settings = {'dropout': self.dropout,
                          'lr': self.learn_rate,
                          'lr_unfrozen': self.learn_rate_unfrozen}
-        lstm, self.best_epochs = do_fit(X_train, y_train, X_val, y_val, lstm_shape,
+        lstm, epoch_dict = do_fit(X_train, y_train, X_val, y_val, lstm_shape,
             lstm_settings, {},
             batch_size=self.batch_size, lstm_type=self.lstm_type, epochs=self.epochs,
             model_path=model_path, config_path=config_path, word_path=word_path, epoch_path=epoch_path,
             max_features=self.max_features)
 
-        assert isinstance(self.best_epochs, dict), self.best_epochs
-        xprint('****: best_epochs=%s - %s Add 1 to this' % (self.best_epochs, self.description))
+        assert isinstance(epoch_dict, dict), epoch_dict
+        xprint('****: best_epochs=%s - %s ' % (epoch_dict, self.description))
         del lstm
 
     def predict_reductions(self, test, predict_methods):
         print('ClfVector.predict_reductions', '-' * 80)
         X_test = df_to_sentences(test)
-        model_path, config_path, word_path, _ = self._get_paths(False)
+        model_path, config_path, word_path, _, _ = self._get_paths(False)
 
         assert os.path.exists(model_path), model_path
         assert os.path.exists(config_path), config_path
@@ -141,7 +142,6 @@ def do_fit(train_texts, train_labels, dev_texts, dev_labels, lstm_shape, lstm_se
     max_length = lstm_shape['max_length']
 
     xprint('do_fit: train_texts=%s dev_texts=%s' % (dim(train_texts), dim(dev_texts)))
-    best_epochs = {}
 
     X_sents, word_count = tokenizer.token_lists(train_texts, max_length)
     validation_data = None
@@ -168,47 +168,55 @@ def do_fit(train_texts, train_labels, dev_texts, dev_labels, lstm_shape, lstm_se
 
     xprint('built and compiled models')
 
-    param_list = [(lstm_settings['lr'], True),
-                  (lstm_settings['lr_unfrozen'], False)]
+    param_list = [(lstm_settings['lr'], True, 'epoch1', 'done1'),
+                  (lstm_settings['lr_unfrozen'], False, 'epoch2', 'done2')]
     best_epochs = {}
 
-    for run, (learning_rate, frozen) in enumerate(param_list):
-        xprint('do_fit: run=%d learning_rate=%g frozen=%s' % (run, learning_rate, frozen))
+    for run, (learning_rate, frozen, epoch_key, done_key) in enumerate(param_list):
+        xprint('do_fit: run=%d learning_rate=%g frozen=%s epoch_key=%s done_key=%s' % (run,
+            learning_rate, frozen, epoch_key, done_key))
+
+        epoch_dict = load_json(epoch_path, {})
+        xprint('epoch_dict=%s' % epoch_dict)
+        epochs -= epoch_dict.get(epoch_key, 0)
+        if epoch_dict.get(done_key, False) or epochs <= 0:
+            xprint('do_fit: run %d is complete')
+            continue
+
         if run > 0:
-            xprint('Reloading partially stopped model')
+            xprint('Reloading partially trained model')
             model = load_model(model_path, config_path)
 
         compile_lstm(model, learning_rate, frozen)
         callback_list = None
 
         if validation_data is not None:
-            ra_val = RocAucEvaluation(validation_data=validation_data, interval=1,
+            ra_val = RocAucEvaluation(validation_data=validation_data, interval=1, epoch_key=epoch_key,
                 model_path=model_path, config_path=config_path, epoch_path=epoch_path, do_prime=run > 0)
             early = EarlyStopping(monitor='val_auc', mode='max', patience=2, verbose=1)
             callback_list = [ra_val, early]
         else:
             sae = SaveAllEpochs(model_path, config_path, epoch_path, True)
-            if sae.last_epoch1() > 0:
-                xprint('Reloading partially built model 1')
-                model = load_model(model_path, config_path)
-                compile_lstm(model, learning_rate, frozen)
-                epochs -= sae.last_epoch1()
             callback_list = [sae]
 
-        if epochs > 0:
-            print('!^^^embeddings=%s' % dim(embeddings))
-            print('!^^^X_train=%d..%d' % (X_train.min(), X_train.max()))
-            print('!^^^X_val=%d..%d' % (X_val.min(), X_val.max()))
+        print('!^^^embeddings=%s' % dim(embeddings))
+        print('!^^^X_train=%d..%d' % (X_train.min(), X_train.max()))
+        print('!^^^X_val=%d..%d' % (X_val.min(), X_val.max()))
 
-            model.fit(X_train, y_train, batch_size=batch_size, epochs=epochs, callbacks=callback_list,
-                      validation_data=validation_data, verbose=1)
-            if validation_data is not None:
-                best_epochs[run] = ra_val.best_epoch
-                ra_val.best_epoch = -1
-            else:
-                save_model(model, model_path, config_path)
+        model.fit(X_train, y_train, batch_size=batch_size, epochs=epochs, callbacks=callback_list,
+                  validation_data=validation_data, verbose=1)
+        if validation_data is not None:
+            best_epochs[run] = ra_val.best_epoch
+            ra_val.best_epoch = -1
+        else:
+            save_model(model, model_path, config_path)
 
-    return model, best_epochs
+        epoch_dict = load_json(epoch_path, {})
+        epoch_dict[done_key] = True
+        save_json(epoch_path, epoch_dict)
+        xprint('do_fit: run=%d epoch_dict=%s' % (run, epoch_dict))
+
+    return model, epoch_dict
 
 
 def apply_word_index(max_length, sent_texts, word_index, texts_in, labels_in, name):
@@ -223,7 +231,7 @@ def apply_word_index(max_length, sent_texts, word_index, texts_in, labels_in, na
     random.shuffle(order)
     oov_idx = word_index[OOV]
 
-    t0 = time.clock()
+    t0 = time.perf_counter()
     N = max(10000, n_sentences // 5)
     # assert N > 1000, (n_sentences, N)
     i = 0
@@ -233,7 +241,7 @@ def apply_word_index(max_length, sent_texts, word_index, texts_in, labels_in, na
                 Xs[order[i], j] = word_index.get(word, oov_idx)
             ys[order[i]] = y
             if i % N == 0 or (i + 1) == n_sentences:
-                dt = max(time.clock() - t0, 1.0)
+                dt = max(time.perf_counter() - t0, 1.0)
                 if dt > 2.0 or (i + 1) == n_sentences:
                     print('~~~%5s %7d (%5.1f%%) sents dt=%4.1f sec %3.1f sents/sec' %
                          (name, i, 100.0 * i / n_sentences, dt, i / dt))
@@ -323,19 +331,19 @@ def get_spacy_embeddings(max_features, word_count):
 
 
 def predict_reductions(model_path, config_path, word_path, texts, methods, max_length):
-    text_score = predict_scores(model_path, config_path, word_path, texts, max_length)
+    text_ys = predict_ys(model_path, config_path, word_path, texts, max_length)
 
     reductions = {method: np.zeros((len(texts), len(LABEL_COLS)), dtype=np.float32)
                   for method in methods}
     for i, text in enumerate(texts):
-        ys = text_score[text]
+        ys = text_ys[text]
         for method in methods:
             reductions[method][i, :] = reduce(ys, method)
 
     return reductions
 
 
-def predict_scores(model_path, config_path, word_path, texts_in, max_length):
+def predict_ys(model_path, config_path, word_path, texts_in, max_length):
     xprint('predict_reductions(model_path=%s, config_path=%s, word_path=%s, texts=%s, max_length=%d)'
            % (model_path, config_path, word_path, dim(texts_in), max_length))
 
@@ -344,7 +352,14 @@ def predict_scores(model_path, config_path, word_path, texts_in, max_length):
     oov_idx = word_index[OOV]
 
     sents_list, word_count = tokenizer.token_lists(texts_in, max_length)
-    text_score = {}
+    assert len(texts_in) == len(sents_list), (len(texts_in), len(sents_list))
+
+    n_sentences = sum(len(sents) for sents in sents_list)
+    t0 = time.perf_counter()
+    N = max(1000, n_sentences // 5)
+
+    text_ys = {}
+    n = 0
     for text, sents in zip(texts_in, sents_list):
         Xs = np.ones((len(sents), max_length), dtype='int32') * word_index[PAD]
         for i, sent in enumerate(sents):
@@ -352,9 +367,16 @@ def predict_scores(model_path, config_path, word_path, texts_in, max_length):
                 if j >= max_length:
                     break
                 Xs[i, j] = word_index.get(word, oov_idx)
+            if n % N == 0 or (n + 1) == n_sentences:
+                dt = max(time.perf_counter() - t0, 1.0)
+                if dt > 2.0 or (n + 1) == n_sentences:
+                    print('``` %7d (%5.1f%%) sents dt=%4.1f sec %3.1f sents/sec' %
+                         (n, 100.0 * n / n_sentences, dt, n / dt))
+            n += 1
         ys = model.predict(Xs)
-        text_score[text] = ys
-    return text_score
+        text_ys[text] = ys
+
+    return text_ys
 
 
 def get_model_dir(model_name, fold):

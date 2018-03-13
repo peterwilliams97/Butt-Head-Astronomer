@@ -220,7 +220,7 @@ class RocAucEvaluation(Callback):
     """
 
     def __init__(self, validation_data=(), interval=1, model_path=None, config_path=None,
-        epoch_path=None, do_prime=False):
+        epoch_path=None, epoch_key=None, do_prime=False):
         super(Callback, self).__init__()
 
         xprint('RocAucEvaluation: validation_data=%s interval=%s, model_path=%s, config_path=%s '
@@ -232,8 +232,9 @@ class RocAucEvaluation(Callback):
         self.model_path = model_path
         self.config_path = config_path
         self.epoch_path = epoch_path
+        self.epoch_key = epoch_key
         self.epochs = load_json(epoch_path, {})
-        self.epoch0 = self.epochs.get('epoch1', 0)
+        self.epoch0 = self.epochs.get(epoch_key, 0)
         self.best_auc = 0.0
         self.best_epoch = -1
         self.t0 = time.perf_counter()
@@ -254,7 +255,7 @@ class RocAucEvaluation(Callback):
             print('on_epoch_end: y_pred=%s' % dim2(y_pred))
 
             auc = roc_auc_score(self.y_val, y_pred)
-            xprint('\nROC-AUC - epoch: {:d} - score: {:.6f}'.format(epoch + 1, auc))
+            xprint('\nROC-AUC - epoch: {:d} - score: {:.6f} {}'.format(epoch + 1, auc, self.epoch_key))
             logs['val_auc'] = auc
             dt = time.perf_counter() - self.t0
             self.t0 = time.perf_counter()
@@ -264,7 +265,7 @@ class RocAucEvaluation(Callback):
                     self.best_auc, dt))
                 self.best_auc = auc
                 self.best_epoch = epoch
-                self.epochs['epoch1'] = self.epoch0 + epoch
+                self.epochs[self.epoch_key] = self.epoch0 + epoch
                 save_json(self.epoch_path, self.epochs)
 
                 save_model(self.model, self.model_path, self.config_path)
@@ -277,9 +278,9 @@ class SaveAllEpochs(Callback):
     """Save weights at the end of every epoch
     """
 
-    @staticmethod
-    def epoch_dict(epoch_path, default={'epoch1': 0, 'epoch2': 0}):
-        return load_json(epoch_path, default)
+    # @staticmethod
+    # def epoch_dict(epoch_path, default={'epoch1': 0, 'epoch2': 0}):
+    #     return load_json(epoch_path, default)
 
     def __init__(self, model_path, config_path, epoch_path):
 
@@ -291,8 +292,8 @@ class SaveAllEpochs(Callback):
         self.model_path = model_path
         self.config_path = config_path
         self.epoch_path = epoch_path
-        self.epochs = load_json(self.epoch_path, {'epoch1': 0, 'epoch2': 0})
-        restarting = self.epochs['epoch1'] > 0 or self.epochs['epoch2'] > 0
+        self.epochs = load_json(self.epoch_path, {})
+        restarting = self.epochs.get('epoch1', 0) > 0 or self.epochs.get('epoch2', 0) > 0
         marker = ' *** restarting' if restarting else ''
         xprint('SaveAllEpochs: starting epochs=%s%s' % (self.epochs, marker))
 
