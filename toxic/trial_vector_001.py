@@ -12,7 +12,7 @@ from clf_vector import ClfVector
 from reductions import PREDICT_METHODS_GOOD
 
 
-submission_name = 'v_trial_vector_001'
+submission_name = 'v_trial_vector_001a'
 epochs = 40
 random_seed = 60001
 set_n_samples(20000)
