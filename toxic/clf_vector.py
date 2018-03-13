@@ -160,13 +160,14 @@ def do_fit(train_texts, train_labels, dev_texts, dev_labels, lstm_shape, lstm_se
 
     X_train, w_train, y_train = apply_word_index(max_length, X_sents, word_index, train_texts, train_labels, 'train')
     if dev_texts is not None:
-        X_val, _, y_val = apply_word_index(max_length, y_sents, word_index, dev_texts, dev_labels, 'dev')
+        X_val, w_val, y_val = apply_word_index(max_length, y_sents, word_index, dev_texts, dev_labels, 'dev')
         validation_data = (X_val, y_val)
 
     print('^^^embeddings=%s' % dim(embeddings))
     print('^^^X_train=%d..%d' % (X_train.min(), X_train.max()))
     print('^^^w_train=%g..%g mean=%g' % (w_train.min(), w_train.max(), w_train.mean()))
     print('^^^X_val=%d..%d' % (X_val.min(), X_val.max()))
+    print('^^^w_val=%g..%g mean=%g' % (w_val.min(), w_val.max(), w_val.mean()))
     assert 0 <= X_train.min() and X_train.max() < embeddings.shape[0]
     assert 0 <= X_val.min() and X_val.max() < embeddings.shape[0]
 
@@ -197,7 +198,8 @@ def do_fit(train_texts, train_labels, dev_texts, dev_labels, lstm_shape, lstm_se
         callback_list = None
 
         if validation_data is not None:
-            ra_val = RocAucEvaluation(validation_data=validation_data, interval=1, epoch_key=epoch_key,
+            ra_val = RocAucEvaluation(validation_data=validation_data, w_val=w_val,
+                interval=1, epoch_key=epoch_key,
                 model_path=model_path, config_path=config_path, epoch_path=epoch_path, do_prime=run > 0)
             early = EarlyStopping(monitor='val_auc', mode='max', patience=2, verbose=1)
             callback_list = [ra_val, early]

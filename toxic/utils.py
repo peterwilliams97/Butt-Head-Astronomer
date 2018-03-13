@@ -221,7 +221,7 @@ class RocAucEvaluation(Callback):
     """ROC AUC for CV in Keras see for details: https://gist.github.com/smly/d29d079100f8d81b905e
     """
 
-    def __init__(self, validation_data=(), interval=1, model_path=None, config_path=None,
+    def __init__(self, validation_data=(), w_val=None, interval=1, model_path=None, config_path=None,
         epoch_path=None, epoch_key=None, do_prime=False):
         super(Callback, self).__init__()
 
@@ -231,6 +231,7 @@ class RocAucEvaluation(Callback):
 
         self.interval = interval
         self.X_val, self.y_val = validation_data
+        self.w_val = w_val
         self.model_path = model_path
         self.config_path = config_path
         self.epoch_path = epoch_path
@@ -256,7 +257,7 @@ class RocAucEvaluation(Callback):
             # print('on_epoch_end: y_val=%s' % dim2(self.y_val))
             # print('on_epoch_end: y_pred=%s' % dim2(y_pred))
 
-            auc = roc_auc_score(self.y_val, y_pred)
+            auc = roc_auc_score(self.y_val, y_pred, sample_weight=self.self.w_val)
             xprint('\nROC-AUC - epoch: {:d} - score: {:.6f} {}'.format(epoch + 1, auc, self.epoch_key))
             logs['val_auc'] = auc
             dt = time.perf_counter() - self.t0
