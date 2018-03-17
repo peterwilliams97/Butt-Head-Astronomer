@@ -12,10 +12,10 @@ from clf_vector import ClfVector
 from reductions import PREDICT_METHODS_GOOD
 
 
-submission_name = 'v_trial_fasttest_001'
+submission_name = 'v_trial_fasttest_002'
 epochs = 40
-random_seed = 60017
-set_n_samples(20000)
+random_seed = 60018
+set_n_samples(40000)
 run_summary_path = os.path.join(SUMMARY_DIR,
     '%s.%s.run_summary.json' % (submission_name, get_n_samples_str()))
 
@@ -36,7 +36,7 @@ def get_clf():
 
 params_list = []
 for lstm_type in [14, 13]:
-    for max_length in [100, 150]:  # [50, 75, 100, 150]:
+    for max_length in [75, 100, 150]:  # [50, 75, 100, 150]:
         for max_features in [30000, 40000]:  # [20000, 25000, 30000, 40000]:
             for n_hidden in [80, 256]:
                 for dropout in [0.2, 0.5]:  # [0.1, 0.3, 0.5]:
@@ -48,7 +48,7 @@ for lstm_type in [14, 13]:
 
 print('params_list=%d' % len(params_list))
 random.seed(time.time())
-# random.shuffle(params_list)
+random.shuffle(params_list)
 # params_list.reverse()
 print('params_list=%d' % len(params_list))
 for i, params in enumerate(params_list[:10]):

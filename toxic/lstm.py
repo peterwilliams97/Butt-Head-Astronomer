@@ -369,12 +369,35 @@ def build_gpu13(embeddings, shape, settings):
     x = Embedding(
             embeddings.shape[0],
             embeddings.shape[1],
+            trainable=False,
             weights=[embeddings])(inp)
-    x = SpatialDropout1D(0.2)(x)
-    x = Bidirectional(GRU(80, return_sequences=True))(x)
+    x = SpatialDropout1D(settings['dropout'])(x)
+    x = Bidirectional(GRU(shape['n_hidden'], return_sequences=True))(x)
     avg_pool = GlobalAveragePooling1D()(x)
     max_pool = GlobalMaxPooling1D()(x)
     conc = concatenate([avg_pool, max_pool])
+    outp = Dense(6, activation="sigmoid")(conc)
+
+    model = Model(inputs=inp, outputs=outp)
+
+    return model
+
+
+def build_gpu14(embeddings, shape, settings):
+    inp = Input(shape=(shape['max_length'], ))
+    # x = Embedding(max_features, embed_size, weights=[embedding_matrix])(inp)
+    x = Embedding(
+            embeddings.shape[0],
+            embeddings.shape[1],
+            trainable=False,
+            weights=[embeddings])(inp)
+    x = SpatialDropout1D(settings['dropout'])(x)
+    x = Bidirectional(GRU(shape['n_hidden'], return_sequences=True))(x)
+    avg_pool = GlobalAveragePooling1D()(x)
+    max_pool = GlobalMaxPooling1D()(x)
+    conc = concatenate([avg_pool, max_pool])
+    conc = BatchNormalization()(conc)
+    conc = Dropout(settings['dropout'])(conc)
     outp = Dense(6, activation="sigmoid")(conc)
 
     model = Model(inputs=inp, outputs=outp)
@@ -396,6 +419,7 @@ build_lstm = {
     11: build_lstm11,
     12: build_lstm12,
     13: build_gpu13,
+    14: build_gpu14,
 }
 
 
