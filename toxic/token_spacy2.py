@@ -117,6 +117,14 @@ class SpacySentenceTokenizer:
                         tokens.extend(toks)
                         if len(tokens) >= self.max_words:
                             break
+                elif self.method == 4:
+                    tokens = []
+                    for sent in doc.sents:
+                        toks = [token.text.lower() for token in doc if not RE_SPACE.search(token.text)]
+                        # print(' toks= %d %s' % (len(toks), toks))
+                        tokens.extend(toks)
+                        if len(tokens) >= self.max_words:
+                            break
                 else:
                     assert False, 'Bad method=%d' % self.method
                 if self.method == 2:

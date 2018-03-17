@@ -31,8 +31,7 @@ def get_clf():
                      learn_rate_unfrozen=learn_rate / 2.0,
                      batch_size=150,
                      epochs=epochs, lstm_type=lstm_type, predict_method=predict_method,
-                     token_method=2,
-                     single_oov=single_oov)
+                     token_method=4)
 
 
 params_list = []
