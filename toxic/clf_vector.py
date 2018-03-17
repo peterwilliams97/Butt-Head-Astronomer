@@ -19,9 +19,9 @@ tokenizer = None
 class ClfVector:
 
     def __init__(self, n_hidden=64, max_length=100, max_features=20000,  # Shape
-        dropout=0.5, learn_rate=0.001, learn_rate_unfrozen=0.0, frozen=False,  # General NN config
+        dropout=0.5, learn_rate=0.001, learn_rate_unfrozen=0.001, frozen=False,  # General NN config
         epochs=5, batch_size=100, lstm_type=1, predict_method=MEAN, token_method=None,
-        single_oov=False,
+        single_oov=False, do_spacy=False,
         force_fit=False):
         """
             n_hidden: Number of elements in the LSTM layer
@@ -44,6 +44,7 @@ class ClfVector:
         self.lstm_type = lstm_type
         self.token_method = token_method
         self.single_oov = single_oov
+        self.do_spacy = False
 
         D = self.__dict__
         model_name = 'pipe.%s' % '-'.join(str(D[k]) for k in sorted(D))
@@ -142,7 +143,7 @@ class ClfVector:
 def do_fit(train_texts, train_labels, dev_texts, dev_labels, lstm_shape, lstm_settings,
     lstm_optimizer, batch_size=100, epochs=5,
     model_path=None, config_path=None, epoch_path=None, word_path=None,
-    lstm_type=1, max_features=None, single_oov=None):
+    lstm_type=1, max_features=None, single_oov=None, do_spacy=False):
     """Train a Keras model on the sentences in `train_texts`
         All the sentences in a text have the text's label
     """
@@ -156,7 +157,10 @@ def do_fit(train_texts, train_labels, dev_texts, dev_labels, lstm_shape, lstm_se
         y_sents, _ = tokenizer.token_lists(dev_texts, max_length)
     tokenizer.flush()
 
-    embeddings, word_index = get_spacy_embeddings(max_features, word_count, single_oov)
+    if do_spacy:
+        embeddings, word_index = get_spacy_embeddings(max_features, word_count, single_oov)
+    else:
+        embeddings, word_index = get_fasttext_embeddings(max_features, word_count)
     assert 0 <= min(word_index.values()) and max(word_index.values()) < embeddings.shape[0]
     save_json(word_path, word_index)
 
@@ -265,6 +269,43 @@ def apply_word_index(max_length, sent_texts, word_index, texts_in, labels_in, na
     return Xs, weights, ys
 
 
+# max_features = 30000
+# maxlen = 100
+embed_size = 300
+
+EMBEDDING_FILE = '~/data/models/fasttext/crawl-300d-2M.vec'
+EMBEDDING_FILE = os.path.expanduser(EMBEDDING_FILE)
+
+# from embeddings import local_path
+# embeddings_local = local_path(EMBEDDING_FILE)
+
+
+def get_coefs(word, *arr):
+    return word, np.asarray(arr, dtype='float32')
+
+
+def get_fasttext_embeddings(max_features, word_count):
+
+    embeddings_index = dict(get_coefs(*o.rstrip().rsplit(' ')) for o in open(EMBEDDING_FILE))
+
+    word_list = sorted(word_count, key=lambda w: (-word_count[w], w))
+    vocab = [OOV, PAD] + word_list
+    vocab = vocab[:max_features]
+    word_index = {w: i for i, w in enumerate(vocab)}
+
+    nb_words = min(max_features, len(word_index))
+    embedding_matrix = np.zeros((nb_words, embed_size))
+    for word, i in word_index.items():
+        if i >= nb_words:
+            continue
+        embedding_vector = embeddings_index.get(word)
+        if embedding_vector is not None:
+            embedding_matrix[i] = embedding_vector
+
+    print('embedding_matrix=%s' % dim(embedding_matrix))
+    return embedding_matrix, word_index
+
+
 def get_spacy_embeddings(max_features, word_count, single_oov):
     """Returns: embedding matrix n_words x embed_size
                 n_words <= max_features
@@ -272,7 +313,6 @@ def get_spacy_embeddings(max_features, word_count, single_oov):
     # Use these vectors to create our embedding matrix, with random initialization for words
     # that aren't in GloVe. We'll use the same mean and stdev of embeddings the GloVe has when
     # generating the random init.
-
 
     assert isinstance(single_oov, bool), single_oov
 

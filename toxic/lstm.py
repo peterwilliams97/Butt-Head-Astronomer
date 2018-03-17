@@ -1,6 +1,9 @@
 from keras.models import Sequential
 from keras.layers import (LSTM, Dense, Embedding, Bidirectional, Dropout, GlobalMaxPool1D,
     GlobalAveragePooling1D, BatchNormalization, TimeDistributed, Flatten)
+from keras.models import Model
+from keras.layers import Input, SpatialDropout1D, concatenate
+from keras.layers import GRU, GlobalMaxPooling1D
 from keras.optimizers import Adam
 import math
 from utils import xprint, dim
@@ -360,6 +363,25 @@ def build_lstm12(embeddings, shape, settings):
     return model
 
 
+def build_gpu13(embeddings, shape, settings):
+    inp = Input(shape=(shape['max_length'], ))
+    # x = Embedding(max_features, embed_size, weights=[embedding_matrix])(inp)
+    x = Embedding(
+            embeddings.shape[0],
+            embeddings.shape[1],
+            weights=[embeddings])(inp)
+    x = SpatialDropout1D(0.2)(x)
+    x = Bidirectional(GRU(80, return_sequences=True))(x)
+    avg_pool = GlobalAveragePooling1D()(x)
+    max_pool = GlobalMaxPooling1D()(x)
+    conc = concatenate([avg_pool, max_pool])
+    outp = Dense(6, activation="sigmoid")(conc)
+
+    model = Model(inputs=inp, outputs=outp)
+
+    return model
+
+
 build_lstm = {
     1: build_lstm1,
     2: build_lstm2,
@@ -373,7 +395,7 @@ build_lstm = {
     10: build_lstm10,
     11: build_lstm11,
     12: build_lstm12,
-
+    13: build_gpu13,
 }
 
 
