@@ -365,7 +365,6 @@ def build_lstm12(embeddings, shape, settings):
 
 def build_gpu13(embeddings, shape, settings):
     inp = Input(shape=(shape['max_length'], ))
-    # x = Embedding(max_features, embed_size, weights=[embedding_matrix])(inp)
     x = Embedding(
             embeddings.shape[0],
             embeddings.shape[1],
@@ -385,7 +384,6 @@ def build_gpu13(embeddings, shape, settings):
 
 def build_gpu14(embeddings, shape, settings):
     inp = Input(shape=(shape['max_length'], ))
-    # x = Embedding(max_features, embed_size, weights=[embedding_matrix])(inp)
     x = Embedding(
             embeddings.shape[0],
             embeddings.shape[1],
