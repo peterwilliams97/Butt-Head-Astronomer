@@ -163,6 +163,8 @@ def do_fit(train_texts, train_labels, dev_texts, dev_labels, lstm_shape, lstm_se
         os.remove(model_path)
     if os.path.exists(config_path):
         os.remove(config_path)
+    if os.path.exists(epoch_path):
+        os.remove(epoch_path)
 
     X_sents, word_count = tokenizer.token_lists(train_texts, max_length)
     validation_data = None
@@ -207,7 +209,7 @@ def do_fit(train_texts, train_labels, dev_texts, dev_labels, lstm_shape, lstm_se
         xprint('epoch_dict=%s' % epoch_dict)
         epochs -= epoch_dict.get(epoch_key, 0)
         if epoch_dict.get(done_key, False) or epochs <= 0:
-            xprint('do_fit: run %d is complete')
+            xprint('do_fit: run %d is complete' % run)
             continue
 
         if run > 0 and os.path.exists(model_path) and os.path.exists(config_path):
@@ -241,6 +243,8 @@ def do_fit(train_texts, train_labels, dev_texts, dev_labels, lstm_shape, lstm_se
             ra_val.best_epoch = -1
         else:
             save_model(model, model_path, config_path)
+
+        assert os.path.exists(model_path), model_path
 
         epoch_dict = load_json(epoch_path, {})
         epoch_dict[done_key] = True
