@@ -20,8 +20,9 @@ class ClfVector:
 
     def __init__(self, n_hidden=64, max_length=100, max_features=20000,  # Shape
         dropout=0.5, learn_rate=0.001, learn_rate_unfrozen=0.001, frozen=False,  # General NN config
-        epochs=5, batch_size=100, lstm_type=1, predict_method=MEAN, token_method=None,
-        single_oov=False, do_spacy=False,
+        epochs=5, epochs2=40, batch_size=100,
+        lstm_type=1, predict_method=MEAN, token_method=None,
+        single_oov=False, do_spacy=False, randomized=False,
         force_fit=False):
         """
             n_hidden: Number of elements in the LSTM layer
@@ -40,11 +41,13 @@ class ClfVector:
         self.learn_rate_unfrozen = learn_rate_unfrozen
         self.max_features = max_features
         self.epochs = epochs
+        self.epochs2 = epochs2
         self.batch_size = batch_size
         self.lstm_type = lstm_type
         self.token_method = token_method
         self.single_oov = single_oov
         self.do_spacy = False
+        self.randomized = randomized
 
         D = self.__dict__
         model_name = 'pipe.%s' % '-'.join(str(D[k]) for k in sorted(D))
@@ -115,9 +118,11 @@ class ClfVector:
                          'lr_unfrozen': self.learn_rate_unfrozen}
         lstm, epoch_dict = do_fit(X_train, y_train, X_val, y_val, lstm_shape,
             lstm_settings, {},
-            batch_size=self.batch_size, lstm_type=self.lstm_type, epochs=self.epochs,
+            batch_size=self.batch_size, lstm_type=self.lstm_type,
+            epochs1=self.epochs, epochs2=self.epochs2,
             model_path=model_path, config_path=config_path, word_path=word_path, epoch_path=epoch_path,
-            max_features=self.max_features, single_oov=self.single_oov)
+            max_features=self.max_features, single_oov=self.single_oov,
+            randomized=self.randomized)
 
         assert isinstance(epoch_dict, dict), epoch_dict
         xprint('****: best_epochs=%s - %s ' % (epoch_dict, self.description))
@@ -141,9 +146,9 @@ class ClfVector:
 
 
 def do_fit(train_texts, train_labels, dev_texts, dev_labels, lstm_shape, lstm_settings,
-    lstm_optimizer, batch_size=100, epochs=5,
+    lstm_optimizer, batch_size=100, epochs1=5, epochs2=5,
     model_path=None, config_path=None, epoch_path=None, word_path=None,
-    lstm_type=1, max_features=None, single_oov=None, do_spacy=False):
+    lstm_type=1, max_features=None, single_oov=None, do_spacy=False, randomized=False):
     """Train a Keras model on the sentences in `train_texts`
         All the sentences in a text have the text's label
     """
@@ -160,7 +165,7 @@ def do_fit(train_texts, train_labels, dev_texts, dev_labels, lstm_shape, lstm_se
     if do_spacy:
         embeddings, word_index = get_spacy_embeddings(max_features, word_count, single_oov)
     else:
-        embeddings, word_index = get_fasttext_embeddings(max_features, word_count)
+        embeddings, word_index = get_fasttext_embeddings(max_features, word_count, randomized)
     assert 0 <= min(word_index.values()) and max(word_index.values()) < embeddings.shape[0]
     save_json(word_path, word_index)
 
@@ -181,11 +186,11 @@ def do_fit(train_texts, train_labels, dev_texts, dev_labels, lstm_shape, lstm_se
 
     xprint('built and compiled models')
 
-    param_list = [(lstm_settings['lr'], True, 'epoch1', 'done1'),
-                  (lstm_settings['lr_unfrozen'], False, 'epoch2', 'done2')]
+    param_list = [(lstm_settings['lr'], True, 'epoch1', 'done1', epochs1,),
+                  (lstm_settings['lr_unfrozen'], False, 'epoch2', 'done2', epochs2)]
     best_epochs = {}
 
-    for run, (learning_rate, frozen, epoch_key, done_key) in enumerate(param_list):
+    for run, (learning_rate, frozen, epoch_key, done_key, epochs) in enumerate(param_list):
         xprint('do_fit: run=%d learning_rate=%g frozen=%s epoch_key=%s done_key=%s' % (run,
             learning_rate, frozen, epoch_key, done_key))
 
@@ -284,7 +289,7 @@ def get_coefs(word, *arr):
     return word, np.asarray(arr, dtype='float32')
 
 
-def get_fasttext_embeddings(max_features, word_count):
+def get_fasttext_embeddings(max_features, word_count, randomized):
 
     embeddings_index = dict(get_coefs(*o.rstrip().rsplit(' ')) for o in open(EMBEDDING_FILE))
 
@@ -294,7 +299,15 @@ def get_fasttext_embeddings(max_features, word_count):
     word_index = {w: i for i, w in enumerate(vocab)}
 
     nb_words = min(max_features, len(word_index))
-    embedding_matrix = np.zeros((nb_words, embed_size))
+    print('nb_words=%d randomized=%s' (nb_words, randomized))
+    if randomized:
+        all_embs = np.stack(embeddings_index.values())
+        xprint('all_embs=%s' % dim(all_embs))
+        emb_mean, emb_std = all_embs.mean(), all_embs.std()
+        xprint('emb_mean, emb_std=%s' % [emb_mean, emb_std])
+        embedding_matrix = np.random.normal(emb_mean, emb_std, (nb_words, embed_size))
+    else:
+        embedding_matrix = np.zeros((nb_words, embed_size))
     for word, i in word_index.items():
         if i >= nb_words:
             continue
