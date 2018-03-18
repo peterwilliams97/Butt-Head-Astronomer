@@ -12,7 +12,7 @@ from clf_vector import ClfVector
 from reductions import PREDICT_METHODS_GOOD
 
 
-submission_name = 'v_trial_fasttest_006r'
+submission_name = 'v_trial_fasttest_006_non_random'
 epochs = 40
 random_seed = 60019
 set_n_samples(20000)
@@ -67,7 +67,7 @@ for n_runs0 in range(2):
     for p_i, (lstm_type, max_length, max_features, n_hidden, dropout) in enumerate(params_list):
             for learn_rate in [0.0005, 0.001, 0.002, 0.004]:
                 for lr_ratio in [2.0, 1.0, 0.5]:
-                    for randomized in [True, False]:
+                    for randomized in [ False]:
                         for epochs in [0, 1, 2, 40]:
                             xprint('#' * 80)
                             predict_method = PREDICT_METHODS_GOOD[0]
