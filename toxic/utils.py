@@ -247,7 +247,7 @@ class RocAucEvaluation(Callback):
         if do_prime:
             model = load_model(model_path, config_path)
             y_pred = model.predict(self.X_val, verbose=0)
-            auc = roc_auc_score(self.y_val, y_pred)
+            auc = roc_auc_score(self.y_val, y_pred, sample_weight=self.w_val)
             xprint('\nROC-AUC - epoch: {:d} - score: {:.6f}'.format(0, auc))
             self.best_auc = auc
             del model
@@ -255,11 +255,6 @@ class RocAucEvaluation(Callback):
     def on_epoch_end(self, epoch, logs={}):
         if epoch % self.interval == 0:
             y_pred = self.model.predict(self.X_val, verbose=0)
-
-            # print('\non_epoch_end: X_val=%s' % dim2(self.X_val))
-            # print('on_epoch_end: y_val=%s' % dim2(self.y_val))
-            # print('on_epoch_end: y_pred=%s' % dim2(y_pred))
-
             auc = roc_auc_score(self.y_val, y_pred, sample_weight=self.w_val)
             xprint('\nROC-AUC - epoch: {:d} - score: {:.6f} {}'.format(epoch + 1, auc, self.epoch_key))
             logs['val_auc'] = auc
@@ -279,7 +274,7 @@ class RocAucEvaluation(Callback):
                 if CHECK_MODE_IO:
                     model = load_model(self.model_path, self.config_path)
                     y_pred = model.predict(self.X_val, verbose=0)
-                    auc = roc_auc_score(self.y_val, y_pred)
+                    auc = roc_auc_score(self.y_val, y_pred, sample_weight=self.w_val)
                     xprint('\n****ROC-AUC - epoch: {:d} - score: {:.6f}'.format(0, auc))
                     self.best_auc = auc
                     del model
