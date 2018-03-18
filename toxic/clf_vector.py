@@ -124,6 +124,9 @@ class ClfVector:
             max_features=self.max_features, single_oov=self.single_oov,
             randomized=self.randomized)
 
+        assert os.path.exists(model_path), model_path
+        assert os.path.exists(config_path), config_path
+
         assert isinstance(epoch_dict, dict), epoch_dict
         xprint('****: best_epochs=%s - %s ' % (epoch_dict, self.description))
         del lstm
