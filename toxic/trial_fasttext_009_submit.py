@@ -13,11 +13,11 @@ from reductions import PREDICT_METHODS_GOOD
 # auc=0.9881   5: get_clf ClfVector(batch_size=300, do_spacy=False, dropout=0.4, epochs=40, epochs2=40, learn_rate=0.0005, learn_rate_unfrozen=0.001, lstm_type=13, max_features=50000, max_length=75, n_hidden=120, predict_method=BEST, randomized=False, single_oov=False, token_method=4)
 # auc=0.9863   5: get_clf ClfVector(batch_size=300, do_spacy=False, dropout=0.2, epochs=40, epochs2=0, learn_rate=0.004, learn_rate_unfrozen=0.002, lstm_type=13, max_features=50000, max_length=50, n_hidden=80, predict_method=BEST, randomized=False, single_oov=False, token_method=4)
 
-submission_name = 'v_trial_fasttest_009_full'
+submission_name = 'v_trial_fasttest_009_full_all'
 epochs2 = 40
 random_seed = 60018
 do_submission = True
-set_n_samples(20000)
+# set_n_samples(20000)
 run_summary_path = os.path.join(SUMMARY_DIR,
     '%s.%s.run_summary.json' % (submission_name, get_n_samples_str()))
 
@@ -28,7 +28,7 @@ run_summary_path = os.path.join(SUMMARY_DIR,
 
 def get_clf():
     return ClfVector(batch_size=300, do_spacy=False,
-                     dropout=0.4, epochs=1, epochs2=2,
+                     dropout=0.4, epochs=1, epochs2=4,
                      learn_rate=0.0005, learn_rate_unfrozen=0.001,
                      lstm_type=13,
                      max_features=50000, max_length=75,
