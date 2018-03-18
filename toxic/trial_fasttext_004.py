@@ -13,7 +13,7 @@ from reductions import PREDICT_METHODS_GOOD
 
 
 submission_name = 'v_trial_fasttest_004'
-epochs = 40
+epochs2 = 40
 random_seed = 60018
 set_n_samples(40000)
 run_summary_path = os.path.join(SUMMARY_DIR,
@@ -68,12 +68,13 @@ for n_runs0 in range(2):
 
     for p_i, (lstm_type, max_length, max_features,
          n_hidden, dropout, learn_rate) in enumerate(params_list):
-            for epochs2, randomized in [(40, False), (40, True), (0, False), (0, True)]:
+            for epochs, randomized in [(40, False), (40, True), (0, False), (0, True)]:
 
                 xprint('#' * 80)
                 predict_method = PREDICT_METHODS_GOOD[0]
                 clf_str = str(get_clf())
                 xprint('params %d: %s' % (p_i, clf_str))
+
                 runs = completed_tests.get(clf_str, [])
                 if len(runs) > n_runs0:
                     xprint('skipping runs=%d n_runs0=%d' % (len(runs), n_runs0))
