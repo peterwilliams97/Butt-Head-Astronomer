@@ -27,7 +27,8 @@ run_summary_path = os.path.join(SUMMARY_DIR,
 def get_clf():
     return ClfVector(max_features=max_features, max_length=max_length,  # Shape
                      n_hidden=n_hidden,
-                     dropout=dropout, learn_rate=learn_rate,  # General NN config
+                     dropout=dropout,
+                     learn_rate=learn_rate,  # General NN config
                      learn_rate_unfrozen=learn_rate / 2.0,
                      batch_size=batch_size,
                      epochs=epochs, lstm_type=lstm_type, predict_method=predict_method,
@@ -67,7 +68,7 @@ for n_runs0 in range(2):
 
     for p_i, (lstm_type, max_length, max_features,
          n_hidden, dropout, learn_rate) in enumerate(params_list):
-            for epochs2, randomized in [(40, False), (0, False), (40, True), (0, True)]:
+            for epochs2, randomized in [(40, False), (40, True), (0, False), (0, True)]:
 
                 xprint('#' * 80)
                 predict_method = PREDICT_METHODS_GOOD[0]

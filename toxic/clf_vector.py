@@ -289,9 +289,19 @@ def get_coefs(word, *arr):
     return word, np.asarray(arr, dtype='float32')
 
 
-def get_fasttext_embeddings(max_features, word_count, randomized):
+embeddings_index = None
+emb_mean, emb_std = None, None
 
-    embeddings_index = dict(get_coefs(*o.rstrip().rsplit(' ')) for o in open(EMBEDDING_FILE))
+
+def get_fasttext_embeddings(max_features, word_count, randomized):
+    global embeddings_index, emb_mean, emb_std
+
+    if embeddings_index is None:
+        embeddings_index = dict(get_coefs(*o.rstrip().rsplit(' ')) for o in open(EMBEDDING_FILE))
+        all_embs = np.stack(embeddings_index.values())
+        xprint('all_embs=%s' % dim(all_embs))
+        emb_mean, emb_std = all_embs.mean(), all_embs.std()
+        xprint('emb_mean, emb_std=%s' % [emb_mean, emb_std])
 
     word_list = sorted(word_count, key=lambda w: (-word_count[w], w))
     vocab = [OOV, PAD] + word_list
@@ -301,10 +311,6 @@ def get_fasttext_embeddings(max_features, word_count, randomized):
     nb_words = min(max_features, len(word_index))
     print('nb_words=%d randomized=%s' % (nb_words, randomized))
     if randomized:
-        all_embs = np.stack(embeddings_index.values())
-        xprint('all_embs=%s' % dim(all_embs))
-        emb_mean, emb_std = all_embs.mean(), all_embs.std()
-        xprint('emb_mean, emb_std=%s' % [emb_mean, emb_std])
         embedding_matrix = np.random.normal(emb_mean, emb_std, (nb_words, embed_size))
     else:
         embedding_matrix = np.zeros((nb_words, embed_size))
