@@ -177,10 +177,11 @@ def do_fit(train_texts, train_labels, dev_texts, dev_labels, lstm_shape, lstm_se
     print('^^^embeddings=%s' % dim(embeddings))
     print('^^^X_train=%d..%d' % (X_train.min(), X_train.max()))
     print('^^^w_train=%g..%g mean=%g' % (w_train.min(), w_train.max(), w_train.mean()))
-    print('^^^X_val=%d..%d' % (X_val.min(), X_val.max()))
-    print('^^^w_val=%g..%g mean=%g' % (w_val.min(), w_val.max(), w_val.mean()))
     assert 0 <= X_train.min() and X_train.max() < embeddings.shape[0]
-    assert 0 <= X_val.min() and X_val.max() < embeddings.shape[0]
+    if validation_data is not None:
+        print('^^^X_val=%d..%d' % (X_val.min(), X_val.max()))
+        print('^^^w_val=%g..%g mean=%g' % (w_val.min(), w_val.max(), w_val.mean()))
+        assert 0 <= X_val.min() and X_val.max() < embeddings.shape[0]
 
     model = build_lstm[lstm_type](embeddings, lstm_shape, lstm_settings)
 
