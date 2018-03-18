@@ -299,7 +299,7 @@ def get_fasttext_embeddings(max_features, word_count, randomized):
     word_index = {w: i for i, w in enumerate(vocab)}
 
     nb_words = min(max_features, len(word_index))
-    print('nb_words=%d randomized=%s' (nb_words, randomized))
+    print('nb_words=%d randomized=%s' % (nb_words, randomized))
     if randomized:
         all_embs = np.stack(embeddings_index.values())
         xprint('all_embs=%s' % dim(all_embs))
