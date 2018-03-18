@@ -12,7 +12,7 @@ from clf_vector import ClfVector
 from reductions import PREDICT_METHODS_GOOD
 
 
-submission_name = 'v_trial_fasttest_004'
+submission_name = 'v_trial_fasttest_004_zero'
 epochs2 = 40
 random_seed = 60018
 set_n_samples(40000)
@@ -29,10 +29,10 @@ def get_clf():
                      n_hidden=n_hidden,
                      dropout=dropout,
                      learn_rate=learn_rate,  # General NN config
-                     learn_rate_unfrozen=learn_rate / 2.0,
+                     learn_rate_unfrozen=learn_rate * 2.0,
                      batch_size=batch_size,
-                     epochs=epochs, lstm_type=lstm_type, predict_method=predict_method,
-                     epochs2=epochs2, randomized=randomized,
+                     epochs=1, lstm_type=lstm_type, predict_method=predict_method,
+                     epochs2=epochs2, randomized=False,
                      token_method=4)
 
 
@@ -42,7 +42,7 @@ for lstm_type in [13]:
         for max_features in [30000, 40000, 50000]:  # [20000, 25000, 30000, 40000]:
             for n_hidden in [80, 120, 256]:
                 for dropout in [0.2, 0.5]:  # [0.1, 0.3, 0.5]:
-                    for learn_rate in [0.001, 0.002, 0.004]:
+                    for learn_rate in [0.0005, 0.001]:
                         for batch_size in [32, 100, 150, 300]:
                                 params = (lstm_type, max_length, max_features, n_hidden, dropout,
                                     learn_rate)
@@ -68,41 +68,40 @@ for n_runs0 in range(2):
 
     for p_i, (lstm_type, max_length, max_features,
          n_hidden, dropout, learn_rate) in enumerate(params_list):
-            for epochs, randomized in [(40, False), (40, True), (0, False), (0, True)]:
 
-                xprint('#' * 80)
-                predict_method = PREDICT_METHODS_GOOD[0]
-                clf_str = str(get_clf())
-                xprint('params %d: %s' % (p_i, clf_str))
+            xprint('#' * 80)
+            predict_method = PREDICT_METHODS_GOOD[0]
+            clf_str = str(get_clf())
+            xprint('params %d: %s' % (p_i, clf_str))
 
-                runs = completed_tests.get(clf_str, [])
-                if len(runs) > n_runs0:
-                    xprint('skipping runs=%d n_runs0=%d' % (len(runs), n_runs0))
-                    continue
+            runs = completed_tests.get(clf_str, [])
+            if len(runs) > n_runs0:
+                xprint('skipping runs=%d n_runs0=%d' % (len(runs), n_runs0))
+                continue
 
-                set_random_seed(random_seed + n_runs0)
-                evaluator = Evaluator(n=1)
-                ok, auc_reductions, best_method = evaluator.evaluate_reductions(get_clf,
-                    PREDICT_METHODS_GOOD)
-                assert ok
+            set_random_seed(random_seed + n_runs0)
+            evaluator = Evaluator(n=1)
+            ok, auc_reductions, best_method = evaluator.evaluate_reductions(get_clf,
+                PREDICT_METHODS_GOOD)
+            assert ok
 
-                for predict_method in sorted(auc_reductions):
-                    auc = auc_reductions[predict_method]
-                    xprint('<->.' * 25)
-                    xprint('predict_method=%s' % predict_method)
-                    if predict_method == 'BEST':
-                        xprint('best_method=%s' % best_method)
-                    assert auc.all() > 0.0, auc
+            for predict_method in sorted(auc_reductions):
+                auc = auc_reductions[predict_method]
+                xprint('<->.' * 25)
+                xprint('predict_method=%s' % predict_method)
+                if predict_method == 'BEST':
+                    xprint('best_method=%s' % best_method)
+                assert auc.all() > 0.0, auc
 
-                    auc_list.append((auc, get_clf.__name__, str(get_clf())))
-                    show_results(auc_list)
+                auc_list.append((auc, get_clf.__name__, str(get_clf())))
+                show_results(auc_list)
 
-                    runs.append(auc_score_list(auc))
-                    completed_tests[str(get_clf())] = runs
-                    save_json(run_summary_path, completed_tests)
-                    xprint('n_completed=%d = %d + %d' % (len(completed_tests), n_completed0,
-                        len(completed_tests) - n_completed0))
-                xprint('&' * 100)
+                runs.append(auc_score_list(auc))
+                completed_tests[str(get_clf())] = runs
+                save_json(run_summary_path, completed_tests)
+                xprint('n_completed=%d = %d + %d' % (len(completed_tests), n_completed0,
+                    len(completed_tests) - n_completed0))
+            xprint('&' * 100)
 
 touch('completed.v_trial_vector_007.txt')
 xprint('$' * 100)
