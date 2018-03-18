@@ -96,7 +96,7 @@ class ClfVector:
     def fit(self, train, test_size=0.1):
         xprint('ClfVector.fit', '-' * 80)
 
-        # model_path, config_path, word_path, epoch_path, epoch_dict = self._get_paths(True)
+        model_path, config_path, word_path, epoch_path, epoch_dict = self._get_paths(True)
         # if not self.force_fit:
         #     if (os.path.exists(model_path) and os.path.exists(config_path) and
         #         os.path.exists(word_path) and
