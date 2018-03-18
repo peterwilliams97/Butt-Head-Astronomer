@@ -138,6 +138,7 @@ def save_json(path, obj):
     with open(temp_json, 'w') as f:
         json.dump(obj, f, indent=4, sort_keys=True)
     rename(temp_json, path)
+    xprint('save_json: path=%s' % path)
 
 
 def load_pickle(path, default=None):
@@ -202,7 +203,7 @@ def load_model(model_path, config_path):
 
 
 def save_model(model, model_path, config_path):
-    print('save_model: model_path=%r config_path=%r ' % (model_path, config_path), end='')
+    xprint('save_model: model_path=%r config_path=%r ' % (model_path, config_path), end='')
     assert isinstance(model_path, str) and isinstance(config_path, str)
     assert config_path.endswith('.json'), config_path
 
@@ -215,6 +216,7 @@ def save_model(model, model_path, config_path):
 
 
 AUC_DELTA = 0.001
+CHECK_MODE_IO = True
 
 
 class RocAucEvaluation(Callback):
@@ -272,6 +274,14 @@ class RocAucEvaluation(Callback):
                 save_json(self.epoch_path, self.epochs)
 
                 save_model(self.model, self.model_path, self.config_path)
+
+                if CHECK_MODE_IO:
+                    model = load_model(model_path, config_path)
+                    y_pred = model.predict(self.X_val, verbose=0)
+                    auc = roc_auc_score(self.y_val, y_pred)
+                    xprint('\n****ROC-AUC - epoch: {:d} - score: {:.6f}'.format(0, auc))
+                    self.best_auc = auc
+                    del model
             else:
                  xprint('RocAucEvaluation.fit: No improvement best_epoch=%d best_auc=%.3f dt=%.1f sec' %
                     (self.best_epoch + 1, self.best_auc, dt))
