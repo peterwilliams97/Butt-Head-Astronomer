@@ -28,7 +28,7 @@ run_summary_path = os.path.join(SUMMARY_DIR,
 
 def get_clf():
     return ClfVector(batch_size=300, do_spacy=False,
-                     dropout=0.4, epochs=1, epochs2=40,
+                     dropout=0.4, epochs=1, epochs2=2,
                      learn_rate=0.0005, learn_rate_unfrozen=0.001,
                      lstm_type=13,
                      max_features=50000, max_length=75,
