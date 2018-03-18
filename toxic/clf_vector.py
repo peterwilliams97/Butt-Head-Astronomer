@@ -156,6 +156,11 @@ def do_fit(train_texts, train_labels, dev_texts, dev_labels, lstm_shape, lstm_se
 
     xprint('do_fit: train_texts=%s dev_texts=%s' % (dim(train_texts), dim(dev_texts)))
 
+    if os.path.exists(model_path):
+        os.remove(model_path)
+    if os.path.exists(config_path):
+        os.remove(config_path)
+
     X_sents, word_count = tokenizer.token_lists(train_texts, max_length)
     validation_data = None
     if dev_texts is not None:
