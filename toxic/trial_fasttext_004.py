@@ -15,7 +15,7 @@ from reductions import PREDICT_METHODS_GOOD
 submission_name = 'v_trial_fasttest_004'
 epochs = 40
 random_seed = 60018
-set_n_samples(20000)
+set_n_samples(40000)
 run_summary_path = os.path.join(SUMMARY_DIR,
     '%s.%s.run_summary.json' % (submission_name, get_n_samples_str()))
 
