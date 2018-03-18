@@ -9,6 +9,11 @@ kaggle competitions submissions -c jigsaw-toxic-comment-classification-challenge
 https://www.google.com.au/search?q=kaggle+web+text+classification
 
 
+FINDINGS
+========
+Zero better than randomized
+fasttext is a good embedding
+
 TOOLS
 =====
 source activate py36
