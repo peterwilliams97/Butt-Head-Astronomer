@@ -216,8 +216,9 @@ def do_fit(train_texts, train_labels, dev_texts, dev_labels, lstm_shape, lstm_se
             early = EarlyStopping(monitor='val_auc', mode='max', patience=2, verbose=1)
             callback_list = [ra_val, early]
         else:
-            sae = SaveAllEpochs(model_path, config_path, epoch_path)
-            callback_list = [sae]
+            # sae = SaveAllEpochs(model_path, config_path, epoch_path)
+            # callback_list = [sae]
+            callback_list = None
 
         print('!^^^embeddings=%s' % dim(embeddings))
         print('!^^^X_train=%d..%d' % (X_train.min(), X_train.max()))
