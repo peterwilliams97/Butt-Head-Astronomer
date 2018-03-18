@@ -201,7 +201,7 @@ def do_fit(train_texts, train_labels, dev_texts, dev_labels, lstm_shape, lstm_se
             xprint('do_fit: run %d is complete')
             continue
 
-        if run > 0:
+        if run > 0 and os.path.exists(model_path) and os.path.exists(config_path):
             xprint('Reloading partially trained model')
             model = load_model(model_path, config_path)
 
