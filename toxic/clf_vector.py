@@ -221,7 +221,8 @@ def do_fit(train_texts, train_labels, dev_texts, dev_labels, lstm_shape, lstm_se
 
         print('!^^^embeddings=%s' % dim(embeddings))
         print('!^^^X_train=%d..%d' % (X_train.min(), X_train.max()))
-        print('!^^^X_val=%d..%d' % (X_val.min(), X_val.max()))
+        if validation_data is not None:
+            print('!^^^X_val=%d..%d' % (X_val.min(), X_val.max()))
 
         model.fit(X_train, y_train, sample_weight=w_train,
                   batch_size=batch_size, epochs=epochs, callbacks=callback_list,
