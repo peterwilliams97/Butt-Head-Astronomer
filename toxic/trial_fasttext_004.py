@@ -75,7 +75,7 @@ for n_runs0 in range(2):
             xprint('params %d: %s' % (p_i, clf_str))
 
             runs = completed_tests.get(clf_str, [])
-            if len(runs) > n_runs0:
+            if len(runs) > n_runs0 * len(PREDICT_METHODS_GOOD):
                 xprint('skipping runs=%d n_runs0=%d' % (len(runs), n_runs0))
                 continue
 

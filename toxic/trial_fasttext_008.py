@@ -43,7 +43,7 @@ xprint('run_summary_path=%s' % run_summary_path)
 n_completed0 = len(completed_tests)
 
 for n_runs0 in range(4):
-    print('n_completed0=%d n_runs0=%d' % (n_completed0, n_runs0))
+    xprint('n_completed0=%d n_runs0=%d' % (n_completed0, n_runs0))
 
     xprint('#' * 80)
     predict_method = PREDICT_METHODS_GOOD[0]
@@ -51,14 +51,13 @@ for n_runs0 in range(4):
     xprint(clf_str)
 
     runs = completed_tests.get(clf_str, [])
-    if len(runs) > n_runs0:
+    if len(runs) > n_runs0 * (len(PREDICT_METHODS_GOOD) + 1):
         xprint('skipping runs=%d n_runs0=%d' % (len(runs), n_runs0))
         continue
 
     set_random_seed(random_seed + n_runs0)
     evaluator = Evaluator(n=1)
-    ok, auc_reductions, best_method = evaluator.evaluate_reductions(get_clf,
-        PREDICT_METHODS_GOOD)
+    ok, auc_reductions, best_method = evaluator.evaluate_reductions(get_clf, PREDICT_METHODS_GOOD)
     assert ok
 
     for predict_method in sorted(auc_reductions):
