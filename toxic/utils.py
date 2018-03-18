@@ -244,7 +244,7 @@ class RocAucEvaluation(Callback):
         self.best_auc = 0.0
         self.best_epoch = -1
         self.t0 = time.perf_counter()
-        if do_prime:
+        if do_prime and os.path.exists(model_path) and os.path.exists(config_path):
             model = load_model(model_path, config_path)
             y_pred = model.predict(self.X_val, verbose=0)
             auc = roc_auc_score(self.y_val, y_pred, sample_weight=self.w_val)
