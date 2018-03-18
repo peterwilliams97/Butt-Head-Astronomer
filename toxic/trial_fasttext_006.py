@@ -65,10 +65,10 @@ for n_runs0 in range(2):
     print('n_completed0=%d n_runs0=%d' % (n_completed0, n_runs0))
 
     for p_i, (lstm_type, max_length, max_features, n_hidden, dropout) in enumerate(params_list):
-            for learn_rate in [0.0005, 0.001, 0.002, 0.004]:
-                for lr_ratio in [2.0, 1.0, 0.5]:
-                    for epochs in [0, 1, 2, 40]:
-                        for randomized in [True, False]:
+            for epochs in [0, 1, 2, 40]:
+                for learn_rate in [0.0005, 0.002]:
+                    for lr_ratio in [2.0, 1.0, 0.5]:
+                        for randomized in [False]:
                             xprint('#' * 80)
                             predict_method = PREDICT_METHODS_GOOD[0]
                             clf_str = str(get_clf())
