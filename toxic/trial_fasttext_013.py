@@ -15,8 +15,10 @@ from reductions import PREDICT_METHODS_GOOD
 # auc=0.9875   0: get_clf ClfVector(batch_size=300, do_spacy=False, dropout=0.4, epochs=40, epochs2=40, learn_rate=0.0005, learn_rate_unfrozen=0.0005, lstm_type=13, max_features=50000, max_length=50, n_hidden=120, predict_method=BEST, randomized=False, single_oov=False, token_method=4)
 # auc=0.9856  15: get_clf ClfVector(batch_size=300, do_spacy=False, dropout=0.4, epochs=40, epochs2=40, learn_rate=0.0005, learn_rate_unfrozen=0.001, lstm_type=13, max_features=50000, max_length=75, n_hidden=150, predict_method=BEST, randomized=False, single_oov=False, token_method=4)
 # auc=0.9882  35: get_clf ClfVector(batch_size=300, do_spacy=False, dropout=0.2, epochs=40, epochs2=40, learn_rate=0.002, learn_rate_unfrozen=0.002, lstm_type=13, max_features=50000, max_length=100, n_hidden=150, predict_method=BEST, randomized=False, single_oov=False, token_method=4)
+# auc=0.9877   5: get_clf ClfVector(batch_size=300, do_spacy=False, dropout=0.2, epochs=40, epochs2=40, learn_rate=0.0005, learn_rate_unfrozen=0.0005, lstm_type=13, max_features=50000, max_length=100, n_hidden=150, predict_method=BEST, randomized=False, single_oov=False, token_method=4)
 
-submission_name = 'v_trial_fasttest_0011'
+
+submission_name = 'v_trial_fasttest_0013'
 epochs2 = 40
 random_seed = 60019
 set_n_samples(40000)
@@ -31,8 +33,8 @@ run_summary_path = os.path.join(SUMMARY_DIR,
 def get_clf():
     return ClfVector(batch_size=300, do_spacy=False,
                      dropout=0.2, epochs=40, epochs2=40,
-                     # learn_rate=0.0005, learn_rate_unfrozen=0.0005,
-                     learn_rate=0.002, learn_rate_unfrozen=0.002,
+                     learn_rate=0.0005, learn_rate_unfrozen=0.0005,
+                     # learn_rate=0.002, learn_rate_unfrozen=0.002,
                      lstm_type=13,
                      max_features=50000, max_length=100,
                      n_hidden=150, predict_method=predict_method,
