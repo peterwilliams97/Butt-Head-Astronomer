@@ -198,7 +198,8 @@ def load_model(model_path, config_path):
     weights = load_pickle(model_path)
     model.set_weights(weights)
 
-    xprint('load_model: model_path=%s weights=%s' % (model_path, dim(weights)))
+    xprint('load_model: model_path=%r config_path=%r weights=%s' % (model_path, config_path,
+        dim(weights)))
     return model
 
 
@@ -276,7 +277,7 @@ class RocAucEvaluation(Callback):
                 save_model(self.model, self.model_path, self.config_path)
 
                 if CHECK_MODE_IO:
-                    model = load_model(model_path, config_path)
+                    model = load_model(self.model_path, self.config_path)
                     y_pred = model.predict(self.X_val, verbose=0)
                     auc = roc_auc_score(self.y_val, y_pred)
                     xprint('\n****ROC-AUC - epoch: {:d} - score: {:.6f}'.format(0, auc))
