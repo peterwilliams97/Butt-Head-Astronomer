@@ -225,7 +225,7 @@ dropout = 0.2
 batch_size = 32
 epochs = 40
 
-params0 = (maxlen, max_features, n_hidden, dropout, batch_size, epochs)
+# params0 = (maxlen, max_features, n_hidden, dropout, batch_size, epochs)
 
 params_list = []
 for maxlen in [100, 150]:  # [50, 75, 100, 150]:
@@ -239,7 +239,7 @@ for maxlen in [100, 150]:  # [50, 75, 100, 150]:
 print('params_list=%d' % len(params_list))
 random.seed(time.time())
 random.shuffle(params_list)
-params_list = [params0] + params_list
+# params_list = [params0] + params_list
 # params_list.reverse()
 print('params_list=%d' % len(params_list))
 for i, params in enumerate(params_list[:10]):
