@@ -8,6 +8,12 @@ kaggle competitions submissions -c jigsaw-toxic-comment-classification-challenge
 
 https://www.google.com.au/search?q=kaggle+web+text+classification
 
+GRU Fasttext
+===========
+base 0.9828
+1    0.9814 submission_gr_fasttext2.csv
+     0.9822 submission_gr_fasttext1.csv
+     0.9837 submission_gr_fasttext3.csv
 
 FINDINGS
 ========
