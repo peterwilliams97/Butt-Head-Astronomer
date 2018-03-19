@@ -12,7 +12,7 @@ import random
 import time
 from utils import dim, xprint, xprint_init, load_json, save_json
 from gru_framework import (Evaluator, set_n_samples, set_random_seed, show_results,
-    get_n_samples_str, auc_score_list, SUMMARY_DIR)
+    get_n_samples_str, auc_score_list, SUMMARY_DIR, X_train0, X_test0)
 
 
 np.random.seed(42)
@@ -21,25 +21,25 @@ os.environ['OMP_NUM_THREADS'] = '4'
 
 
 EMBEDDING_FILE = '~/data/models/fasttext/crawl-300d-2M.vec'
-TRAIN = '~/data/toxic/train.csv'
-TEST = '~/data/toxic/test.csv'
-SUBMISSION = '~/data/toxic/sample_submission.csv'
+# TRAIN = '~/data/toxic/train.csv'
+# TEST = '~/data/toxic/test.csv'
+# SUBMISSION = '~/data/toxic/sample_submission.csv'
 
 EMBEDDING_FILE = os.path.expanduser(EMBEDDING_FILE)
-TRAIN = os.path.expanduser(TRAIN)
-TEST = os.path.expanduser(TEST)
-SUBMISSION = os.path.expanduser(SUBMISSION)
+# TRAIN = os.path.expanduser(TRAIN)
+# TEST = os.path.expanduser(TEST)
+# SUBMISSION = os.path.expanduser(SUBMISSION)
 
-train = pd.read_csv(TRAIN).iloc
-test = pd.read_csv(TEST).iloc
-submission = pd.read_csv(SUBMISSION)
+# train = pd.read_csv(TRAIN)
+# test = pd.read_csv(TEST)
+# submission = pd.read_csv(SUBMISSION)
 
 EMBEDDING_FILE = os.path.expanduser(EMBEDDING_FILE)
 assert os.path.exists(EMBEDDING_FILE)
 
-X_train0 = train["comment_text"].fillna("fillna").values
-y_train0 = train[["toxic", "severe_toxic", "obscene", "threat", "insult", "identity_hate"]].values
-X_test0 = test["comment_text"].fillna("fillna").values
+# X_train0 = train["comment_text"].fillna("fillna").values
+# y_train0 = train[["toxic", "severe_toxic", "obscene", "threat", "insult", "identity_hate"]].values
+# X_test0 = test["comment_text"].fillna("fillna").values
 
 
 # max_features = 30000
@@ -227,8 +227,8 @@ for n_runs0 in range(2):
 
     for p_i, (maxlen, max_features, n_hidden, dropout, batch_size) in enumerate(params_list):
 
-        xprint('#' * 80)
         clf_str = str(get_clf())
+        xprint('#' * 80)
         xprint('params %d: %s' % (p_i, clf_str))
         runs = completed_tests.get(clf_str, [])
         # if len(runs) > n_runs0:

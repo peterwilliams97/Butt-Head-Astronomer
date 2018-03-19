@@ -73,10 +73,30 @@ def my_shuffle(indexes):
     seed_delta += 1
 
 
-def load_data():
+def load_base_data():
+    print('load_base_data')
     train = pd.read_csv(join(TOXIC_DATA_DIR, 'train.csv'))
     test = pd.read_csv(join(TOXIC_DATA_DIR, 'test.csv'))
     subm = pd.read_csv(join(TOXIC_DATA_DIR, 'sample_submission.csv'))
+
+    # There are a few empty comments that we need to get rid of, otherwise sklearn will complain.
+    train[COMMENT].fillna('_na_', inplace=True)
+    test[COMMENT].fillna('_na_', inplace=True)
+
+    xprint('train,test,subm:', train.shape, test.shape, subm.shape)
+    X_train = train[COMMENT].values
+    X_test = test[COMMENT].values
+    print('load_base_data: X_train=%s X_test=%s' % (X_train, X_test))
+    return train, test, subm, X_train, X_test
+
+
+train0, test0, subm0, X_train0, X_test0 = load_base_data()
+
+
+def load_data():
+    train = train0
+    test = test0
+    subm = subm0
     xprint('train,test,subm:', train.shape, test.shape, subm.shape)
 
     n_samples = get_n_samples()
@@ -87,10 +107,6 @@ def load_data():
     seed_random()
 
     xprint('train=%d test=%d (%.1f%%)' % (len(train), len(test), 100.0 * len(test) / len(train)))
-
-    # There are a few empty comments that we need to get rid of, otherwise sklearn will complain.
-    train[COMMENT].fillna('_na_', inplace=True)
-    test[COMMENT].fillna('_na_', inplace=True)
 
     return train, test, subm
 
