@@ -194,6 +194,15 @@ def get_clf():
 # evaluator = Evaluator()
 # evaluator.evaluate(get_clf)
 
+# Original values
+max_features = 30000
+maxlen = 100
+n_hidden = 80
+dropout = 0.2
+batch_size = 32
+
+params0 = (maxlen, max_features, n_hidden, dropout, batch_size)
+
 params_list = []
 for maxlen in [50, 75, 100, 150]:  # [50, 75, 100, 150]:
     for max_features in [30000, 50000, 60000, 70000]:  # [20000, 25000, 30000, 40000]:
@@ -206,13 +215,14 @@ for maxlen in [50, 75, 100, 150]:  # [50, 75, 100, 150]:
 print('params_list=%d' % len(params_list))
 random.seed(time.time())
 random.shuffle(params_list)
+params_list = [params0] + params_list
 # params_list.reverse()
 print('params_list=%d' % len(params_list))
 for i, params in enumerate(params_list[:10]):
     print(i, params)
 print('$' * 100)
 
-submission_name = 'ggru'
+submission_name = 'ggru2'
 xprint_init(submission_name, False)
 auc_list = []
 run_summary_path = os.path.join(SUMMARY_DIR,
