@@ -26,20 +26,20 @@ TEST = '~/data/toxic/test.csv'
 SUBMISSION = '~/data/toxic/sample_submission.csv'
 
 EMBEDDING_FILE = os.path.expanduser(EMBEDDING_FILE)
-TRAIN = os.path.expanduser(TRAIN)
-TEST = os.path.expanduser(TEST)
-SUBMISSION = os.path.expanduser(SUBMISSION)
+# TRAIN = os.path.expanduser(TRAIN)
+# TEST = os.path.expanduser(TEST)
+# SUBMISSION = os.path.expanduser(SUBMISSION)
 
-train = pd.read_csv(TRAIN).iloc[:19000, :]
-test = pd.read_csv(TEST).iloc[:1000, :]
-submission = pd.read_csv(SUBMISSION)
+# train = pd.read_csv(TRAIN).iloc[:19000, :]
+# test = pd.read_csv(TEST).iloc[:1000, :]
+# submission = pd.read_csv(SUBMISSION)
 
 EMBEDDING_FILE = os.path.expanduser(EMBEDDING_FILE)
 assert os.path.exists(EMBEDDING_FILE)
 
-X_train0 = train["comment_text"].fillna("fillna").values
-y_train0 = train[["toxic", "severe_toxic", "obscene", "threat", "insult", "identity_hate"]].values
-X_test0 = test["comment_text"].fillna("fillna").values
+# X_train0 = train["comment_text"].fillna("fillna").values
+# y_train0 = train[["toxic", "severe_toxic", "obscene", "threat", "insult", "identity_hate"]].values
+# X_test0 = test["comment_text"].fillna("fillna").values
 
 
 # max_features = 30000
@@ -185,7 +185,8 @@ class ClfGru():
 
 
 def get_clf():
-    return ClfGru(max_features=30000, maxlen=100, dropout=0.2, n_hidden=80, batch_size=32,
+    return ClfGru(max_features=max_features, maxlen=maxlen, dropout=dropout, n_hidden=n_hidden,
+        batch_size=batch_size,
         epochs=2)
 
 
@@ -199,7 +200,7 @@ for maxlen in [50, 75, 100, 150]:  # [50, 75, 100, 150]:
         for n_hidden in [80, 120, 256]:
             for dropout in [0.2, 0.5]:  # [0.1, 0.3, 0.5]:
                 for batch_size in [32, 100, 150, 300]:
-                    params = (maxlen, max_features, n_hidden, dropout)
+                    params = (maxlen, max_features, n_hidden, dropout, batch_size)
                     params_list.append(params)
 
 print('params_list=%d' % len(params_list))
@@ -224,7 +225,7 @@ n_completed0 = len(completed_tests)
 for n_runs0 in range(2):
     print('n_completed0=%d n_runs0=%d' % (n_completed0, n_runs0))
 
-    for p_i, (maxlen, max_features, n_hidden, dropout) in enumerate(params_list):
+    for p_i, (maxlen, max_features, n_hidden, dropout, batch_size) in enumerate(params_list):
 
         xprint('#' * 80)
         clf_str = str(get_clf())
