@@ -8,8 +8,11 @@ from keras.layers import GRU, Bidirectional, GlobalAveragePooling1D, GlobalMaxPo
 from keras.preprocessing import text, sequence
 from keras.callbacks import Callback
 import os
-from utils import dim, xprint
-from gru_framework import Evaluator, set_n_samples
+import random
+import time
+from utils import dim, xprint, xprint_init, load_json, save_json
+from gru_framework import (Evaluator, set_n_samples, set_random_seed, show_results,
+    get_n_samples_str, auc_score_list, SUMMARY_DIR)
 
 
 np.random.seed(42)
@@ -156,8 +159,14 @@ class ClfGru():
         self.epochs = epochs
         self.validate = validate
 
+        D = self.__dict__
+        self.description = ', '.join('%s=%s' % (k, v) for k, v in sorted(D.items()))
+
         self.embedding_matrix = get_embeddings(max_features, maxlen)
         self.model = get_model(self.embedding_matrix, max_features, maxlen, dropout, n_hidden)
+
+    def __repr__(self):
+        return 'ClfGru(%s)' % self.description
 
     def fit(self, X_train_in, y_train):
         X_train = tokenize(self.max_features, self.maxlen, X_train_in)
@@ -176,12 +185,71 @@ class ClfGru():
 
 
 def get_clf():
-    return ClfGru()
+    return ClfGru(max_features=30000, maxlen=100, dropout=0.2, n_hidden=80, batch_size=32,
+        epochs=2)
 
 
 set_n_samples(10000)
-evaluator = Evaluator()
-evaluator.evaluate(get_clf)
+# evaluator = Evaluator()
+# evaluator.evaluate(get_clf)
+
+params_list = []
+for maxlen in [50, 75, 100, 150]:  # [50, 75, 100, 150]:
+    for max_features in [30000, 40000, 50000]:  # [20000, 25000, 30000, 40000]:
+        for n_hidden in [80, 120, 256]:
+            for dropout in [0.2, 0.5]:  # [0.1, 0.3, 0.5]:
+                for batch_size in [32, 100, 150, 300]:
+                    params = (maxlen, max_features, n_hidden, dropout)
+                    params_list.append(params)
+
+print('params_list=%d' % len(params_list))
+random.seed(time.time())
+random.shuffle(params_list)
+# params_list.reverse()
+print('params_list=%d' % len(params_list))
+for i, params in enumerate(params_list[:10]):
+    print(i, params)
+print('$' * 100)
+
+submission_name = 'ggru'
+xprint_init(submission_name, False)
+auc_list = []
+run_summary_path = os.path.join(SUMMARY_DIR,
+    '%s.%s.run_summary.json' % (submission_name, get_n_samples_str()))
+
+completed_tests = load_json(run_summary_path, {})
+xprint('run_summary_path=%s' % run_summary_path)
+n_completed0 = len(completed_tests)
+
+for n_runs0 in range(2):
+    print('n_completed0=%d n_runs0=%d' % (n_completed0, n_runs0))
+
+    for p_i, (maxlen, max_features, n_hidden, dropout) in enumerate(params_list):
+
+        xprint('#' * 80)
+        clf_str = str(get_clf())
+        xprint('params %d: %s' % (p_i, clf_str))
+        runs = completed_tests.get(clf_str, [])
+        if len(runs) > n_runs0:
+            xprint('skipping runs=%d n_runs0=%d' % (len(runs), n_runs0))
+            continue
+
+        set_random_seed(10000 + n_runs0)
+        evaluator = Evaluator()
+        auc = evaluator.evaluate(get_clf)
+
+        auc_list.append((auc, get_clf.__name__, str(get_clf())))
+        show_results(auc_list)
+
+        runs.append(auc_score_list(auc))
+        completed_tests[str(get_clf())] = runs
+        save_json(run_summary_path, completed_tests)
+        xprint('n_completed=%d = %d + %d' % (len(completed_tests), n_completed0,
+            len(completed_tests) - n_completed0))
+        xprint('&' * 100)
+
+xprint('$' * 100)
+
 
 # clf = ClfGru()
 

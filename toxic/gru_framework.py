@@ -24,10 +24,13 @@ SEED = 234
 SUBMISSION_DIR = 'submissions.fasttext'
 MODEL_DIR = 'models.fasttext'
 TOXIC_DATA_DIR = join(DATA_ROOT, 'toxic')
+SUMMARY_DIR = 'run.summaries'
 seed_delta = 1
 
 os.makedirs(SUBMISSION_DIR, exist_ok=True)
 os.makedirs(MODEL_DIR, exist_ok=True)
+os.makedirs(SUMMARY_DIR, exist_ok=True)
+
 
 
 def set_n_samples(n):
