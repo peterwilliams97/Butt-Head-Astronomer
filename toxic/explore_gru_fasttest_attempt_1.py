@@ -213,7 +213,7 @@ def get_clf():
         epochs=epochs)
 
 
-set_n_samples(10000)
+# set_n_samples(10000)
 # evaluator = Evaluator()
 # evaluator.evaluate(get_clf)
 
