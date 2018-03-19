@@ -217,7 +217,7 @@ maxlen = 100
 n_hidden = 80
 dropout = 0.2
 batch_size = 32
-epochs = 2
+epochs = 40
 
 params0 = (maxlen, max_features, n_hidden, dropout, batch_size, epochs)
 
