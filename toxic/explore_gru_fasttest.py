@@ -179,7 +179,7 @@ def get_clf():
     return ClfGru()
 
 
-set_n_samples(20000)
+set_n_samples(40000)
 evaluator = Evaluator()
 evaluator.evaluate(get_clf)
 

@@ -243,8 +243,8 @@ class Evaluator:
         y_test = test_part[LABEL_COLS].values
         xprint('evaluate: X_train=%s y_train=%s' % (dim(X_train), dim(y_train)))
         xprint('evaluate: X_test=%s y_test=%s' % (dim(X_test), dim(y_test)))
-        assert len(X_train) >= 10000
-        assert len(X_test) >= 10000
+        assert len(X_train) >= 20000
+        assert len(X_test) >= 20000
 
         auc = np.zeros(len(LABEL_COLS), dtype=np.float64)
 
@@ -255,11 +255,14 @@ class Evaluator:
         t0 = time.perf_counter()
         pred = clf.predict(X_test)
         xprint('evaluate predict duration=%.1f sec' % (time.perf_counter() - t0))
+        xprint('y_test=%s pred=%s' % (dim(y_test), dim(pred)))
 
         auc = np.zeros(len(LABEL_COLS), dtype=np.float64)
         for j, col in enumerate(LABEL_COLS):
+            xprint('^^ %d: %s ' % (j, col), end=' ')
             y_true = y_test[j]
             y_pred = pred[:, j]
+            xprint('y_true=%s y_pred=%s' % (dim(y_true), dim(y_pred)))
             auc[j] = roc_auc_score(y_true, y_pred)
         mean_auc = auc.mean()
         xprint('auc=%.3f %s' % (mean_auc, label_score(auc)))
