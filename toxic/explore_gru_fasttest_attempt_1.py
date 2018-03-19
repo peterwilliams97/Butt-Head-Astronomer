@@ -189,7 +189,7 @@ class ClfGru():
     def fit(self, X_train_in, y_train):
         X_train = tokenize(self.max_features, self.maxlen, X_train_in)
         if self.validate:
-            X_train, X_val, y_train, y_val = train_test_split(X_train, y_train, train_size=0.80,
+            X_train, X_val, y_train, y_val = train_test_split(X_train, y_train, train_size=0.95,
                 random_state=233)
             RocAuc = RocAucEvaluation(validation_data=(X_val, y_val), interval=1)
             early = EarlyStopping(monitor='val_auc', mode='max', patience=2, verbose=1)
