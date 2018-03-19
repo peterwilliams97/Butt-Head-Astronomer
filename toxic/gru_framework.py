@@ -216,11 +216,11 @@ def show_results(auc_list):
     results = [(i, auc, clf, clf_str) for i, (auc, clf, clf_str) in enumerate(auc_list)]
     results.sort(key=lambda x: (-x[1].mean(), x[2], x[3]))
     xprint('~' * 100)
-    xprint('RESULTS SO FAR: %d' % len(results))
-    for i, auc, clf, clf_str in results:
-        xprint('$' * 100)
-        xprint('auc=%.4f %3d: %s %s' % (auc.mean(), i, clf, clf_str))
-        show_auc(auc)
+    # xprint('RESULTS SO FAR: %d' % len(results))
+    # for i, auc, clf, clf_str in results:
+    #     xprint('$' * 100)
+    #     xprint('auc=%.4f %3d: %s %s' % (auc.mean(), i, clf, clf_str))
+    #     show_auc(auc)
     xprint('^' * 100)
     xprint('RESULTS SUMMARY: %d' % len(results))
     for i, auc, clf, clf_str in results:
