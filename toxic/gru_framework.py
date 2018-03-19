@@ -243,8 +243,8 @@ class Evaluator:
         y_test = test_part[LABEL_COLS].values
         xprint('evaluate: X_train=%s y_train=%s' % (dim(X_train), dim(y_train)))
         xprint('evaluate: X_test=%s y_test=%s' % (dim(X_test), dim(y_test)))
-        assert len(X_train) >= 20000
-        assert len(X_test) >= 20000
+        # assert len(X_train) >= 20000
+        # assert len(X_test) >= 20000
 
         auc = np.zeros(len(LABEL_COLS), dtype=np.float64)
 
