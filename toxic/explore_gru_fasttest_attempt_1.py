@@ -10,7 +10,7 @@ from keras.callbacks import Callback, EarlyStopping
 import os
 import random
 import time
-from utils import dim, xprint, xprint_init, load_json, save_json
+from utils import dim, xprint, xprint_init, load_json, save_json, load_model, save_model
 from gru_framework import (Evaluator, set_n_samples, set_random_seed, show_results,
     get_n_samples_str, auc_score_list, SUMMARY_DIR, X_train0, X_test0)
 
@@ -113,6 +113,10 @@ def get_embeddings(max_features, maxlen):
     return embedding_matrix
 
 
+model_path = 'gruxx_model.pkl'
+config_path = 'gruxx_model.json'
+
+
 class RocAucEvaluation(Callback):
     def __init__(self, validation_data=(), interval=1):
         super(Callback, self).__init__()
@@ -135,6 +139,7 @@ class RocAucEvaluation(Callback):
             xprint('RocAucEvaluation.fit: auc=%.3f > best_auc=%.3f' % (auc, self.best_auc))
             self.best_auc = auc
             self.best_epoch = epoch
+            save_model(self.model, model_path, config_path)
         else:
             xprint('RocAucEvaluation.fit: No improvement')
         xprint('best_epoch=%d best_auc=%.3f' % (self.best_epoch + 1, self.best_auc))
@@ -196,6 +201,7 @@ class ClfGru():
             xprint('***Best epoch=%d acu=%.4f' % (RocAuc.best_epoch + 1, RocAuc.best_auc))
 
     def predict(self, X_test_in):
+        self.model = load_model(model_path, config_path)
         X_test = tokenize(self.max_features, self.maxlen, X_test_in)
         y_pred = self.model.predict(X_test, batch_size=self.batch_size)
         return y_pred
@@ -207,7 +213,7 @@ def get_clf():
         epochs=epochs)
 
 
-# set_n_samples(10000)
+set_n_samples(10000)
 # evaluator = Evaluator()
 # evaluator.evaluate(get_clf)
 
