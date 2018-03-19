@@ -260,7 +260,7 @@ class Evaluator:
         auc = np.zeros(len(LABEL_COLS), dtype=np.float64)
         for j, col in enumerate(LABEL_COLS):
             xprint('^^ %d: %s ' % (j, col), end=' ')
-            y_true = y_test[j]
+            y_true = y_test[:, j]
             y_pred = pred[:, j]
             xprint('y_true=%s y_pred=%s' % (dim(y_true), dim(y_pred)))
             auc[j] = roc_auc_score(y_true, y_pred)
