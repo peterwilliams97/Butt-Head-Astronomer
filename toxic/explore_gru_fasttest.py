@@ -1,0 +1,206 @@
+import numpy as np
+import pandas as pd
+from sklearn.model_selection import train_test_split
+from sklearn.metrics import roc_auc_score
+from keras.models import Model
+from keras.layers import Input, Dense, Embedding, SpatialDropout1D, concatenate
+from keras.layers import GRU, Bidirectional, GlobalAveragePooling1D, GlobalMaxPooling1D
+from keras.preprocessing import text, sequence
+from keras.callbacks import Callback
+import os
+from utils import dim, xprint
+from gru_framework import Evaluator, set_n_samples
+
+
+np.random.seed(42)
+
+os.environ['OMP_NUM_THREADS'] = '4'
+
+
+EMBEDDING_FILE = '~/data/models/fasttext/crawl-300d-2M.vec'
+TRAIN = '~/data/toxic/train.csv'
+TEST = '~/data/toxic/test.csv'
+SUBMISSION = '~/data/toxic/sample_submission.csv'
+
+EMBEDDING_FILE = os.path.expanduser(EMBEDDING_FILE)
+TRAIN = os.path.expanduser(TRAIN)
+TEST = os.path.expanduser(TEST)
+SUBMISSION = os.path.expanduser(SUBMISSION)
+
+train = pd.read_csv(TRAIN).iloc[:19000, :]
+test = pd.read_csv(TEST).iloc[:1000, :]
+submission = pd.read_csv(SUBMISSION)
+
+EMBEDDING_FILE = os.path.expanduser(EMBEDDING_FILE)
+assert os.path.exists(EMBEDDING_FILE)
+
+X_train0 = train["comment_text"].fillna("fillna").values
+y_train0 = train[["toxic", "severe_toxic", "obscene", "threat", "insult", "identity_hate"]].values
+X_test0 = test["comment_text"].fillna("fillna").values
+
+
+# max_features = 30000
+# maxlen = 100
+embed_size = 300
+
+
+tokenizer_map = {}
+
+
+def get_tokenizer(max_features, maxlen):
+    global tokenizer_map
+    if (max_features, maxlen) not in tokenizer_map:
+        tokenizer = text.Tokenizer(num_words=max_features)
+        tokenizer.fit_on_texts(list(X_train0) + list(X_test0))
+        tokenizer_map[(max_features, maxlen)] = tokenizer
+    return tokenizer_map[(max_features, maxlen)]
+
+
+def tokenize(max_features, maxlen, X):
+    tokenizer = get_tokenizer(max_features, maxlen)
+    X = tokenizer.texts_to_sequences(X)
+    X = sequence.pad_sequences(X, maxlen=maxlen)
+    return X
+
+
+def tokenize_all(max_features, maxlen):
+    tokenizer = text.Tokenizer(num_words=max_features)
+    tokenizer.fit_on_texts(list(X_train0) + list(X_test0))
+    X_train = tokenizer.texts_to_sequences(X_train0)
+    X_test = tokenizer.texts_to_sequences(X_test0)
+    x_train = sequence.pad_sequences(X_train, maxlen=maxlen)
+    x_test = sequence.pad_sequences(X_test, maxlen=maxlen)
+    return tokenizer.word_index, x_train, x_test
+
+
+def get_coefs(word, *arr):
+    return word, np.asarray(arr, dtype='float32')
+
+
+embeddings_index = None
+
+
+def get_embeddings(max_features, maxlen):
+    global embeddings_index
+
+    print('get_embeddings: embeddings_index=%s' % (embeddings_index is not None))
+
+    if embeddings_index is None:
+        embeddings_index = {}
+        with open(EMBEDDING_FILE) as f:
+            for i, o in enumerate(f):
+                w, vec = get_coefs(*o.rstrip().rsplit(' '))
+                embeddings_index[w] = vec
+                if i > 31000:
+                    break
+        # embeddings_index = dict(get_coefs(*o.rstrip().rsplit(' ')) for o in open(EMBEDDING_FILE))
+
+    tokenizer = get_tokenizer(max_features, maxlen)
+    word_index = tokenizer.word_index
+    nb_words = min(max_features, len(word_index))
+    embedding_matrix = np.zeros((nb_words, embed_size))
+    for word, i in word_index.items():
+        if i >= nb_words:
+            continue
+        embedding_vector = embeddings_index.get(word)
+        if embedding_vector is not None:
+            embedding_matrix[i] = embedding_vector
+
+    xprint('embedding_matrix=%s' % dim(embedding_matrix))
+    return embedding_matrix
+
+
+class RocAucEvaluation(Callback):
+    def __init__(self, validation_data=(), interval=1):
+        super(Callback, self).__init__()
+
+        self.interval = interval
+        self.X_val, self.y_val = validation_data
+
+    def on_epoch_end(self, epoch, logs={}):
+        if epoch % self.interval == 0:
+            y_pred = self.model.predict(self.X_val, verbose=0)
+            score = roc_auc_score(self.y_val, y_pred)
+            print("\n ROC-AUC - epoch: %d - score: %.6f \n" % (epoch + 1, score))
+
+
+def get_model(embedding_matrix, max_features, maxlen, dropout=0.2, n_hidden=80):
+    inp = Input(shape=(maxlen, ))
+    x = Embedding(embedding_matrix.shape[0],
+                  embedding_matrix.shape[1],
+                  weights=[embedding_matrix])(inp)
+    x = SpatialDropout1D(dropout)(x)
+    x = Bidirectional(GRU(n_hidden, return_sequences=True))(x)
+    avg_pool = GlobalAveragePooling1D()(x)
+    max_pool = GlobalMaxPooling1D()(x)
+    conc = concatenate([avg_pool, max_pool])
+    outp = Dense(6, activation="sigmoid")(conc)
+
+    model = Model(inputs=inp, outputs=outp)
+    model.compile(loss='binary_crossentropy',
+                  optimizer='adam',
+                  metrics=['accuracy'])
+
+    return model
+
+
+class ClfGru():
+
+    def __init__(self, max_features=30000, maxlen=100, dropout=0.2, n_hidden=80, batch_size=32,
+        epochs=2, validate=True):
+        self.maxlen = maxlen
+        self.max_features = max_features
+        self.dropout = dropout
+        self.n_hidden = n_hidden
+        self.batch_size = batch_size
+        self.epochs = epochs
+        self.validate = validate
+
+        self.embedding_matrix = get_embeddings(max_features, maxlen)
+        self.model = get_model(self.embedding_matrix, max_features, maxlen, dropout, n_hidden)
+
+    def fit(self, X_train_in, y_train):
+        X_train = tokenize(self.max_features, self.maxlen, X_train_in)
+        if self.validate:
+            X_train, X_val, y_train, y_val = train_test_split(X_train, y_train, train_size=0.80,
+                random_state=233)
+            RocAuc = RocAucEvaluation(validation_data=(X_val, y_val), interval=1)
+            self.model.fit(X_train, y_train, batch_size=self.batch_size, epochs=self.epochs,
+                           validation_data=(X_val, y_val),
+                           callbacks=[RocAuc], verbose=1)
+
+    def predict(self, X_test_in):
+        X_test = tokenize(self.max_features, self.maxlen, X_test_in)
+        y_pred = self.model.predict(X_test, batch_size=self.batch_size)
+        return y_pred
+
+
+def get_clf():
+    return ClfGru()
+
+
+set_n_samples(20000)
+evaluator = Evaluator()
+evaluator.evaluate(get_clf)
+
+# clf = ClfGru()
+
+# clf.fit(X_train0, y_train0, validate=True)
+# y_pred = clf.predict(X_test0)
+# submission[["toxic", "severe_toxic", "obscene", "threat", "insult", "identity_hate"]] = y_pred
+# submission.to_csv('__submission_gr_fasttext.csv', index=False)
+
+    # model = get_model()
+
+    # batch_size = 32
+    # epochs = 2
+
+    # X_tra, X_val, y_tra, y_val = train_test_split(x_train, y_train, train_size=0.95, random_state=233)
+    # RocAuc = RocAucEvaluation(validation_data=(X_val, y_val), interval=1)
+
+    # hist = model.fit(X_tra, y_tra, batch_size=batch_size, epochs=epochs, validation_data=(X_val, y_val),
+    #                  callbacks=[RocAuc], verbose=1)
+
+    # y_pred = model.predict(x_test, batch_size=1024)
+    # submission[["toxic", "severe_toxic", "obscene", "threat", "insult", "identity_hate"]] = y_pred
+    # submission.to_csv('submission_gr_fasttext.csv', index=False)
