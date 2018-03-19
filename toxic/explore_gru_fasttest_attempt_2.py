@@ -251,7 +251,7 @@ for i, params in enumerate(params_list[:10]):
     print(i, params)
 print('$' * 100)
 
-submission_name = 'ggru3_attempt_1'
+submission_name = 'ggru3_attempt_2'
 xprint_init(submission_name, False)
 auc_list = []
 run_summary_path = os.path.join(SUMMARY_DIR,
