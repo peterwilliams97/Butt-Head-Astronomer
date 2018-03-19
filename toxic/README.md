@@ -10,10 +10,12 @@ https://www.google.com.au/search?q=kaggle+web+text+classification
 
 GRU Fasttext
 ===========
-base 0.9828
+base 0.9828 submission_gr_fasttext.csv
 1    0.9814 submission_gr_fasttext2.csv
      0.9822 submission_gr_fasttext1.csv
      0.9837 submission_gr_fasttext3.csv
+     0.9842 submission_gr_fasttext3.csv + nb
+     0.9840 submission_gr_fasttext3.csv + nb + glove
 
 FINDINGS
 ========
