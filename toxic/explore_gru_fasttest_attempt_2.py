@@ -225,8 +225,8 @@ dropout = 0.5
 batch_size = 32
 epochs = 40
 
-auc=0.9853   0: get_clf ClfGru(batch_size=32, dropout=0.2, epochs=2, max_features=30000, maxlen=150, n_hidden=256, validate=True)
-auc=0.9856   6: get_clf ClfGru(batch_size=32, dropout=0.5, epochs=2, max_features=60000, maxlen=150, n_hidden=120, validate=True)
+# auc=0.9853   0: get_clf ClfGru(batch_size=32, dropout=0.2, epochs=2, max_features=30000, maxlen=150, n_hidden=256, validate=True)
+# auc=0.9856   6: get_clf ClfGru(batch_size=32, dropout=0.5, epochs=2, max_features=60000, maxlen=150, n_hidden=120, validate=True)
 # batch_size=32, dropout=0.2, epochs=2, max_features=30000, maxlen=150, n_hidden=256, validate=T
 
 params0 = (maxlen, max_features, n_hidden, dropout, batch_size, epochs)
