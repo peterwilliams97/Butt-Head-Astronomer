@@ -13,7 +13,7 @@ from os.path import join
 from sklearn.metrics import roc_auc_score
 from sklearn.model_selection import train_test_split
 # import matplotlib.pyplot as plt
-from utils import COMMENT, DATA_ROOT, dim, xprint, xprint_f, load_json, save_json
+from utils import COMMENT, DATA_ROOT, dim, xprint
 
 
 VERBOSE = False
@@ -30,7 +30,6 @@ seed_delta = 1
 os.makedirs(SUBMISSION_DIR, exist_ok=True)
 os.makedirs(MODEL_DIR, exist_ok=True)
 os.makedirs(SUMMARY_DIR, exist_ok=True)
-
 
 
 def set_n_samples(n):
@@ -86,7 +85,7 @@ def load_base_data():
     xprint('train,test,subm:', train.shape, test.shape, subm.shape)
     X_train = train[COMMENT].values
     X_test = test[COMMENT].values
-    print('load_base_data: X_train=%s X_test=%s' % (X_train, X_test))
+    print('load_base_data: X_train=%s X_test=%s' % (dim(X_train), dim(X_test)))
     return train, test, subm, X_train, X_test
 
 
@@ -312,5 +311,3 @@ def make_submission(get_clf, submission_name):
     xprint('Saved in %s' % submission_path)
     xprint('program=%s train=%s test=%s submission=%s' % (sys.argv[0], dim(train), dim(test),
         dim(submission)))
-
-
