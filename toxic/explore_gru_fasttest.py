@@ -230,9 +230,9 @@ for n_runs0 in range(2):
         clf_str = str(get_clf())
         xprint('params %d: %s' % (p_i, clf_str))
         runs = completed_tests.get(clf_str, [])
-        if len(runs) > n_runs0:
-            xprint('skipping runs=%d n_runs0=%d' % (len(runs), n_runs0))
-            continue
+        # if len(runs) > n_runs0:
+        #     xprint('skipping runs=%d n_runs0=%d' % (len(runs), n_runs0))
+        #     continue
 
         set_random_seed(10000 + n_runs0)
         evaluator = Evaluator()
