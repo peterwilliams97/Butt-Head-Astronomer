@@ -318,11 +318,11 @@ set_n_samples(20000)
 # evaluator.evaluate(get_clf)
 
 # Original values
-max_features = 30000
-maxlen = 100
-n_hidden = 80
-dropout = 0.2
-batch_size = 32
+# max_features = 30000
+# maxlen = 100
+# n_hidden = 80
+# dropout = 0.2
+# batch_size = 32
 epochs = 40
 
 # params = (maxlen, max_features, n_hidden, dropout, batch_size)
