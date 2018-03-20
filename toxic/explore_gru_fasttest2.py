@@ -165,7 +165,7 @@ def get_model(embedding_matrix, max_features, maxlen, dropout=0.2, n_hidden=80):
 class ClfGru():
 
     def __init__(self, max_features=30000, maxlen=100, dropout=0.2, n_hidden=80, batch_size=32,
-        epochs=2, validate=True):
+        Rec=None, epochs=2, validate=True):
         self.maxlen = maxlen
         self.max_features = max_features
         self.dropout = dropout
@@ -176,6 +176,8 @@ class ClfGru():
 
         D = self.__dict__
         self.description = ', '.join('%s=%s' % (k, v) for k, v in sorted(D.items()))
+
+        self.Rec = Rec
 
         self.embedding_matrix = get_embeddings(max_features, maxlen)
         self.model = get_model(self.embedding_matrix, max_features, maxlen, dropout, n_hidden)
@@ -281,26 +283,3 @@ for n_runs0 in range(2):
         xprint('&' * 100)
 
 xprint('$' * 100)
-
-
-# clf = ClfGru()
-
-# clf.fit(X_train0, y_train0, validate=True)
-# y_pred = clf.predict(X_test0)
-# submission[["toxic", "severe_toxic", "obscene", "threat", "insult", "identity_hate"]] = y_pred
-# submission.to_csv('__submission_gr_fasttext.csv', index=False)
-
-    # model = get_model()
-
-    # batch_size = 32
-    # epochs = 2
-
-    # X_tra, X_val, y_tra, y_val = train_test_split(x_train, y_train, train_size=0.95, random_state=233)
-    # RocAuc = RocAucEvaluation(validation_data=(X_val, y_val), interval=1)
-
-    # hist = model.fit(X_tra, y_tra, batch_size=batch_size, epochs=epochs, validation_data=(X_val, y_val),
-    #                  callbacks=[RocAuc], verbose=1)
-
-    # y_pred = model.predict(x_test, batch_size=1024)
-    # submission[["toxic", "severe_toxic", "obscene", "threat", "insult", "identity_hate"]] = y_pred
-    # submission.to_csv('submission_gr_fasttext.csv', index=False)

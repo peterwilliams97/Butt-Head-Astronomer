@@ -247,13 +247,20 @@ LABEL_COLS = ['toxic', 'severe_toxic', 'obscene', 'threat', 'insult', 'identity_
 
 class Evaluator:
 
-    def __init__(self, frac=0.5):
+    def __init__(self, frac=0.8):
         self.frac = frac
         self.train, _, _ = load_data()
         self.shuffled_indexes = make_shuffled_indexes(self.train, 1)
         seed_random()
 
-    def evaluate(self, get_clf):
+    def evaluate(self, clf_str, get_clf, *args, **keywords):
+
+        clf = get_clf(*args, **keywords)
+        self.clf_ = clf
+        xprint('evaluate: clf    =%s' % str(clf))
+        xprint('evaluate: clf_str=%s' % clf_str)
+        assert str(clf) == clf_str
+
         train_part, test_part = split_data(self.train, self.shuffled_indexes[0], self.frac)
         X_train = train_part["comment_text"].values
         y_train = train_part[LABEL_COLS].values
@@ -264,9 +271,8 @@ class Evaluator:
         # assert len(X_train) >= 20000
         # assert len(X_test) >= 20000
 
-        auc = np.zeros(len(LABEL_COLS), dtype=np.float64)
 
-        clf = get_clf()
+        auc = np.zeros(len(LABEL_COLS), dtype=np.float64)
         t0 = time.perf_counter()
         clf.fit(X_train, y_train)
         xprint('evaluate fit duration=%.1f sec' % (time.perf_counter() - t0))

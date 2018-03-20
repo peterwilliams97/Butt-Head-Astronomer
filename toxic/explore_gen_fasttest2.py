@@ -10,6 +10,7 @@ from keras.callbacks import Callback, EarlyStopping
 import os
 import random
 import time
+from functools import partial
 from utils import dim, xprint, xprint_init, load_json, save_json, load_model, save_model
 from gru_framework import (Evaluator, set_n_samples, set_random_seed, show_results,
     get_n_samples_str, auc_score_list, SUMMARY_DIR, X_train0, X_test0)
@@ -20,28 +21,10 @@ np.random.seed(42)
 
 os.environ['OMP_NUM_THREADS'] = '4'
 
-
 EMBEDDING_FILE = '~/data/models/fasttext/crawl-300d-2M.vec'
-# TRAIN = '~/data/toxic/train.csv'
-# TEST = '~/data/toxic/test.csv'
-# SUBMISSION = '~/data/toxic/sample_submission.csv'
-
 EMBEDDING_FILE = os.path.expanduser(EMBEDDING_FILE)
-# TRAIN = os.path.expanduser(TRAIN)
-# TEST = os.path.expanduser(TEST)
-# SUBMISSION = os.path.expanduser(SUBMISSION)
-
-# train = pd.read_csv(TRAIN)
-# test = pd.read_csv(TEST)
-# submission = pd.read_csv(SUBMISSION)
-
 EMBEDDING_FILE = os.path.expanduser(EMBEDDING_FILE)
 assert os.path.exists(EMBEDDING_FILE)
-
-# X_train0 = train["comment_text"].fillna("fillna").values
-# y_train0 = train[["toxic", "severe_toxic", "obscene", "threat", "insult", "identity_hate"]].values
-# X_test0 = test["comment_text"].fillna("fillna").values
-
 
 # max_features = 30000
 # maxlen = 100
@@ -247,7 +230,7 @@ def get_model(embedding_matrix, char_embedding_matrix,
     return model
 
 
-class ClfGru():
+class ClfRecWordChar():
 
     def __init__(self, max_features=30000, char_max_features=1000, maxlen=100,
         dropout=0.2, n_hidden=80, batch_size=32, Rec=None,
@@ -266,6 +249,14 @@ class ClfGru():
         D = self.__dict__
         self.description = ', '.join('%s=%s' % (k, v) for k, v in sorted(D.items()))
 
+        self.model = None
+
+    def __repr__(self):
+        return 'ClfRecWordChar(%s)' % self.description
+
+    def _load_model(self):
+        if self.model is not None:
+            return
         self.embedding_matrix = get_embeddings(self.max_features, self.maxlen)
         self.char_embedding_matrix = get_char_embeddings(self.char_max_features, self.char_maxlen)
 
@@ -273,10 +264,8 @@ class ClfGru():
               self.max_features, self.maxlen, self.maxlen * 4, Rec,
               dropout=self.dropout, n_hidden=self.n_hidden)
 
-    def __repr__(self):
-        return 'ClfGru(%s)' % self.description
-
     def fit(self, X_train_in, y_train):
+        self._load_model()
         X_train = tokenize(self.max_features, self.maxlen, X_train_in)
         X_char_train = char_tokenize(self.char_max_features, self.maxlen, self.char_maxlen, X_train_in)
 
@@ -309,12 +298,17 @@ class ClfGru():
         return y_pred
 
 
-def get_clf():
-    return ClfGru(max_features=max_features, maxlen=maxlen, dropout=dropout, n_hidden=n_hidden,
+def get_clf_params(max_features, maxlen, dropout, n_hidden, Rec, batch_size, epochs):
+    return ClfRecWordChar(max_features=max_features, maxlen=maxlen, dropout=dropout, n_hidden=n_hidden,
         Rec=Rec, batch_size=batch_size, epochs=epochs)
 
 
-set_n_samples(20000)
+def get_clf():
+    return partial(get_clf_params, max_features=max_features, maxlen=maxlen, dropout=dropout, n_hidden=n_hidden,
+        Rec=Rec, batch_size=batch_size, epochs=epochs)()
+
+
+set_n_samples(40000)
 # evaluator = Evaluator()
 # evaluator.evaluate(get_clf)
 
@@ -340,7 +334,7 @@ for maxlen in [150]:  # [50, 75, 100, 150]:
 print('params_list=%d' % len(params_list))
 random.seed(time.time())
 random.shuffle(params_list)
-# params_list = [params0] + params_list
+params_list = [params0] + params_list
 # params_list.reverse()
 print('params_list=%d' % len(params_list))
 for i, params in enumerate(params_list[:10]):
@@ -373,7 +367,9 @@ for n_runs0 in range(2):
 
             set_random_seed(10000 + n_runs0)
             evaluator = Evaluator()
-            auc = evaluator.evaluate(get_clf)
+            auc = evaluator.evaluate(clf_str, get_clf_params,
+                max_features, maxlen, dropout, n_hidden, Rec, batch_size, epochs)
+            assert str(evaluator.clf_) == clf_str, (str(evaluator.clf_) == clf_str)
 
             auc_list.append((auc, get_clf.__name__, str(get_clf())))
             show_results(auc_list)
