@@ -94,9 +94,6 @@ def get_embeddings(max_features, maxlen):
             for i, o in enumerate(f):
                 w, vec = get_coefs(*o.rstrip().rsplit(' '))
                 embeddings_index[w] = vec
-                if i > 31000:
-                    break
-        # embeddings_index = dict(get_coefs(*o.rstrip().rsplit(' ')) for o in open(EMBEDDING_FILE))
 
     tokenizer = get_tokenizer(max_features, maxlen)
     word_index = tokenizer.word_index
