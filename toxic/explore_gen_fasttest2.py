@@ -261,13 +261,14 @@ class ClfGru():
         self.batch_size = batch_size
         self.epochs = epochs
         self.validate = validate
+        self.rec = Rec.__name__
 
         D = self.__dict__
         self.description = ', '.join('%s=%s' % (k, v) for k, v in sorted(D.items()))
 
         self.embedding_matrix = get_embeddings(self.max_features, self.maxlen)
         self.char_embedding_matrix = get_char_embeddings(self.char_max_features, self.char_maxlen)
-        # self.model = get_model(self.embedding_matrix, max_features, maxlen, dropout, n_hidden)
+
         self.model = get_model(self.embedding_matrix, self.char_embedding_matrix,
               self.max_features, self.maxlen, self.maxlen * 4, Rec,
               dropout=self.dropout, n_hidden=self.n_hidden)
@@ -310,7 +311,7 @@ class ClfGru():
 
 def get_clf():
     return ClfGru(max_features=max_features, maxlen=maxlen, dropout=dropout, n_hidden=n_hidden,
-        batch_size=batch_size, epochs=epochs)
+        Rec=Rec, batch_size=batch_size, epochs=epochs)
 
 
 set_n_samples(20000)
