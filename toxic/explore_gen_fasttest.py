@@ -4,7 +4,7 @@ from sklearn.model_selection import train_test_split
 from sklearn.metrics import roc_auc_score
 from keras.models import Model
 from keras.layers import Input, Dense, Embedding, SpatialDropout1D, concatenate
-from keras.layers import GRU, LSTM, Bidirectional, GlobalAveragePooling1D, GlobalMaxPooling1D
+from keras.layers import GRU, Bidirectional, GlobalAveragePooling1D, GlobalMaxPooling1D
 from keras.preprocessing import text, sequence
 from keras.callbacks import Callback, EarlyStopping
 import os
@@ -339,7 +339,7 @@ for maxlen in [150]:  # [50, 75, 100, 150]:
 print('params_list=%d' % len(params_list))
 random.seed(time.time())
 random.shuffle(params_list)
-params_list = [params0] + params_list
+# params_list = [params0] + params_list
 # params_list.reverse()
 print('params_list=%d' % len(params_list))
 for i, params in enumerate(params_list[:10]):

@@ -199,7 +199,7 @@ class RocAucEvaluation(Callback):
 
 
 def get_model(embedding_matrix, char_embedding_matrix,
-    max_features, maxlen, char_maxlen, dropout=0.2, n_hidden=80):
+    max_features, maxlen, char_maxlen, Rec, dropout=0.2, n_hidden=80):
 
     print('embedding_matrix=%s char_embedding_matrix=%s' % (type(embedding_matrix),
           type(char_embedding_matrix)))
@@ -215,11 +215,11 @@ def get_model(embedding_matrix, char_embedding_matrix,
                   weights=[embedding_matrix], name='w_emb')(inp1)
     x = SpatialDropout1D(dropout, name='w_drop')(x)
 
-    x = Bidirectional(GRU(n_hidden, return_sequences=True), name='w_bidi')(x)
+    x = Bidirectional(Rec(n_hidden, return_sequences=True), name='w_bidi')(x)
     avg_pool = GlobalAveragePooling1D(name='w_ave')(x)
     max_pool = GlobalMaxPooling1D(name='w_max')(x)
     conc1 = concatenate([avg_pool, max_pool], name='w_conc')
-    # conc1 = Bidirectional(GRU(n_hidden, return_sequences=False))(x)
+    # conc1 = Bidirectional(Rec(n_hidden, return_sequences=False))(x)
 
     inp2 = Input(shape=(char_maxlen, ), name='c_inp')
     x = Embedding(char_embedding_matrix.shape[0],
@@ -231,7 +231,7 @@ def get_model(embedding_matrix, char_embedding_matrix,
     # avg_pool = GlobalAveragePooling1D()(x)
     # max_pool = GlobalMaxPooling1D()(x)
     # conc2 = concatenate([avg_pool, max_pool])
-    conc2 = Bidirectional(GRU(n_hidden, return_sequences=False), name='c_bidi')(x)
+    conc2 = Bidirectional(Rec(n_hidden, return_sequences=False), name='c_bidi')(x)
 
     conc = concatenate([conc1, conc2], name='w_c_conc')
 
@@ -250,7 +250,7 @@ def get_model(embedding_matrix, char_embedding_matrix,
 class ClfGru():
 
     def __init__(self, max_features=30000, char_max_features=1000, maxlen=100,
-        dropout=0.2, n_hidden=80, batch_size=32,
+        dropout=0.2, n_hidden=80, batch_size=32, Rec=None,
         epochs=2, validate=True):
         self.maxlen = maxlen
         self.char_maxlen = maxlen * 4
@@ -269,7 +269,7 @@ class ClfGru():
         self.char_embedding_matrix = get_char_embeddings(self.char_max_features, self.char_maxlen)
         # self.model = get_model(self.embedding_matrix, max_features, maxlen, dropout, n_hidden)
         self.model = get_model(self.embedding_matrix, self.char_embedding_matrix,
-              self.max_features, self.maxlen, self.maxlen * 4,
+              self.max_features, self.maxlen, self.maxlen * 4, Rec,
               dropout=self.dropout, n_hidden=self.n_hidden)
 
     def __repr__(self):
@@ -339,14 +339,14 @@ for maxlen in [150]:  # [50, 75, 100, 150]:
 print('params_list=%d' % len(params_list))
 random.seed(time.time())
 random.shuffle(params_list)
-params_list = [params0] + params_list
+# params_list = [params0] + params_list
 # params_list.reverse()
 print('params_list=%d' % len(params_list))
 for i, params in enumerate(params_list[:10]):
     print(i, params)
 print('$' * 100)
 
-submission_name = 'ggru_general_1'
+submission_name = 'ggru_general_2'
 xprint_init(submission_name, False)
 auc_list = []
 run_summary_path = os.path.join(SUMMARY_DIR,
@@ -360,7 +360,7 @@ for n_runs0 in range(2):
     print('n_completed0=%d n_runs0=%d' % (n_completed0, n_runs0))
 
     for p_i, (maxlen, max_features, n_hidden, dropout, batch_size) in enumerate(params_list):
-        # for Rec in [GRU, LSTM]:
+        for Rec in [GRU, LSTM]:
 
             clf_str = str(get_clf())
             xprint('#' * 80)
