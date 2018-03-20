@@ -7,7 +7,7 @@ from sklearn.metrics import roc_auc_score
 
 from keras.models import Model
 from keras.layers import Input, Dense, Embedding, SpatialDropout1D, concatenate
-from keras.layers import GRU, Bidirectional, GlobalAveragePooling1D, GlobalMaxPooling1D
+from keras.layers import LSTM, Bidirectional, GlobalAveragePooling1D, GlobalMaxPooling1D
 from keras.preprocessing import text, sequence
 from keras.callbacks import Callback
 
