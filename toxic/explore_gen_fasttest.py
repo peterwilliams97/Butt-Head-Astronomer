@@ -1,5 +1,4 @@
 import numpy as np
-import pandas as pd
 from collections import defaultdict
 from sklearn.model_selection import train_test_split
 from sklearn.metrics import roc_auc_score
@@ -16,7 +15,7 @@ from gru_framework import (Evaluator, set_n_samples, set_random_seed, show_resul
     get_n_samples_str, auc_score_list, SUMMARY_DIR, X_train0, X_test0)
 
 
-HACK = True
+HACK = False
 np.random.seed(42)
 
 os.environ['OMP_NUM_THREADS'] = '4'
@@ -182,7 +181,7 @@ class RocAucEvaluation(Callback):
 
         print('!!!!!')
         # y_pred = self.model.predict(self.X_val, verbose=0)
-        y_pred = self.model.predict(x={'input1': self.X_val, 'input2': self.X_char_val},
+        y_pred = self.model.predict(x={'w_inp': self.X_val, 'c_inp': self.X_char_val},
             batch_size=2000, verbose=0)
 
         auc = roc_auc_score(self.y_val, y_pred)
@@ -210,31 +209,31 @@ def get_model(embedding_matrix, char_embedding_matrix,
     assert isinstance(maxlen, int)
     assert isinstance(char_maxlen, int)
 
-    inp1 = Input(shape=(maxlen, ), name='input1')
+    inp1 = Input(shape=(maxlen, ), name='w_inp')
     x = Embedding(embedding_matrix.shape[0],
-                  embedding_matrix.shape[1], trainable=False,
-                  weights=[embedding_matrix])(inp1)
-    x = SpatialDropout1D(dropout)(x)
+                  embedding_matrix.shape[1],
+                  weights=[embedding_matrix], name='w_emb')(inp1)
+    x = SpatialDropout1D(dropout, name='w_drop')(x)
 
-    # x = Bidirectional(GRU(n_hidden, return_sequences=True))(x)
-    # avg_pool = GlobalAveragePooling1D()(x)
-    # max_pool = GlobalMaxPooling1D()(x)
-    # conc1 = concatenate([avg_pool, max_pool])
-    conc1 = Bidirectional(GRU(n_hidden, return_sequences=False))(x)
+    x = Bidirectional(GRU(n_hidden, return_sequences=True), name='w_bidi')(x)
+    avg_pool = GlobalAveragePooling1D(name='w_ave')(x)
+    max_pool = GlobalMaxPooling1D(name='w_max')(x)
+    conc1 = concatenate([avg_pool, max_pool], name='w_conc')
+    # conc1 = Bidirectional(GRU(n_hidden, return_sequences=False))(x)
 
-    inp2 = Input(shape=(char_maxlen, ), name='input2')
+    inp2 = Input(shape=(char_maxlen, ), name='c_inp')
     x = Embedding(char_embedding_matrix.shape[0],
-                  char_embedding_matrix.shape[1], trainable=False,
-                  weights=[char_embedding_matrix])(inp2)
-    x = SpatialDropout1D(dropout)(x)
+                  char_embedding_matrix.shape[1],
+                  weights=[char_embedding_matrix], name='c_emb')(inp2)
+    x = SpatialDropout1D(dropout, name='c_drop')(x)
 
     # x = Bidirectional(LSTM(n_hidden, return_sequences=True))(x)
     # avg_pool = GlobalAveragePooling1D()(x)
     # max_pool = GlobalMaxPooling1D()(x)
     # conc2 = concatenate([avg_pool, max_pool])
-    conc2 = Bidirectional(GRU(n_hidden, return_sequences=False))(x)
+    conc2 = Bidirectional(GRU(n_hidden, return_sequences=False), name='c_bidi')(x)
 
-    conc = concatenate([conc1, conc2])
+    conc = concatenate([conc1, conc2], name='w_c_conc')
 
     outp = Dense(6, activation="sigmoid", name='output')(conc)
 
@@ -250,11 +249,13 @@ def get_model(embedding_matrix, char_embedding_matrix,
 
 class ClfGru():
 
-    def __init__(self, max_features=30000, maxlen=100, dropout=0.2, n_hidden=80, batch_size=32,
+    def __init__(self, max_features=30000, char_max_features=1000, maxlen=100,
+        dropout=0.2, n_hidden=80, batch_size=32,
         epochs=2, validate=True):
         self.maxlen = maxlen
         self.char_maxlen = maxlen * 4
         self.max_features = max_features
+        self.char_max_features = char_max_features
         self.dropout = dropout
         self.n_hidden = n_hidden
         self.batch_size = batch_size
@@ -265,7 +266,7 @@ class ClfGru():
         self.description = ', '.join('%s=%s' % (k, v) for k, v in sorted(D.items()))
 
         self.embedding_matrix = get_embeddings(self.max_features, self.maxlen)
-        self.char_embedding_matrix = get_char_embeddings(self.max_features, self.char_maxlen)
+        self.char_embedding_matrix = get_char_embeddings(self.char_max_features, self.char_maxlen)
         # self.model = get_model(self.embedding_matrix, max_features, maxlen, dropout, n_hidden)
         self.model = get_model(self.embedding_matrix, self.char_embedding_matrix,
               self.max_features, self.maxlen, self.maxlen * 4,
@@ -276,7 +277,7 @@ class ClfGru():
 
     def fit(self, X_train_in, y_train):
         X_train = tokenize(self.max_features, self.maxlen, X_train_in)
-        X_char_train = char_tokenize(self.max_features, self.maxlen, self.char_maxlen, X_train_in)
+        X_char_train = char_tokenize(self.char_max_features, self.maxlen, self.char_maxlen, X_train_in)
 
         print('X_char_train=%s' % dim(X_char_train))
         print('X_char_train=%d %d' % (X_char_train.min(), X_char_train.max()))
@@ -290,13 +291,9 @@ class ClfGru():
             early = EarlyStopping(monitor='val_auc', mode='max', patience=2, verbose=1)
             callback_list = [RocAuc, early]
 
-            self.model.fit(x={"input1": X_train, "input2": X_char_train}, y=y_train,
-                           validation_data=({"input1": X_val, "input2": X_char_val}, y_val),
+            self.model.fit(x={"w_inp": X_train, "c_inp": X_char_train}, y=y_train,
+                           validation_data=({"w_inp": X_val, "c_inp": X_char_val}, y_val),
                            epochs=self.epochs, callbacks=callback_list, verbose=1)
-
-            # self.model.fit(X_train, y_train, batch_size=self.batch_size, epochs=self.epochs,
-            #                validation_data=(X_val, y_val),
-            #                callbacks=callback_list, verbose=1)
 
             xprint('***Best epoch=%d acu=%.4f' % (RocAuc.best_epoch + 1, RocAuc.best_auc))
 
@@ -306,7 +303,7 @@ class ClfGru():
         X_char_test = char_tokenize(self.max_features, self.maxlen, self.char_maxlen, X_test_in)
 
         # y_pred = self.model.predict(X_test, batch_size=2000)
-        y_pred = self.model.predict(x={'input1': X_test, 'input2': X_char_test}, batch_size=2000)
+        y_pred = self.model.predict(x={'w_inp': X_test, 'c_inp': X_char_test}, batch_size=2000)
 
         return y_pred
 
@@ -316,7 +313,7 @@ def get_clf():
         batch_size=batch_size, epochs=epochs)
 
 
-set_n_samples(10000)
+set_n_samples(20000)
 # evaluator = Evaluator()
 # evaluator.evaluate(get_clf)
 
@@ -328,21 +325,21 @@ dropout = 0.2
 batch_size = 32
 epochs = 2
 
-# params0 = (maxlen, max_features, n_hidden, dropout, batch_size, epochs)
-
+# params = (maxlen, max_features, n_hidden, dropout, batch_size)
+params0 = (27, 1000, 11, 0.2, 55)
 params_list = []
-for maxlen in [25, 150]:  # [50, 75, 100, 150]:
-    for max_features in [1000, 30000, 50000, 70000]:  # [20000, 25000, 30000, 40000]:
-        for n_hidden in [10, 150, 200]:
+for maxlen in [150]:  # [50, 75, 100, 150]:
+    for max_features in [30000, 50000, 70000]:  # [20000, 25000, 30000, 40000]:
+        for n_hidden in [150, 200]:
             for dropout in [0.2, 0.3, 0.5]:  # [0.1, 0.3, 0.5]:
                 for batch_size in [32]:
-                    params = (maxlen, max_features, n_hidden, dropout, batch_size, 40)
+                    params = (maxlen, max_features, n_hidden, dropout, batch_size)
                     params_list.append(params)
 
 print('params_list=%d' % len(params_list))
 random.seed(time.time())
-# random.shuffle(params_list)
-# params_list = [params0] + params_list
+random.shuffle(params_list)
+params_list = [params0] + params_list
 # params_list.reverse()
 print('params_list=%d' % len(params_list))
 for i, params in enumerate(params_list[:10]):
@@ -362,7 +359,7 @@ n_completed0 = len(completed_tests)
 for n_runs0 in range(2):
     print('n_completed0=%d n_runs0=%d' % (n_completed0, n_runs0))
 
-    for p_i, (maxlen, max_features, n_hidden, dropout, batch_size, epochs) in enumerate(params_list):
+    for p_i, (maxlen, max_features, n_hidden, dropout, batch_size) in enumerate(params_list):
         # for Rec in [GRU, LSTM]:
 
             clf_str = str(get_clf())
