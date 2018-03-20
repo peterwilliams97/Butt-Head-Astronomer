@@ -228,9 +228,9 @@ epochs = 40
 # params0 = (maxlen, max_features, n_hidden, dropout, batch_size, epochs)
 
 params_list = []
-for maxlen in [100, 150]:  # [50, 75, 100, 150]:
-    for max_features in [30000, 70000]:  # [20000, 25000, 30000, 40000]:
-        for n_hidden in [120, 150, 200]:
+for maxlen in [150]:  # [50, 75, 100, 150]:
+    for max_features in [30000, 50000, 70000]:  # [20000, 25000, 30000, 40000]:
+        for n_hidden in [150, 200]:
             for dropout in [0.2, 0.3, 0.5]:  # [0.1, 0.3, 0.5]:
                 for batch_size in [32]:
                     params = (maxlen, max_features, n_hidden, dropout, batch_size, 40)
