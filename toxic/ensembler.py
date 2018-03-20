@@ -1,9 +1,17 @@
+"""
+score: auc=0.9857
+"""
+
 import pandas as pd
 import numpy as np
 import os
 from glob import glob
 from gru_framework import TOXIC_DATA_DIR
 
+
+pd.options.display.max_columns = 6
+pd.set_option('display.max_columns', 500)
+pd.set_option('display.width', 1000)
 
 # Controls weights when combining predictions
 # 0: equal average of all inputs;
@@ -21,14 +29,24 @@ INPUT_DIR = 'submissions.ensemble'
 
 def load_submissions():
     csv_files = glob(os.path.join(INPUT_DIR, '*.csv'))
-    return {path: pd.read_csv(path).sort_values('id') for path in csv_files}
+    subs = {os.path.basename(path): pd.read_csv(path).sort_values('id') for path in csv_files}
+    # subs = {path: pd.read_csv(path).sort_values('id') for path in csv_files}
+
+    print('load_submissions: %s' % sorted(subs))
+    return subs
+
+
+load_submissions()
+print('=' * 80)
 
 
 def get_corr_mat(col, frames):
     c = pd.DataFrame()
-    for name, df in frames.items():
+    for name in sorted(frames):
+        df = frames[name]
         c[name] = df[col]
     cor = c.corr()
+    # print(cor)
     for name in cor.columns:
         cor.set_value(name, name, 0.0)
     return cor
@@ -47,8 +65,8 @@ def get_merge_weights(m1, m2, densities):
     d1 = densities[m1]
     d2 = densities[m2]
     d_tot = d1 + d2
-    weights1 = 0.5*DENSITY_COEFF + (d1/d_tot)*(1-DENSITY_COEFF)
-    weights2 = 0.5*DENSITY_COEFF + (d2/d_tot)*(1-DENSITY_COEFF)
+    weights1 = 0.5 * DENSITY_COEFF + (d1/d_tot)*(1-DENSITY_COEFF)
+    weights2 = 0.5 * DENSITY_COEFF + (d2/d_tot)*(1-DENSITY_COEFF)
     return weights1, weights2
 
 
@@ -63,6 +81,9 @@ def ensemble_col(col, frames, densities):
     new_col_name = merge1 + '_' + merge2
 
     w1, w2 = get_merge_weights(merge1, merge2, densities)
+    w1 += 0.01
+    w2 = 1.0 - w1
+    print('w1=%.3f w2=%.3f merge1=%s merge2=%s' % (w1, w2, merge1, merge2))
     new_df = pd.DataFrame()
     new_df[col] = (frames[merge1][col]*w1) + (frames[merge2][col]*w2)
     del frames[merge1]
@@ -93,4 +114,6 @@ for col in ["toxic", "severe_toxic", "obscene", "threat", "insult", "identity_ha
     ens_submission[col] = ensemble_col(col, frames, densities)
 
 # print(ens_submission.describe())
-ens_submission.to_csv('lazy_ensemble_submission.csv', index=False)
+OUTPUT = 'lazy_ensemble_submission.csv'
+ens_submission.to_csv(OUTPUT, index=False)
+print('saved in %s' % OUTPUT)

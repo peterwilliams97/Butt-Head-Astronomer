@@ -10,12 +10,22 @@ https://www.google.com.au/search?q=kaggle+web+text+classification
 
 GRU Fasttext
 ===========
-base 0.9828 submission_gr_fasttext.csv
 1    0.9814 submission_gr_fasttext2.csv
      0.9822 submission_gr_fasttext1.csv
+base 0.9828 submission_gr_fasttext.csv
      0.9837 submission_gr_fasttext3.csv
-     0.9842 submission_gr_fasttext3.csv + nb
      0.9840 submission_gr_fasttext3.csv + nb + glove
+     0.9842 submission_gr_fasttext3.csv + nb
+     0.9857 ensembler: submission_gr_fasttext3.csv + nb + oob  w1 += 0.01
+     0.9859 ensembler: submission_gr_fasttext3.csv + nb + oob  w1 += 0.1
+     0.9861 ensembler: submission_gr_fasttext3.csv + nb + oob  w1 += 0.3
+     0.9867 ensembler: submission_gr_fasttext3.csv + nb + oob + blends w1 += 0.3
+
+    auc=0.9853   1: (batch_size=32, dropout=0.5, epochs=40, max_features=70000, maxlen=150, n_hidden=150, validate=True)
+    auc=0.9853   1: (batch_size=32, dropout=0.5, epochs=40, max_features=70000, maxlen=150, n_hidden=150, validate=True)
+    auc=0.9852   1: (batch_size=32, dropout=0.3, epochs=40, max_features=30000, maxlen=150, n_hidden=200, validate=True)
+    auc=0.9846   1: (batch_size=32, dropout=0.3, epochs=40, max_features=70000, maxlen=150, n_hidden=150, validate=True)
+
 
 FINDINGS
 ========

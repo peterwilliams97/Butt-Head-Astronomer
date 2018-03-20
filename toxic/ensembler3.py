@@ -82,6 +82,7 @@ def ensemble_col(col, frames, densities):
 
     w1, w2 = get_merge_weights(merge1, merge2, densities)
     w1 += 0.3
+    w1 = min(w1, 0.98)
     w2 = 1.0 - w1
     print('w1=%.3f w2=%.3f merge1=%s merge2=%s' % (w1, w2, merge1, merge2))
     assert 0.01 < w1 < 0.99
