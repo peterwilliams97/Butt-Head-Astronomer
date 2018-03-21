@@ -62,11 +62,11 @@ for n_runs0 in range(2):
     p_i = 0
     for params in params_list:
         n_hidden, dropout = params
-        for Rec in [GRU]:
+        for Rec in [GRU, LSTM]:
             for get_clf in [get_clf_word, get_clf_word_char]:
 
                 xprint('#' * 100)
-                xprint('n_runs0=%d p_i=%d of %d' % (n_runs0, p_i, len(params_list) * 2))
+                xprint('n_runs0=%d p_i=%d of %d' % (n_runs0, p_i, len(params_list) * 4))
                 xprint('params=%s %s %s' % (get_clf.__name__, Rec.__name__, list(params)))
                 set_random_seed(10000 + n_runs0)
                 evaluator = Evaluator(frac=.5)
