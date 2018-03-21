@@ -65,7 +65,7 @@ def get_model(embedding_matrix, max_features, maxlen, dropout=0.2, n_hidden=80, 
 class ClfRecWord():
 
     def __init__(self, max_features=30000, maxlen=100, dropout=0.2, n_hidden=80, batch_size=32,
-        Rec=None, epochs=2, validate=True):
+        trainable=True, Rec=None, epochs=2, validate=True):
         self.maxlen = maxlen
         self.max_features = max_features
         self.dropout = dropout

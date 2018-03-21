@@ -27,7 +27,7 @@ run_summary_path = os.path.join(SUMMARY_DIR,
     '%s.%s.run_summary.json' % (submission_name, get_n_samples_str()))
 xprint('run_summary_path=%s' % run_summary_path)
 
-# Set parames
+# Set params
 max_features = 150000
 maxlen = 150
 epochs = 40
