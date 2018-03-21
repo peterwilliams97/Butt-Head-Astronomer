@@ -30,7 +30,7 @@ xprint('run_summary_path=%s' % run_summary_path)
 # Set params
 max_features = 150000
 maxlen = 150
-epochs = 1
+epochs = 40
 batch_size = 128
 trainable = False
 
