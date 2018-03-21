@@ -272,8 +272,8 @@ class Evaluator:
         xprint('evaluate fit duration=%.1f sec %s' % (dt_fit, str(clf)))
         t0 = time.perf_counter()
         pred = clf.predict(X_test)
-        best_epoch = clf.best_epoch
-        best_auc = clf.best_epoch_
+        best_epoch = clf.best_epoch_
+        best_auc = clf.best_auc_
         dt_pred = time.perf_counter() - t0
         xprint('evaluate predict duration=%.1f sec %s' % (dt_pred, str(clf)))
         xprint('y_test=%s pred=%s' % (dim(y_test), dim(pred)))
