@@ -234,7 +234,7 @@ def show_results(auc_list):
     xprint('~' * 100)
     xprint('RESULTS SUMMARY: %d' % len(results))
     for i, auc, best_epoch, best_auc, dt_fit, dt_pred, clf, clf_str in results:
-        xprint('auc=%.4f %3d: %s %s best_epoch, best_auc=%.4f dt_fit=%.1f sec dt_pred=%.1f sec' % (
+        xprint('auc=%.4f %3d: %s %s best_epoch=%d best_auc=%.4f dt_fit=%.1f sec dt_pred=%.1f sec' % (
             auc.mean(), i, clf, clf_str, best_epoch, best_auc, dt_fit, dt_pred))
 
 

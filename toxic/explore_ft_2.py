@@ -20,7 +20,7 @@ def get_clf_word_char(max_features, maxlen, dropout, n_hidden, Rec, batch_size, 
 
 
 set_n_samples(40000)
-submission_name = 'ft_explore_1'
+submission_name = 'ft_explore_2'
 xprint_init(submission_name, False)
 auc_list = []
 run_summary_path = os.path.join(SUMMARY_DIR,
@@ -30,7 +30,7 @@ xprint('run_summary_path=%s' % run_summary_path)
 # Set params
 max_features = 150000
 maxlen = 150
-epochs = 40
+epochs = 1
 batch_size = 128
 trainable = False
 
