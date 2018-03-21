@@ -149,7 +149,9 @@ class ClfRecWordChar():
                            validation_data=({"w_inp": X_val, "c_inp": X_char_val}, y_val),
                            epochs=self.epochs, callbacks=callback_list, verbose=1)
 
-            xprint('***Best epoch=%d acu=%.4f' % (RocAuc.best_epoch + 1, RocAuc.best_auc))
+            self.best_epoch_ = RocAuc.best_epoch + 1
+            self.best_auc_ = RocAuc.best_auc
+            xprint('***Best epoch=%d auc=%.4f' % (self.best_epoch_, self.best_auc_))
 
     def predict(self, X_test_in):
         self.model = load_model(model_path, config_path)

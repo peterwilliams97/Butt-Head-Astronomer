@@ -2,6 +2,7 @@ import numpy as np
 from collections import defaultdict
 from keras.preprocessing import text, sequence
 import os
+import math
 from utils import dim, xprint
 from gru_framework import X_train0, X_test0
 
@@ -19,6 +20,7 @@ assert os.path.exists(EMBEDDING_FILE)
 
 embed_size = 300
 char_embed_size = 25
+char_frac = 0.999
 
 char_index_map = {}
 
@@ -31,10 +33,36 @@ def get_char_index(max_features, char_maxlen):
             for c in doc[:char_maxlen]:
                 char_count[c] += 1
         char_list = sorted(char_count, key=lambda c: (-char_count[c], c))
+
+        n_features = max_features
+        if False:
+            total = sum(char_count.values())
+            threshold = int(math.ceil(float(total) * char_frac))
+            cumulative = 0
+            for i, c in enumerate(char_list):
+                cumulative += char_count[c]
+                if cumulative > threshold:
+                    n_sig = i
+                    break
+            xprint('$$$ get_char_index: char_frac=%.4f total=%d threshold=%d n_sig=%d of %d = %.3f' %
+                (char_frac, total, threshold, n_sig, len(char_list), n_sig / len(char_list)))
+            n_features = min(max_features, n_sig + 1)
+        elif False:
+            threshold = 10
+            for i, c in enumerate(char_list):
+                if char_count[c] < threshold:
+                    n_sig = i
+                    break
+            xprint('$$$ get_char_index: threshold=%d n_sig=%d of %d = %.3f' %
+                (threshold, n_sig, len(char_list), n_sig / len(char_list)))
+            n_features = min(max_features, n_sig + 1)
+
         char_list = ['UNK'] + char_list
-        char_list = char_list[:max_features]
+        char_list = char_list[:n_features]
         char_index_map[char_maxlen] = {c: i for i, c in enumerate(char_list)}
-    print('*** char_index=%d' % len(char_index_map[char_maxlen]))
+        xprint('### char_index=%d chars=%d max_features=%d n_features=%d' % (
+            len(char_index_map[char_maxlen]), len(char_count), max_features, n_features))
+    xprint('*** char_index=%d max_features=%d' % (len(char_index_map[char_maxlen]), max_features))
     return char_index_map[char_maxlen]
 
 

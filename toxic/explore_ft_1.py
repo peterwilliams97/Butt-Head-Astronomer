@@ -44,8 +44,8 @@ for maxlen in [150]:  # [50, 75, 100, 150]:
 xprint('params_list=%d' % len(params_list))
 random.seed(time.time())
 random.shuffle(params_list)
-assert len(params0) == len(params_list[0])
-params_list = [params0] + params_list
+# assert len(params0) == len(params_list[0])
+# params_list = [params0] + params_list
 
 xprint('params_list=%d' % len(params_list))
 for i, params in enumerate(params_list[:10]):
@@ -66,11 +66,12 @@ for n_runs0 in range(2):
                 xprint('n_runs0=%d p_i=%d of %d' % (n_runs0, p_i, len(params_list) * 4))
                 xprint('params=%s %s %s' % (get_clf.__name__, Rec.__name__, list(params)))
                 set_random_seed(10000 + n_runs0)
-                evaluator = Evaluator()
-                auc = evaluator.evaluate(get_clf,
+                evaluator = Evaluator(frac=.5)
+                auc, best_epoch, dt_fit, dt_pred = evaluator.evaluate(get_clf,
                     max_features, maxlen, dropout, n_hidden, Rec, batch_size, epochs)
 
-                auc_list.append((auc, get_clf.__name__, str(evaluator.clf_)))
+                auc_list.append((auc, best_epoch, dt_fit, dt_pred,
+                    get_clf.__name__, str(evaluator.clf_)))
                 show_results(auc_list)
                 xprint('&' * 100)
                 p_i += 1

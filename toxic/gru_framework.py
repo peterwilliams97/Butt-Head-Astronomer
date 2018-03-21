@@ -228,18 +228,14 @@ def show_auc(auc):
 def show_results(auc_list):
     """auc_list: list of auc, clf, clf_str
     """
-    results = [(i, auc, clf, clf_str) for i, (auc, clf, clf_str) in enumerate(auc_list)]
+    results = [(i, auc, best_epoch, dt_fit, dt_pred, clf, clf_str) for i, (auc, best_epoch,
+        dt_fit, dt_pred, clf, clf_str) in enumerate(auc_list)]
     results.sort(key=lambda x: (-x[1].mean(), x[2], x[3]))
     xprint('~' * 100)
-    # xprint('RESULTS SO FAR: %d' % len(results))
-    # for i, auc, clf, clf_str in results:
-    #     xprint('$' * 100)
-    #     xprint('auc=%.4f %3d: %s %s' % (auc.mean(), i, clf, clf_str))
-    #     show_auc(auc)
-    xprint('^' * 100)
     xprint('RESULTS SUMMARY: %d' % len(results))
-    for i, auc, clf, clf_str in results:
-        xprint('auc=%.4f %3d: %s %s' % (auc.mean(), i, clf, clf_str))
+    for i, auc, best_epoch, dt_fit, dt_pred, clf, clf_str in results:
+        xprint('auc=%.4f %3d: %s %s best_epoch=%d dt_fit=%.1f sec dt_pred=%.1f sec' % (
+            auc.mean(), i, clf, clf_str, best_epoch, dt_fit, dt_pred))
 
 
 LABEL_COLS = ['toxic', 'severe_toxic', 'obscene', 'threat', 'insult', 'identity_hate']
@@ -272,26 +268,26 @@ class Evaluator:
         auc = np.zeros(len(LABEL_COLS), dtype=np.float64)
         t0 = time.perf_counter()
         clf.fit(X_train, y_train)
-        xprint('evaluate fit duration=%.1f sec' % (time.perf_counter() - t0))
+        dt_fit = time.perf_counter() - t0
+        xprint('evaluate fit duration=%.1f sec %s' % (dt_fit, str(clf)))
         t0 = time.perf_counter()
         pred = clf.predict(X_test)
-        xprint('evaluate predict duration=%.1f sec' % (time.perf_counter() - t0))
+        best_epoch = clf.best_epoch_
+        dt_pred = time.perf_counter() - t0
+        xprint('evaluate predict duration=%.1f sec %s' % (dt_pred, str(clf)))
         xprint('y_test=%s pred=%s' % (dim(y_test), dim(pred)))
 
         auc = np.zeros(len(LABEL_COLS), dtype=np.float64)
         for j, col in enumerate(LABEL_COLS):
-            # xprint('^^ %d: %s ' % (j, col), end=' ')
             y_true = y_test[:, j]
             y_pred = pred[:, j]
-            # xprint('y_true=%s y_pred=%s' % (dim(y_true), dim(y_pred)))
             auc[j] = roc_auc_score(y_true, y_pred)
         mean_auc = auc.mean()
         xprint('auc=%.3f %s' % (mean_auc, label_score(auc)))
-        # describe(pred)
 
         if clf is not None:
             del clf
-        return auc
+        return auc, best_epoch, dt_fit, dt_pred
 
 
 def make_submission(get_clf, submission_name):

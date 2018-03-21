@@ -19,6 +19,7 @@ def is_windows():
     return os.name == 'nt'
 
 
+VERBOSE = False
 COMMENT = 'comment_text'
 DATA_ROOT = 'd:\\data' if is_windows() else '~/data'
 DATA_ROOT = os.path.expanduser(DATA_ROOT)
@@ -126,7 +127,7 @@ def load_json(path, default=None):
         with open(path, 'r') as f:
             obj = json.load(f)
     except json.decoder.JSONDecodeError:
-        print('load_json failed: path=%r' % path)
+        xprint('load_json failed: path=%r' % path)
         raise
     return obj
 
@@ -138,7 +139,8 @@ def save_json(path, obj):
     with open(temp_json, 'w') as f:
         json.dump(obj, f, indent=4, sort_keys=True)
     rename(temp_json, path)
-    xprint('save_json: path=%s' % path)
+    if VERBOSE:
+        xprint('save_json: path=%s' % path)
 
 
 def load_pickle(path, default=None):
@@ -148,7 +150,7 @@ def load_pickle(path, default=None):
         with open(path, 'rb') as f:
             obj = pickle.load(f)
     except:
-        print('load_pickle failed: path=%r' % path)
+        xprint('load_pickle failed: path=%r' % path)
         raise
     return obj
 
@@ -184,7 +186,8 @@ temp_pickle_gzip = 'temp.pkl.gzip'
 
 
 def save_pickle_gzip(path, obj):
-    print('save_pickle_gzip: path=%r obj=%s' % (path, type(obj)), end='')
+    if VERBOSE:
+        print('save_pickle_gzip: path=%r obj=%s' % (path, type(obj)), end='')
     with gzip.open(temp_pickle, 'wb') as f:
         pickle.dump(obj, f)
     rename(temp_pickle, path)
@@ -197,14 +200,15 @@ def load_model(model_path, config_path):
         model = model_from_json(f.read())
     weights = load_pickle(model_path)
     model.set_weights(weights)
-
-    xprint('load_model: model_path=%r config_path=%r weights=%s' % (model_path, config_path,
-        dim(weights)))
+    if VERBOSE:
+        xprint('load_model: model_path=%r config_path=%r weights=%s' % (model_path, config_path,
+            dim(weights)))
     return model
 
 
 def save_model(model, model_path, config_path):
-    xprint('save_model: model_path=%r config_path=%r ' % (model_path, config_path), end='')
+    if VERBOSE:
+        xprint('save_model: model_path=%r config_path=%r ' % (model_path, config_path), end='')
     assert isinstance(model_path, str) and isinstance(config_path, str)
     assert config_path.endswith('.json'), config_path
 
