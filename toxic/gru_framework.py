@@ -253,13 +253,11 @@ class Evaluator:
         self.shuffled_indexes = make_shuffled_indexes(self.train, 1)
         seed_random()
 
-    def evaluate(self, clf_str, get_clf, *args, **keywords):
+    def evaluate(self, get_clf, *args, **keywords):
 
         clf = get_clf(*args, **keywords)
         self.clf_ = clf
-        xprint('evaluate: clf    =%s' % str(clf))
-        xprint('evaluate: clf_str=%s' % clf_str)
-        assert str(clf) == clf_str
+        xprint('evaluate: clf=%s' % str(clf))
 
         train_part, test_part = split_data(self.train, self.shuffled_indexes[0], self.frac)
         X_train = train_part["comment_text"].values
@@ -270,7 +268,6 @@ class Evaluator:
         xprint('evaluate: X_test=%s y_test=%s' % (dim(X_test), dim(y_test)))
         # assert len(X_train) >= 20000
         # assert len(X_test) >= 20000
-
 
         auc = np.zeros(len(LABEL_COLS), dtype=np.float64)
         t0 = time.perf_counter()
@@ -283,14 +280,14 @@ class Evaluator:
 
         auc = np.zeros(len(LABEL_COLS), dtype=np.float64)
         for j, col in enumerate(LABEL_COLS):
-            xprint('^^ %d: %s ' % (j, col), end=' ')
+            # xprint('^^ %d: %s ' % (j, col), end=' ')
             y_true = y_test[:, j]
             y_pred = pred[:, j]
-            xprint('y_true=%s y_pred=%s' % (dim(y_true), dim(y_pred)))
+            # xprint('y_true=%s y_pred=%s' % (dim(y_true), dim(y_pred)))
             auc[j] = roc_auc_score(y_true, y_pred)
         mean_auc = auc.mean()
         xprint('auc=%.3f %s' % (mean_auc, label_score(auc)))
-        describe(pred)
+        # describe(pred)
 
         if clf is not None:
             del clf
