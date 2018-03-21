@@ -27,7 +27,7 @@ class RocAucEvaluation(Callback):
 
         y_pred = self.model.predict(self.X_val, verbose=0)
         auc = roc_auc_score(self.y_val, y_pred)
-        xprint("\n ROC-AUC - epoch: %d - score: %.6f \n" % (epoch + 1, auc))
+        xprint(" ROC-AUC - epoch: %d - score: %.6f " % (epoch + 1, auc))
         logs['val_auc'] = auc
 
         if auc >= self.best_auc:
@@ -40,11 +40,11 @@ class RocAucEvaluation(Callback):
         xprint('best_epoch=%d best_auc=%.3f' % (self.best_epoch + 1, self.best_auc))
 
 
-def get_model(embedding_matrix, max_features, maxlen, dropout=0.2, n_hidden=80):
+def get_model(embedding_matrix, max_features, maxlen, dropout=0.2, n_hidden=80, trainable=True):
     inp = Input(shape=(maxlen, ))
     x = Embedding(embedding_matrix.shape[0],
                   embedding_matrix.shape[1],
-                  weights=[embedding_matrix])(inp)
+                  weights=[embedding_matrix], trainable=trainable)(inp)
     x = SpatialDropout1D(dropout)(x)
     x = Bidirectional(GRU(n_hidden, return_sequences=True))(x)
     avg_pool = GlobalAveragePooling1D()(x)
@@ -70,6 +70,7 @@ class ClfRecWord():
         self.max_features = max_features
         self.dropout = dropout
         self.n_hidden = n_hidden
+        self.trainable = trainable
         self.batch_size = batch_size
         self.epochs = epochs
         self.validate = validate
@@ -89,7 +90,7 @@ class ClfRecWord():
             return
         self.embedding_matrix = get_embeddings(self.max_features, self.maxlen)
         self.model = get_model(self.embedding_matrix, self.max_features, self.maxlen,
-            self.dropout, self.n_hidden)
+            self.dropout, self.n_hidden, self.trainable)
 
     def fit(self, X_train_in, y_train):
         self._load_model()

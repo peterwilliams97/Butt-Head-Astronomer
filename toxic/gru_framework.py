@@ -228,14 +228,14 @@ def show_auc(auc):
 def show_results(auc_list):
     """auc_list: list of auc, clf, clf_str
     """
-    results = [(i, auc, best_epoch, dt_fit, dt_pred, clf, clf_str) for i, (auc, best_epoch,
+    results = [(i, auc, best_epoch, best_auc, dt_fit, dt_pred, clf, clf_str) for i, (auc, best_epoch, best_auc,
         dt_fit, dt_pred, clf, clf_str) in enumerate(auc_list)]
     results.sort(key=lambda x: (-x[1].mean(), x[2], x[3]))
     xprint('~' * 100)
     xprint('RESULTS SUMMARY: %d' % len(results))
-    for i, auc, best_epoch, dt_fit, dt_pred, clf, clf_str in results:
-        xprint('auc=%.4f %3d: %s %s best_epoch=%d dt_fit=%.1f sec dt_pred=%.1f sec' % (
-            auc.mean(), i, clf, clf_str, best_epoch, dt_fit, dt_pred))
+    for i, auc, best_epoch, best_auc, dt_fit, dt_pred, clf, clf_str in results:
+        xprint('auc=%.4f %3d: %s %s best_epoch, best_auc=%.4f dt_fit=%.1f sec dt_pred=%.1f sec' % (
+            auc.mean(), i, clf, clf_str, best_epoch, best_auc, dt_fit, dt_pred))
 
 
 LABEL_COLS = ['toxic', 'severe_toxic', 'obscene', 'threat', 'insult', 'identity_hate']
@@ -272,7 +272,8 @@ class Evaluator:
         xprint('evaluate fit duration=%.1f sec %s' % (dt_fit, str(clf)))
         t0 = time.perf_counter()
         pred = clf.predict(X_test)
-        best_epoch = clf.best_epoch_
+        best_epoch = clf.best_epoch
+        best_auc = clf.best_epoch_
         dt_pred = time.perf_counter() - t0
         xprint('evaluate predict duration=%.1f sec %s' % (dt_pred, str(clf)))
         xprint('y_test=%s pred=%s' % (dim(y_test), dim(pred)))
@@ -287,7 +288,7 @@ class Evaluator:
 
         if clf is not None:
             del clf
-        return auc, best_epoch, dt_fit, dt_pred
+        return auc, best_epoch, best_auc, dt_fit, dt_pred
 
 
 def make_submission(get_clf, submission_name):

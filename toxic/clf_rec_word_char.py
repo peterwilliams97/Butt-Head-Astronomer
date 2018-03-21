@@ -30,7 +30,7 @@ class RocAucEvaluation(Callback):
             batch_size=2000, verbose=0)
 
         auc = roc_auc_score(self.y_val, y_pred)
-        xprint("\n ROC-AUC - epoch: %d - score: %.6f \n" % (epoch + 1, auc))
+        xprint(" ROC-AUC - epoch: %d - score: %.6f " % (epoch + 1, auc))
         logs['val_auc'] = auc
 
         if auc >= self.best_auc:
@@ -44,7 +44,7 @@ class RocAucEvaluation(Callback):
 
 
 def get_model(embedding_matrix, char_embedding_matrix,
-    max_features, maxlen, char_maxlen, Rec, dropout=0.2, n_hidden=80):
+    max_features, maxlen, char_maxlen, Rec, dropout=0.2, n_hidden=80, trainable=True):
 
     print('embedding_matrix=%s char_embedding_matrix=%s' % (type(embedding_matrix),
           type(char_embedding_matrix)))
@@ -57,7 +57,8 @@ def get_model(embedding_matrix, char_embedding_matrix,
     inp1 = Input(shape=(maxlen, ), name='w_inp')
     x = Embedding(embedding_matrix.shape[0],
                   embedding_matrix.shape[1],
-                  weights=[embedding_matrix], name='w_emb')(inp1)
+                  weights=[embedding_matrix],
+                  trainable=trainable, name='w_emb')(inp1)
     x = SpatialDropout1D(dropout, name='w_drop')(x)
 
     x = Bidirectional(Rec(n_hidden, return_sequences=True), name='w_bidi')(x)
@@ -95,7 +96,7 @@ def get_model(embedding_matrix, char_embedding_matrix,
 class ClfRecWordChar():
 
     def __init__(self, max_features=30000, char_max_features=1000, maxlen=100,
-        dropout=0.2, n_hidden=80, batch_size=32, Rec=None,
+        dropout=0.2, n_hidden=80, trainable=True, batch_size=32, Rec=None,
         epochs=2, validate=True):
         self.maxlen = maxlen
         self.char_maxlen = maxlen * 4
@@ -103,6 +104,7 @@ class ClfRecWordChar():
         self.char_max_features = char_max_features
         self.dropout = dropout
         self.n_hidden = n_hidden
+        self.trainable = trainable
         self.batch_size = batch_size
         self.epochs = epochs
         self.validate = validate
@@ -126,7 +128,7 @@ class ClfRecWordChar():
 
         self.model = get_model(self.embedding_matrix, self.char_embedding_matrix,
               self.max_features, self.maxlen, self.maxlen * 4, self.Rec,
-              dropout=self.dropout, n_hidden=self.n_hidden)
+              dropout=self.dropout, n_hidden=self.n_hidden, trainable=self.trainable)
 
     def fit(self, X_train_in, y_train):
         self._load_model()
