@@ -10,12 +10,12 @@ from mod_rec_word_char import ClfRecWordChar
 
 def get_clf_word_char1(max_features, maxlen, dropout, n_hidden, Rec, batch_size):
     return ClfRecWordChar(max_features=max_features, maxlen=maxlen, dropout=dropout, n_hidden=n_hidden,
-        Rec=Rec, batch_size=batch_size, epochs=1, model_type=1)
+        Rec=Rec, trainable=trainable, batch_size=batch_size, epochs=1, model_type=1)
 
 
 def get_clf_word_char2(max_features, maxlen, dropout, n_hidden, Rec, batch_size):
     return ClfRecWordChar(max_features=max_features, maxlen=maxlen, dropout=dropout, n_hidden=n_hidden,
-        Rec=Rec, batch_size=batch_size, epochs=1, model_type=2)
+        Rec=Rec, trainable=trainable, batch_size=batch_size, epochs=1, model_type=2)
 
 
 set_n_samples(20000)
