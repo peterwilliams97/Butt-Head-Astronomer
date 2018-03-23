@@ -9,10 +9,10 @@ from ft_embedding import get_embeddings, get_char_embeddings, tokenize, char_tok
 def get_model1(embedding_matrix, char_embedding_matrix,
     max_features, maxlen, char_maxlen, Rec, dropout=0.2, n_hidden=80, trainable=True):
 
-    print('embedding_matrix=%s char_embedding_matrix=%s' % (type(embedding_matrix),
-          type(char_embedding_matrix)))
-    print('max_features=%s maxlen=%s char_maxlen=%s' % (type(max_features),
-          type(maxlen), type(char_maxlen)))
+    # print('embedding_matrix=%s char_embedding_matrix=%s' % (type(embedding_matrix),
+    #       type(char_embedding_matrix)))
+    # print('max_features=%s maxlen=%s char_maxlen=%s' % (type(max_features),
+    #       type(maxlen), type(char_maxlen)))
     assert isinstance(max_features, int)
     assert isinstance(maxlen, int)
     assert isinstance(char_maxlen, int)
@@ -51,18 +51,16 @@ def get_model1(embedding_matrix, char_embedding_matrix,
                   optimizer='adam',
                   metrics=['accuracy'])
 
-    model.summary(print_fn=xprint)
-
     return model
 
 
 def get_model2(embedding_matrix, char_embedding_matrix,
     max_features, maxlen, char_maxlen, Rec, dropout=0.2, n_hidden=80, trainable=True):
 
-    print('embedding_matrix=%s char_embedding_matrix=%s' % (type(embedding_matrix),
-          type(char_embedding_matrix)))
-    print('max_features=%s maxlen=%s char_maxlen=%s' % (type(max_features),
-          type(maxlen), type(char_maxlen)))
+    # print('embedding_matrix=%s char_embedding_matrix=%s' % (type(embedding_matrix),
+    #       type(char_embedding_matrix)))
+    # print('max_features=%s maxlen=%s char_maxlen=%s' % (type(max_features),
+    #       type(maxlen), type(char_maxlen)))
     assert isinstance(max_features, int)
     assert isinstance(maxlen, int)
     assert isinstance(char_maxlen, int)

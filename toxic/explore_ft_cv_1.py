@@ -1,6 +1,5 @@
 import random
 import time
-from keras.layers import GRU, LSTM
 from utils import xprint, xprint_init
 from functools import partial
 from gru_framework import (set_n_samples, get_n_samples_str, prepare_data, CV_predictor,
@@ -25,7 +24,7 @@ def get_clf_word_char2(max_features, maxlen, dropout, n_hidden, Rec, batch_size)
 
 
 # set_n_samples(40000)
-submission_name = 'ft_cv_explore_1.%s' % get_n_samples_str()
+submission_name = 'ft_cv_explore_1a.%s' % get_n_samples_str()
 xprint_init(submission_name, False)
 auc_list = []
 
@@ -60,7 +59,7 @@ auc_list = []
 for params in params_list:
     maxlen, max_features, n_hidden, dropout = params
     for Rec in [K_GRU, K_LSTM]:
-        for get_clf_base in [get_clf_word, get_clf_word_char1, get_clf_word_char2]:
+        for get_clf_base in [get_clf_word_char1, get_clf_word_char2, get_clf_word]:
             get_clf = partial(get_clf_base, max_features, maxlen, dropout, n_hidden, Rec, batch_size)
 
             xprint('#' * 100)

@@ -231,7 +231,7 @@ def show_auc(auc):
         xprint('%5d: auc=%.4f %s' % (i, auc[i, :].mean(), label_score(auc[i, :])))
     xprint('%5s: auc=%.4f %s' % ('Mean', mean_auc.mean(), label_score(mean_auc)))
     xprint('-' * 110)
-    xprint('auc=%.4f +- %.4f (%.0f%%) range=%.3f (%.0f%%)' % (
+    xprint('auc=%.4f +- %.4f (%.2f%%) range=%.3f (%.2f%%)' % (
          auc_mean.mean(), auc_mean.std(),
          100.0 * auc_mean.std() / auc_mean.mean(),
          auc_mean.max() - auc_mean.min(),
@@ -392,8 +392,8 @@ class CV_predictor():
                     best_score))
                 xprint('scores=%s' % scores[:i + 1].T)
                 xprint(auc_train[:i + 1, :])
-                xprint('epoch %d of %d %s' % (i + 1, self.epochs, '\/' * 40))
 
+            xprint('\/' * 40)
             xprint('CV round %d predict' % (cv_i + 1))
             test_prediction = clf.predict(self.x_test)
             auc = calc_auc(y_valid, train_prediction)
@@ -401,6 +401,7 @@ class CV_predictor():
             self.train_predictions.append([train_prediction, valid_i])
             self.test_predictions.append(test_prediction)
             self.auc_train[cv_i, :] = auc
+            show_auc(self.auc_train[cv_i + 1, :])
             del clf
 
         xprint('=' * 100)
