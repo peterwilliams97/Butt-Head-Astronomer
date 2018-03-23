@@ -214,10 +214,10 @@ def show_auc(auc):
 
     xprint('-' * 110, 'n=%d' % n)
     for i in range(n):
-        xprint('%5d: auc=%.3f %s' % (i, auc[i, :].mean(), label_score(auc[i, :])))
-    xprint('%5s: auc=%.3f %s' % ('Mean', mean_auc.mean(), label_score(mean_auc)))
+        xprint('%5d: auc=%.4f %s' % (i, auc[i, :].mean(), label_score(auc[i, :])))
+    xprint('%5s: auc=%.4f %s' % ('Mean', mean_auc.mean(), label_score(mean_auc)))
     xprint('-' * 110)
-    xprint('auc=%.3f +- %.3f (%.0f%%) range=%.3f (%.0f%%)' % (
+    xprint('auc=%.4f +- %.4f (%.0f%%) range=%.3f (%.0f%%)' % (
          auc_mean.mean(), auc_mean.std(),
          100.0 * auc_mean.std() / auc_mean.mean(),
          auc_mean.max() - auc_mean.min(),
@@ -236,6 +236,17 @@ def show_results(auc_list):
     for i, auc, best_epoch, best_auc, dt_fit, dt_pred, clf, clf_str in results:
         xprint('auc=%.4f %3d: %s %s best_epoch=%d best_auc=%.4f dt_fit=%.1f sec dt_pred=%.1f sec' % (
             auc.mean(), i, clf, clf_str, best_epoch, best_auc, dt_fit, dt_pred))
+
+
+def show_results_cv(auc_list):
+    """auc_list: list of auc, clf, clf_str
+    """
+    results = [(i, auc, clf_str) for i, (auc, clf_str) in enumerate(auc_list)]
+    results.sort(key=lambda x: -x[1].mean())
+    xprint('~' * 100)
+    xprint('RESULTS SUMMARY: %d' % len(results))
+    for i, auc, clf_str in results:
+        xprint('auc=%.4f %3d: %s' % (auc.mean(), i, clf_str))
 
 
 LABEL_COLS = ['toxic', 'severe_toxic', 'obscene', 'threat', 'insult', 'identity_hate']
@@ -301,6 +312,17 @@ def prepare_data():
     return X_train, y_train, X_test
 
 
+def calc_auc(y_true_all, y_pred_all):
+    auc = np.zeros(len(LABEL_COLS), dtype=np.float64)
+    for j, col in enumerate(LABEL_COLS):
+        y_true = y_true_all[:, j]
+        y_pred = y_pred_all[:, j]
+        auc[j] = roc_auc_score(y_true, y_pred)
+    mean_auc = auc.mean()
+    xprint('auc=%.3f %s' % (mean_auc, label_score(auc)))
+    return auc
+
+
 class CV_predictor():
     """
         class to extract predictions on train and test set from tuned pipeline
@@ -312,7 +334,6 @@ class CV_predictor():
         self.x_train = x_train
         self.y_train = y_train
         self.x_test = x_test
-        self.scorrer = roc_auc_score
 
         self.epochs = epochs
         self.batch_size = batch_size
@@ -321,16 +342,16 @@ class CV_predictor():
     def predict(self):
         self.train_predictions = []
         self.test_predictions = []
-        self.score = []
+        self.auc_train = np.zeros((self.cv.get_n_splits(), len(LABEL_COLS)))
 
-        for test_number, (train_i, valid_i) in enumerate(self.cv.split(self.x_train, self.y_train)):
+        for cv_i, (train_i, valid_i) in enumerate(self.cv.split(self.x_train, self.y_train)):
             clf = self.get_clf()
-            if test_number == 0:
+            if cv_i == 0:
                 xprint('^' * 100)
                 xprint('evaluate: clf=%s' % str(clf))
                 clf.show_model()
             xprint('#' * 100)
-            xprint('evaluate: CV round %d of %d' % (test_number, self.cv.get_n_splits()))
+            xprint('evaluate: CV round %d of %d' % (cv_i + 1, self.cv.get_n_splits()))
 
             x_train = self.x_train[train_i]
             y_train = self.y_train[train_i]
@@ -338,39 +359,47 @@ class CV_predictor():
             y_valid = self.y_train[valid_i]
 
             scores = np.zeros(self.epochs)
+            auc_train = np.zeros((self.epochs, len(LABEL_COLS)))
             best_i = -1
             best_score = 0.0
             for i in range(self.epochs):
+                xprint('epoch %d of %d %s' % (i + 1, self.epochs, '+' * 80))
                 clf.fit(x_train, y_train)
                 train_prediction = clf.predict(x_valid)
-                score = self.scorrer(y_valid, train_prediction)
-                scores[i] = score
+
+                auc = calc_auc(y_valid, train_prediction)
+                auc_train[i, :] = auc
+                scores[i] = score = auc.mean()
                 best_i = np.argmax(scores)
                 best_score = scores[best_i]
 
-                # print(f'test_number: {test_number}, epoch: {i}, score: {self.scorrer(y_valid, train_prediction)}')
-                xprint('test_number=%d epoch=%d (%d) score=%.4f (%.4f)' % (
-                    test_number, i, best_i, score, best_score))
-                xprint('scores=%s' % scores[:i + 1])
+                xprint('cv_i=%d epoch=%d (%d) score=%.4f (%.4f)' % (cv_i + 1, i, best_i, score,
+                    best_score))
+                xprint('scores=%s' % scores[:i + 1].T)
+                xprint(auc_train[:i + 1, :])
+                xprint('epoch %d of %d %s' % (i + 1, self.epochs, '\/' * 40))
 
-            xprint('test_number=%d predict' % test_number)
+            xprint('CV round %d predict' % (cv_i + 1))
             test_prediction = clf.predict(self.x_test)
+            auc = calc_auc(y_valid, train_prediction)
 
             self.train_predictions.append([train_prediction, valid_i])
             self.test_predictions.append(test_prediction)
-            self.score.append(self.scorrer(y_valid, train_prediction))
-            # print(f"test_number: {test_number}, avg score: {self.score[-1]}")
-            xprint('test_number=%d avg score=%.4f' % (test_number, self.score[-1]))
+            self.auc_train[cv_i, :] = auc
+
         xprint('=' * 100)
         xprint('Done evaluate: clf=%s' % str(clf))
-        xprint('All CVs: score=%s' % self.score)
-        xprint('All CVs: avg score=%.4f' % np.mean(self.score))
+        xprint('All CVs: score=%s' % self.auc_train.mean(axis=1))
+        xprint('All CVs: avg score=%.4f' % self.auc_train.mean())
+        show_auc(self.auc_train)
         xprint('~' * 100)
         self.train_predictions = (
             pd.concat([pd.DataFrame(data=data, index=idx, columns=[self.col_names])
                        for data, idx in self.train_predictions]).sort_index())
         self.test_predictions = pd.DataFrame(data=np.mean(self.test_predictions, axis=0),
                                              columns=[self.col_names])
+
+        return self.auc_train
 
 
 def make_submission(get_clf, submission_name):

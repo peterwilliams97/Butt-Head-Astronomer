@@ -7,7 +7,7 @@ from utils import dim, xprint
 from gru_framework import X_train0, X_test0
 
 
-HACK = True
+HACK = False
 np.random.seed(42)
 
 os.environ['OMP_NUM_THREADS'] = '4'
