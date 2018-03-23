@@ -11,7 +11,7 @@ import sys
 import time
 from os.path import join
 from sklearn.metrics import roc_auc_score
-from sklearn.model_selection import train_test_split
+from sklearn.model_selection import train_test_split, KFold
 # import matplotlib.pyplot as plt
 from utils import COMMENT, DATA_ROOT, dim, xprint
 
@@ -289,6 +289,88 @@ class Evaluator:
         if clf is not None:
             del clf
         return auc, best_epoch, best_auc, dt_fit, dt_pred
+
+
+def prepare_data():
+    train, test, subm = load_data()
+    X_train = train["comment_text"].values
+    y_train = train[LABEL_COLS].values
+    X_test = test["comment_text"].values
+    xprint('prepare_data: X_train=%s y_train=%s' % (dim(X_train), dim(y_train)))
+    xprint('prepare_data: X_test=%s' % dim(X_test))
+    return X_train, y_train, X_test
+
+
+class CV_predictor():
+    """
+        class to extract predictions on train and test set from tuned pipeline
+    """
+
+    def __init__(self, get_clf, x_train, y_train, x_test, n_splits, batch_size, epochs):
+        self.get_clf = get_clf
+        self.cv = KFold(n_splits=n_splits, shuffle=True, random_state=1)
+        self.x_train = x_train
+        self.y_train = y_train
+        self.x_test = x_test
+        self.scorrer = roc_auc_score
+
+        self.epochs = epochs
+        self.batch_size = batch_size
+        self.col_names = LABEL_COLS
+
+    def predict(self):
+        self.train_predictions = []
+        self.test_predictions = []
+        self.score = []
+
+        for test_number, (train_i, valid_i) in enumerate(self.cv.split(self.x_train, self.y_train)):
+            clf = self.get_clf()
+            if test_number == 0:
+                xprint('^' * 100)
+                xprint('evaluate: clf=%s' % str(clf))
+                clf.show_model()
+            xprint('#' * 100)
+            xprint('evaluate: CV round %d of %d' % (test_number, self.cv.get_n_splits()))
+
+            x_train = self.x_train[train_i]
+            y_train = self.y_train[train_i]
+            x_valid = self.x_train[valid_i]
+            y_valid = self.y_train[valid_i]
+
+            scores = np.zeros(self.epochs)
+            best_i = -1
+            best_score = 0.0
+            for i in range(self.epochs):
+                clf.fit(x_train, y_train)
+                train_prediction = clf.predict(x_valid)
+                score = self.scorrer(y_valid, train_prediction)
+                scores[i] = score
+                best_i = np.argmax(scores)
+                best_score = scores[best_i]
+
+                # print(f'test_number: {test_number}, epoch: {i}, score: {self.scorrer(y_valid, train_prediction)}')
+                xprint('test_number=%d epoch=%d (%d) score=%.4f (%.4f)' % (
+                    test_number, i, best_i, score, best_score))
+                xprint('scores=%s' % scores[:i + 1])
+
+            xprint('test_number=%d predict' % test_number)
+            test_prediction = clf.predict(self.x_test)
+
+            self.train_predictions.append([train_prediction, valid_i])
+            self.test_predictions.append(test_prediction)
+            self.score.append(self.scorrer(y_valid, train_prediction))
+            # print(f"test_number: {test_number}, avg score: {self.score[-1]}")
+            xprint('test_number=%d avg score=%.4f' % (test_number, self.score[-1]))
+        xprint('=' * 100)
+        xprint('Done evaluate: clf=%s' % str(clf))
+        xprint('All CVs: score=%s' % self.score)
+        xprint('All CVs: avg score=%.4f' % np.mean(self.score))
+        xprint('~' * 100)
+        self.train_predictions = (
+            pd.concat([pd.DataFrame(data=data, index=idx, columns=[self.col_names])
+                       for data, idx in self.train_predictions]).sort_index())
+        self.test_predictions = pd.DataFrame(data=np.mean(self.test_predictions, axis=0),
+                                             columns=[self.col_names])
 
 
 def make_submission(get_clf, submission_name):

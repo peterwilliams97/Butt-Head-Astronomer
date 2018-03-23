@@ -213,7 +213,8 @@ def save_model(model, model_path, config_path):
     assert config_path.endswith('.json'), config_path
 
     weights = model.get_weights()
-    xprint('weights=%s' % dim(weights))
+    if VERBOSE:
+        xprint('weights=%s' % dim(weights))
 
     save_pickle(model_path, weights)
     with open(config_path, 'wt') as f:

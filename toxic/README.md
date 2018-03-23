@@ -32,6 +32,18 @@ FINDINGS
 Zero better than randomized
 fasttext is a good embedding
 
+Trainable char embeddings + large fixed word embeddings works well
+
+RESULTS SUMMARY: 10
+auc=0.9886   7: get_clf_word_char ClfRecWordChar(batch_size=128, dropout=0.3, epochs=40, max_features=150000, maxlen=150, n_hidden=128, rec=LSTM, trainable=False, validate=True, char_max_features=1000, char_maxlen=600) best_epoch=7 best_auc=0.9827 dt_fit=12331.1 sec dt_pred=26.5 sec
+auc=0.9882   5: get_clf_word_char ClfRecWordChar(batch_size=128, dropout=0.3, epochs=40, max_features=150000, maxlen=150, n_hidden=128, rec=GRU, trainable=False, validate=True, char_max_features=1000, char_maxlen=600) best_epoch=7 best_auc=0.9873 dt_fit=9644.1 sec dt_pred=21.8
+
+RESULTS SUMMARY: 3
+auc=0.9875   1: get_clf_word_char ClfRecWordChar(batch_size=128, dropout=0.2, epochs=40, max_features=150000, maxlen=150, n_hidden=128, rec=GRU, trainable=False, validate=True, char_max_features=1000, char_maxlen=600) best_epoch=8 best_auc=0.9873 dt_fit=10866.1 sec dt_pred=19.0 sec
+auc=0.9858   0: get_clf_word ClfRecWord(batch_size=128, dropout=0.2, epochs=40, max_features=150000, maxlen=150, n_hidden=128, rec=GRU, trainable=False, validate=True) best_epoch=13 best_auc=0.9916 dt_fit=1006.1 sec dt_pred=18.9 sec
+auc=0.9849   2: get_clf_word ClfRecWord(batch_size=128, dropout=0.2, epochs=40, max_features=150000, maxlen=150, n_hidden=128, rec=LSTM, trainable=False, validate=True) best_epoch=7 best_auc=0.9800 dt_fit=528.8 sec dt_pred=20.1 sec
+
+
 TOOLS
 =====
 source activate py36

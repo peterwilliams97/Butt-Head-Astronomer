@@ -7,7 +7,7 @@ from utils import dim, xprint
 from gru_framework import X_train0, X_test0
 
 
-HACK = False
+HACK = True
 np.random.seed(42)
 
 os.environ['OMP_NUM_THREADS'] = '4'
@@ -25,7 +25,7 @@ char_frac = 0.999
 char_index_map = {}
 
 
-def get_char_index(max_features, char_maxlen):
+def get_char_index(char_max_features, char_maxlen):
     global char_index_map
     if char_maxlen not in char_index_map:
         char_count = defaultdict(int)
@@ -34,7 +34,7 @@ def get_char_index(max_features, char_maxlen):
                 char_count[c] += 1
         char_list = sorted(char_count, key=lambda c: (-char_count[c], c))
 
-        n_features = max_features
+        n_features = char_max_features
         if False:
             total = sum(char_count.values())
             threshold = int(math.ceil(float(total) * char_frac))
@@ -46,7 +46,7 @@ def get_char_index(max_features, char_maxlen):
                     break
             xprint('$$$ get_char_index: char_frac=%.4f total=%d threshold=%d n_sig=%d of %d = %.3f' %
                 (char_frac, total, threshold, n_sig, len(char_list), n_sig / len(char_list)))
-            n_features = min(max_features, n_sig + 1)
+            n_features = min(char_max_features, n_sig + 1)
         elif False:
             threshold = 10
             for i, c in enumerate(char_list):
@@ -55,14 +55,14 @@ def get_char_index(max_features, char_maxlen):
                     break
             xprint('$$$ get_char_index: threshold=%d n_sig=%d of %d = %.3f' %
                 (threshold, n_sig, len(char_list), n_sig / len(char_list)))
-            n_features = min(max_features, n_sig + 1)
+            n_features = min(char_max_features, n_sig + 1)
 
         char_list = ['UNK'] + char_list
         char_list = char_list[:n_features]
         char_index_map[char_maxlen] = {c: i for i, c in enumerate(char_list)}
-        xprint('### char_index=%d chars=%d max_features=%d n_features=%d' % (
-            len(char_index_map[char_maxlen]), len(char_count), max_features, n_features))
-    xprint('*** char_index=%d max_features=%d' % (len(char_index_map[char_maxlen]), max_features))
+        xprint('### char_index=%d chars=%d char_max_features=%d n_features=%d' % (
+            len(char_index_map[char_maxlen]), len(char_count), char_max_features, n_features))
+    # xprint('*** char_index=%d char_max_features=%d' % (len(char_index_map[char_maxlen]), char_max_features))
     return char_index_map[char_maxlen]
 
 
@@ -85,8 +85,8 @@ def tokenize(max_features, maxlen, X):
     return X
 
 
-def char_tokenize(max_features, maxlen, char_maxlen, X):
-    char_index = get_char_index(max_features, maxlen)
+def char_tokenize(char_max_features, char_maxlen, X):
+    char_index = get_char_index(char_max_features, char_maxlen)
     unk_idx = char_index['UNK']
     X_char = np.zeros((X.shape[0], char_maxlen), dtype=np.int32)
     for i in range(X.shape[0]):
