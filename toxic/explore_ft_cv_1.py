@@ -35,7 +35,7 @@ batch_size = 200
 
 params_list = []
 for maxlen in [150]:  # [50, 75, 100, 150]:
-    for max_features in [100, 50000, 40000]:  # [20000, 25000, 30000, 40000]:
+    for max_features in [50000, 40000]:  # [20000, 25000, 30000, 40000]:
         for n_hidden in [200, 150]:
             for dropout in [0.5, 0.3]:  # [0.1, 0.3, 0.5]:
                 params = (maxlen, max_features, n_hidden, dropout)
