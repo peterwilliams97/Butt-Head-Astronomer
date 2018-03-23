@@ -18,7 +18,6 @@ def get_clf_word_char2(max_features, maxlen, dropout, n_hidden, Rec, batch_size)
         Rec=Rec, trainable=trainable, batch_size=batch_size, epochs=1, model_type=2)
 
 
-set_n_samples(20000)
 submission_name = 'ft_cv_explore_3.%s' % get_n_samples_str()
 xprint_init(submission_name, False)
 
