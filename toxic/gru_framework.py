@@ -12,6 +12,8 @@ import time
 from os.path import join
 from sklearn.metrics import roc_auc_score
 from sklearn.model_selection import train_test_split, KFold
+from keras import backend as K
+from keras.layers import GRU, LSTM, CuDNNGRU, CuDNNLSTM
 # import matplotlib.pyplot as plt
 from utils import COMMENT, DATA_ROOT, dim, xprint
 
@@ -30,6 +32,18 @@ seed_delta = 1
 os.makedirs(SUBMISSION_DIR, exist_ok=True)
 os.makedirs(MODEL_DIR, exist_ok=True)
 os.makedirs(SUMMARY_DIR, exist_ok=True)
+
+
+gpu_list = K.tensorflow_backend._get_available_gpus()
+xprint('gpu_list=%s' % gpu_list)
+if gpu_list:
+    K_GRU = CuDNNGRU
+    K_LSTM = CuDNNLSTM
+else:
+    K_GRU = GRU
+    K_LSTM = LSTM
+xprint('K_GRU=%s' % K_GRU.__name__)
+xprint('K_LSTM=%s' % K_LSTM.__name__)
 
 
 def set_n_samples(n):

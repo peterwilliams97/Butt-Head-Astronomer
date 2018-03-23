@@ -4,7 +4,7 @@ from keras.layers import GRU, LSTM
 from utils import xprint, xprint_init
 from functools import partial
 from gru_framework import (set_n_samples, get_n_samples_str, prepare_data, CV_predictor,
-    show_results_cv)
+    show_results_cv, K_GRU, K_LSTM)
 from mod_rec_word_char import ClfRecWordChar
 from mod_rec_word import ClfRecWord
 
@@ -59,7 +59,7 @@ n_splits = 4
 auc_list = []
 for params in params_list:
     maxlen, max_features, n_hidden, dropout = params
-    for Rec in [GRU, LSTM]:
+    for Rec in [K_GRU, K_LSTM]:
         for get_clf_base in [get_clf_word, get_clf_word_char1, get_clf_word_char2]:
             get_clf = partial(get_clf_base, max_features, maxlen, dropout, n_hidden, Rec, batch_size)
 
