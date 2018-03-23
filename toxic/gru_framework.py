@@ -309,7 +309,7 @@ class Evaluator:
             y_pred = pred[:, j]
             auc[j] = roc_auc_score(y_true, y_pred)
         mean_auc = auc.mean()
-        xprint('auc=%.3f %s' % (mean_auc, label_score(auc)))
+        xprint('auc=%.4f %s' % (mean_auc, label_score(auc)))
 
         if clf is not None:
             del clf
@@ -333,7 +333,7 @@ def calc_auc(y_true_all, y_pred_all):
         y_pred = y_pred_all[:, j]
         auc[j] = roc_auc_score(y_true, y_pred)
     mean_auc = auc.mean()
-    xprint('auc=%.3f %s' % (mean_auc, label_score(auc)))
+    xprint('auc=%.4f %s' % (mean_auc, label_score(auc)))
     return auc
 
 
@@ -360,6 +360,7 @@ class CV_predictor():
 
         for cv_i, (train_i, valid_i) in enumerate(self.cv.split(self.x_train, self.y_train)):
             clf = self.get_clf()
+            clf_str = str(clf)
             if cv_i == 0:
                 xprint('^' * 100)
                 xprint('evaluate: clf=%s' % str(clf))
@@ -400,9 +401,10 @@ class CV_predictor():
             self.train_predictions.append([train_prediction, valid_i])
             self.test_predictions.append(test_prediction)
             self.auc_train[cv_i, :] = auc
+            del clf
 
         xprint('=' * 100)
-        xprint('Done evaluate: clf=%s' % str(clf))
+        xprint('Done evaluate: clf=%s' % clf_str)
         xprint('All CVs: score=%s' % self.auc_train.mean(axis=1))
         xprint('All CVs: avg score=%.4f' % self.auc_train.mean())
         show_auc(self.auc_train)

@@ -138,6 +138,10 @@ class ClfRecWordChar():
     def __repr__(self):
         return 'ClfRecWordChar(%s)' % self.description
 
+    def __del__(self):
+        if self.model:
+            del self.model
+
     def show_model(self):
         self._load_model()
         self.model.summary(print_fn=xprint)
