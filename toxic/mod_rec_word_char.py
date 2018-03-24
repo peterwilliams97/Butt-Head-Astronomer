@@ -118,13 +118,14 @@ type_model = {
 class ClfRecWordChar():
 
     def __init__(self, max_features=30000, char_max_features=1000, maxlen=100,
-        dropout=0.2, n_hidden=80, trainable=True, batch_size=32, Rec=None, model_type=1,
+        dropout=0.2, rnn_layers=1, n_hidden=80, trainable=True, batch_size=32, Rec=None, model_type=1,
         epochs=1):
         self.maxlen = maxlen
         self.char_maxlen = maxlen * 4
         self.max_features = max_features
         self.char_max_features = char_max_features
         self.dropout = dropout
+        self.rnn_layers = rnn_layers
         self.n_hidden = n_hidden
         self.trainable = trainable
         self.batch_size = batch_size
@@ -161,7 +162,8 @@ class ClfRecWordChar():
 
         self.model = get_model(self.embedding_matrix, self.char_embedding_matrix,
               self.max_features, self.maxlen, self.maxlen * 4, self.Rec,
-              dropout=self.dropout, n_hidden=self.n_hidden, trainable=self.trainable)
+              dropout=self.dropout, rnn_layers=self.rnn_layers, n_hidden=self.n_hidden,
+              trainable=self.trainable)
 
     def prepare_fit(self, X_train_in):
         if not self.preprocessed:
