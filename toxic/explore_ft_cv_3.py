@@ -17,7 +17,7 @@ def get_clf_word_char2(max_features, maxlen, dropout, n_hidden, Rec, rnn_layers,
         Rec=Rec, rnn_layers=rnn_layers, trainable=trainable, batch_size=batch_size, epochs=1, model_type=2)
 
 
-submission_base = 'ft_cv_explore_3x.%s' % get_n_samples_str()
+submission_base = 'ft_cv_explore_3y.%s' % get_n_samples_str()
 xprint_init(submission_base, False)
 
 # auc=0.9886   7: get_clf_word_char ClfRecWordChar(batch_size=128, dropout=0.3, epochs=40, max_features=150000, maxlen=150, n_hidden=128, rec=LSTM, trainable=False, validate=True, char_max_features=1000, char_maxlen=600) best_epoch=7 best_auc=0.9827 dt_fit=12331.1 sec dt_pred=26.5 sec
@@ -30,8 +30,8 @@ maxlen = 150
 trainable = False
 
 params_list = []
-for n_hidden in [128, 200]:
-    for dropout in [0.3, 0.5]:
+for n_hidden in [64, 128, 200]:
+    for dropout in [0.5, 0.3]:
         params = (n_hidden, dropout)
         params_list.append(params)
 
