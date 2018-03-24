@@ -7,7 +7,8 @@ from ft_embedding import get_embeddings, get_char_embeddings, tokenize, char_tok
 
 
 def get_model1(embedding_matrix, char_embedding_matrix,
-    max_features, maxlen, char_maxlen, Rec, dropout=0.2, n_hidden=80, trainable=True):
+    max_features, maxlen, char_maxlen, Rec,
+    dropout=0.2, rnn_layers=1, n_hidden=80, trainable=True):
 
     # print('embedding_matrix=%s char_embedding_matrix=%s' % (type(embedding_matrix),
     #       type(char_embedding_matrix)))
@@ -24,7 +25,8 @@ def get_model1(embedding_matrix, char_embedding_matrix,
                   trainable=trainable, name='w_emb')(inp1)
     x = SpatialDropout1D(dropout, name='w_drop')(x)
 
-    x = Bidirectional(Rec(n_hidden, return_sequences=True), name='w_bidi')(x)
+    for i in range(rnn_layers):
+        x = Bidirectional(Rec(n_hidden, return_sequences=True), name='w_bidi%d' % i)(x)
     avg_pool = GlobalAveragePooling1D(name='w_ave')(x)
     max_pool = GlobalMaxPooling1D(name='w_max')(x)
     conc1 = concatenate([avg_pool, max_pool], name='w_conc')
@@ -40,7 +42,9 @@ def get_model1(embedding_matrix, char_embedding_matrix,
     # avg_pool = GlobalAveragePooling1D()(x)
     # max_pool = GlobalMaxPooling1D()(x)
     # conc2 = concatenate([avg_pool, max_pool])
-    conc2 = Bidirectional(Rec(n_hidden, return_sequences=False), name='c_bidi')(x)
+    for i in range(rnn_layers - 1):
+        x = Bidirectional(Rec(n_hidden, return_sequences=True), name='c_bidi%d' % i)(x)
+    conc2 = Bidirectional(Rec(n_hidden, return_sequences=False), name='c_bidi%d' % rnn_layers)(x)
 
     conc = concatenate([conc1, conc2], name='w_c_conc')
 
@@ -55,7 +59,8 @@ def get_model1(embedding_matrix, char_embedding_matrix,
 
 
 def get_model2(embedding_matrix, char_embedding_matrix,
-    max_features, maxlen, char_maxlen, Rec, dropout=0.2, n_hidden=80, trainable=True):
+    max_features, maxlen, char_maxlen, Rec,
+    dropout=0.2, rnn_layers=1, n_hidden=80, trainable=True):
 
     # print('embedding_matrix=%s char_embedding_matrix=%s' % (type(embedding_matrix),
     #       type(char_embedding_matrix)))
@@ -72,7 +77,8 @@ def get_model2(embedding_matrix, char_embedding_matrix,
                   trainable=trainable, name='w_emb')(inp1)
     x = SpatialDropout1D(dropout, name='w_drop')(x)
 
-    x = Bidirectional(Rec(n_hidden, return_sequences=True), name='w_bidi')(x)
+    for i in range(rnn_layers):
+        x = Bidirectional(Rec(n_hidden, return_sequences=True), name='w_bidi%d' % i)(x)
     avg_pool = GlobalAveragePooling1D(name='w_ave')(x)
     max_pool = GlobalMaxPooling1D(name='w_max')(x)
     conc1 = concatenate([avg_pool, max_pool], name='w_conc')
@@ -84,7 +90,8 @@ def get_model2(embedding_matrix, char_embedding_matrix,
                   weights=[char_embedding_matrix], name='c_emb')(inp2)
     x = SpatialDropout1D(dropout, name='c_drop')(x)
 
-    x = Bidirectional(Rec(n_hidden, return_sequences=True), name='c_bidi')(x)
+    for i in range(rnn_layers):
+        x = Bidirectional(Rec(n_hidden, return_sequences=True), name='c_bidi%d' % i)(x)
     avg_pool = GlobalAveragePooling1D(name='c_ave')(x)
     max_pool = GlobalMaxPooling1D(name='c_max')(x)
     conc2 = concatenate([avg_pool, max_pool], name='c_conc')
@@ -112,7 +119,7 @@ class ClfRecWordChar():
 
     def __init__(self, max_features=30000, char_max_features=1000, maxlen=100,
         dropout=0.2, n_hidden=80, trainable=True, batch_size=32, Rec=None, model_type=1,
-        epochs=2):
+        epochs=1):
         self.maxlen = maxlen
         self.char_maxlen = maxlen * 4
         self.max_features = max_features

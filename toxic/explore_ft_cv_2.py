@@ -3,9 +3,8 @@ import time
 from utils import xprint, xprint_init
 from functools import partial
 from gru_framework import (set_n_samples, get_n_samples_str, prepare_data, CV_predictor,
-    show_results_cv, K_GRU, K_LSTM)
+    show_results_cv, K_GRU, K_LSTM, save_submission)
 from mod_rec_word_char import ClfRecWordChar
-
 
 
 def get_clf_word_char1(max_features, maxlen, dropout, n_hidden, Rec, batch_size):
@@ -18,9 +17,8 @@ def get_clf_word_char2(max_features, maxlen, dropout, n_hidden, Rec, batch_size)
         Rec=Rec, trainable=trainable, batch_size=batch_size, epochs=1, model_type=2)
 
 
-submission_name = 'ft_cv_explore_3.%s' % get_n_samples_str()
-xprint_init(submission_name, False)
-
+submission_base = 'ft_cv_explore_3.%s' % get_n_samples_str()
+xprint_init(submission_base, False)
 
 # auc=0.9886   7: get_clf_word_char ClfRecWordChar(batch_size=128, dropout=0.3, epochs=40, max_features=150000, maxlen=150, n_hidden=128, rec=LSTM, trainable=False, validate=True, char_max_features=1000, char_maxlen=600) best_epoch=7 best_auc=0.9827 dt_fit=12331.1 sec dt_pred=26.5 sec
 # auc=0.9882   5: get_clf_word_char ClfRecWordChar(batch_size=128, dropout=0.3, epochs=40, max_features=150000, maxlen=150, n_hidden=128, rec=GRU, trainable=False, validate=True, char_max_features=1000, char_maxlen=600) best_epoch=7
@@ -49,7 +47,7 @@ for i, params in enumerate(params_list[:10]):
     print(i, params)
 xprint('$' * 100)
 
-x_train, y_train, x_test = prepare_data()
+(idx_train, X_train, y_train), (idx_test, X_test) = prepare_data()
 n_splits = 4
 
 auc_list = []
@@ -57,15 +55,19 @@ for params in params_list:
     n_hidden, dropout = params
     for get_clf_base in [get_clf_word_char1, get_clf_word_char2]:
         for Rec in [K_GRU, K_LSTM]:
+            n = len(auc_list)
             get_clf = partial(get_clf_base, max_features, maxlen, dropout, n_hidden, Rec, batch_size)
 
             xprint('#' * 100)
-            xprint('config=%d of %d' % (len(auc_list), len(params_list) * 4))
+            xprint('config=%d of %d' % (n, len(params_list) * 4))
             xprint('params=%s %s %s' % (get_clf_base.__name__, Rec.__name__, list(params)))
-            evaluator = CV_predictor(get_clf, x_train, y_train, x_test, n_splits, batch_size, epochs)
-            auc = evaluator.predict()
-            auc_list.append((auc, str(get_clf())))
+            evaluator = CV_predictor(get_clf, idx_train, X_train, y_train, idx_test, X_test,
+                n_splits, batch_size, epochs)
+            evaluator.predict()
+            auc_list.append((evaluator.auc_train, str(get_clf())))
             show_results_cv(auc_list)
+            submission_name = '%s.%03d.csv' % (submission_base, n)
+            save_submission(evaluator.test_predictions, submission_name)
             xprint('&' * 100)
 
 xprint('$' * 100)

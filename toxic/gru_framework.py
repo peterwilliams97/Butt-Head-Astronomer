@@ -23,8 +23,8 @@ GRAPHS = False
 _N_SAMPLES = [-1]  # > 0 for testing
 SEED = 234
 
-SUBMISSION_DIR = 'submissions.fasttext'
-MODEL_DIR = 'models.fasttext'
+SUBMISSION_DIR = 'submissions.cv'
+MODEL_DIR = 'models.cv'
 TOXIC_DATA_DIR = join(DATA_ROOT, 'toxic')
 SUMMARY_DIR = 'run.summaries'
 seed_delta = 1
@@ -176,41 +176,6 @@ def label_score(auc):
     return '(%s)' % ', '.join(['%s:%.3f' % (col, auc[j]) for j, col in enumerate(LABEL_COLS)])
 
 
-def describe(y):
-    """Return table of values
-        min, mean, max
-    """
-    MEASURES = ['min', 'mean', 'max']
-    stats = np.zeros((3, len(LABEL_COLS)), dtype=np.float64)
-    xprint('stats=%s' % dim(stats))
-    for j, col in enumerate(LABEL_COLS):
-        stats[0, j] = y[:, j].min()
-        stats[1, j] = y[:, j].mean()
-        stats[2, j] = y[:, j].max()
-
-    def draw(name, vals, sep='|'):
-        vals = ['%12s' % v for v in ([name] + vals)]
-        xprint((' %s ' % sep).join(vals))
-
-    def draw_bar():
-        bar = '-' * 12
-        draw(bar, [bar] * len(LABEL_COLS), sep='+')
-
-    draw_bar()
-    draw('', LABEL_COLS)
-    draw_bar()
-    for i, measure in enumerate(MEASURES):
-        draw(measure, ['%10.4f' % z for z in stats[i, :]])
-    draw_bar()
-
-
-if False:
-    y = np.random.uniform(low=-1.0, high=1.0, size=(1000, len(LABEL_COLS)))
-    print('y=%s' % dim(y))
-    describe(y)
-    assert False
-
-
 def auc_score(auc):
     mean_auc = auc.mean(axis=0)
     return mean_auc.mean(), mean_auc
@@ -222,6 +187,7 @@ def auc_score_list(auc):
 
 
 def show_auc(auc):
+    assert len(auc.shape) == 2, dim(auc)
     n = auc.shape[0]
     mean_auc = auc.mean(axis=0)
     auc_mean = auc.mean(axis=1)
@@ -318,12 +284,14 @@ class Evaluator:
 
 def prepare_data():
     train, test, subm = load_data()
+    idx_train = train.index
+    idx_test = test.index
     X_train = train["comment_text"].values
     y_train = train[LABEL_COLS].values
     X_test = test["comment_text"].values
     xprint('prepare_data: X_train=%s y_train=%s' % (dim(X_train), dim(y_train)))
     xprint('prepare_data: X_test=%s' % dim(X_test))
-    return X_train, y_train, X_test
+    return (idx_train, X_train, y_train), (idx_test, X_test)
 
 
 def calc_auc(y_true_all, y_pred_all):
@@ -342,11 +310,14 @@ class CV_predictor():
         class to extract predictions on train and test set from tuned pipeline
     """
 
-    def __init__(self, get_clf, x_train, y_train, x_test, n_splits, batch_size, epochs):
+    def __init__(self, get_clf, idx_train, x_train, y_train, idx_test, x_test, n_splits,
+        batch_size, epochs):
         self.get_clf = get_clf
         self.cv = KFold(n_splits=n_splits, shuffle=True, random_state=1)
+        self.idx_train = idx_train
         self.x_train = x_train
         self.y_train = y_train
+        self.idx_test = idx_test
         self.x_test = x_test
 
         self.epochs = epochs
@@ -355,7 +326,7 @@ class CV_predictor():
 
     def predict(self):
         self.train_predictions = []
-        self.test_predictions = []
+        self.test_predictions = np.zeros((self.cv.get_n_splits(), self.x_test.shape[0], len(LABEL_COLS)))
         self.auc_train = np.zeros((self.cv.get_n_splits(), len(LABEL_COLS)))
 
         for cv_i, (train_i, valid_i) in enumerate(self.cv.split(self.x_train, self.y_train)):
@@ -388,20 +359,20 @@ class CV_predictor():
                 best_i = np.argmax(scores)
                 best_score = scores[best_i]
 
-                xprint('cv_i=%d epoch=%d (%d) score=%.4f (%.4f)' % (cv_i + 1, i, best_i, score,
+                xprint('CV=%d epoch=%d (%d) score=%.4f (%.4f)' % (cv_i + 1, i + 1, best_i + 1, score,
                     best_score))
                 xprint('scores=%s' % scores[:i + 1].T)
                 xprint(auc_train[:i + 1, :])
 
             xprint('\/' * 40)
             xprint('CV round %d predict' % (cv_i + 1))
-            test_prediction = clf.predict(self.x_test)
+            y_pred = clf.predict(self.x_test)
             auc = calc_auc(y_valid, train_prediction)
 
             self.train_predictions.append([train_prediction, valid_i])
-            self.test_predictions.append(test_prediction)
+            self.test_predictions[cv_i, :, :] = y_pred
             self.auc_train[cv_i, :] = auc
-            show_auc(self.auc_train[cv_i + 1, :])
+            show_auc(self.auc_train[:cv_i + 1, :])
             del clf
 
         xprint('=' * 100)
@@ -409,33 +380,50 @@ class CV_predictor():
         xprint('All CVs: score=%s' % self.auc_train.mean(axis=1))
         xprint('All CVs: avg score=%.4f' % self.auc_train.mean())
         show_auc(self.auc_train)
-        xprint('~' * 100)
+
         self.train_predictions = (
-            pd.concat([pd.DataFrame(data=data, index=idx, columns=[self.col_names])
+            pd.concat([pd.DataFrame(data=data, index=idx, columns=LABEL_COLS)
                        for data, idx in self.train_predictions]).sort_index())
         self.test_predictions = pd.DataFrame(data=np.mean(self.test_predictions, axis=0),
-                                             columns=[self.col_names])
+                                             index=self.idx_test, columns=LABEL_COLS)
+        xprint('~' * 100)
+
+        # print('test_predictions=%s x_test=%s' % (dim(self.test_predictions), dim(self.x_test)))
+        assert len(self.test_predictions.shape) == 2, (dim(self.test_predictions), dim(self.x_test))
+        assert self.test_predictions.shape[0] == self.x_test.shape[0], (dim(self.test_predictions), dim(self.x_test))
 
         return self.auc_train
 
 
 def make_submission(get_clf, submission_name):
     seed_random()
-    submission_path = join(SUBMISSION_DIR, '%s.%s.csv' % (submission_name, get_n_samples_str()))
-    assert not os.path.exists(submission_path), submission_path
-    os.makedirs(SUBMISSION_DIR, exist_ok=True)
 
     train, test, subm = load_data()
     clf = get_clf()
     clf.fit(train, test_size=0.0)
-    pred = clf.predict(test)
+    pred_data = clf.predict(test)
+    pred = pd.DataFrame(pred_data, columns=LABEL_COLS)
+    save_submission(pred, submission_name)
 
-    describe(pred)
 
-    # Csreate the submission file.
+def save_submission(pred, submission_name):
+
+    _, _, subm = load_data()
+    # Create the submission file.
     submid = pd.DataFrame({'id': subm['id']})
-    submission = pd.concat([submid, pd.DataFrame(pred, columns=LABEL_COLS)], axis=1)
+    print('submid=%s pred=%s' % (submid, pred))
+    submission = pd.concat([submid, pred], axis=1)
+
+    submission_path = join(SUBMISSION_DIR, submission_name)
+    os.makedirs(SUBMISSION_DIR, exist_ok=True)
+    submission_path = join(SUBMISSION_DIR, submission_name)
+    if os.path.exists(submission_path):
+        submission_dir_old = '%s.old' % SUBMISSION_DIR
+        submission_path_old = join(submission_dir_old, submission_name)
+        xprint('*** Renaming old submission %s->%s' % (submission_path, submission_path_old))
+        os.makedirs(submission_dir_old, exist_ok=True)
+        os.rename(submission_path, submission_path_old)
+
     submission.to_csv(submission_path, index=False)
     xprint('Saved in %s' % submission_path)
-    xprint('program=%s train=%s test=%s submission=%s' % (sys.argv[0], dim(train), dim(test),
-        dim(submission)))
+    xprint('program=%s submission=%s' % (sys.argv[0], dim(submission)))
