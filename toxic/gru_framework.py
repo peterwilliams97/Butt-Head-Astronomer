@@ -368,7 +368,7 @@ class CV_predictor():
         y_test = test[LABEL_COLS].values
         y_pred = self.test_predictions[LABEL_COLS].values
         auc = calc_auc(y_test, y_pred)
-        xprint('eval_predictions: Needs score=%.4f' % auc.mean())
+        xprint('eval_predictions: score=%.4f' % auc.mean())
         show_auc(auc)
         return auc
 
