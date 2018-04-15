@@ -76,16 +76,6 @@ def set_random_seed(seed):
     seed_random()
 
 
-def my_shuffle(indexes):
-    global seed_delta
-
-    old_state = random.getstate()
-    random.seed(SEED + seed_delta)
-    random.shuffle(indexes)
-    random.setstate(old_state)
-    seed_delta += 1
-
-
 def load_base_data():
     print('load_base_data')
     train = pd.read_csv(join(TOXIC_DATA_DIR, 'train.csv'))
@@ -138,7 +128,7 @@ def show_values(name, df):
         print(df[col].value_counts())
 
 
-def df_split(df, frac):
+def _df_split(df, frac):
     test_size = 1.0 - frac
     y = df[LABEL_COLS].values
     X = list(df.index)
@@ -148,28 +138,17 @@ def df_split(df, frac):
     return train, test
 
 
-def make_shuffled_indexes(df, n):
+# def split_data(df, indexes, frac):
+#     show_values('df', df)
 
-    indexes = list(df.index)
-    shuffled_indexes = []
-    for i in range(n):
-        my_shuffle(indexes)
-        shuffled_indexes.append(indexes[:])
-    assert len(shuffled_indexes) == n
-    return shuffled_indexes
+#     n = int(len(df) * frac)
+#     train = df.loc[indexes[:n]]
+#     test = df.loc[indexes[n:]]
 
-
-def split_data(df, indexes, frac):
-    show_values('df', df)
-
-    n = int(len(df) * frac)
-    train = df.loc[indexes[:n]]
-    test = df.loc[indexes[n:]]
-
-    show_values('train', train)
-    show_values('test', test)
-    xprint('split_data: %.2f of %d: train=%d test=%d' % (frac, len(df), len(train), len(test)))
-    return train, test
+#     show_values('train', train)
+#     show_values('test', test)
+#     xprint('split_data: %.2f of %d: train=%d test=%d' % (frac, len(df), len(train), len(test)))
+#     return train, test
 
 
 def label_score(auc):
@@ -232,66 +211,38 @@ def show_results_cv(auc_list):
 LABEL_COLS = ['toxic', 'severe_toxic', 'obscene', 'threat', 'insult', 'identity_hate']
 
 
-class Evaluator:
-
-    def __init__(self, frac=0.8):
-        self.frac = frac
-        self.train, _, _ = load_data()
-        self.shuffled_indexes = make_shuffled_indexes(self.train, 1)
-        seed_random()
-
-    def evaluate(self, get_clf, *args, **keywords):
-
-        clf = get_clf(*args, **keywords)
-        self.clf_ = clf
-        xprint('evaluate: clf=%s' % str(clf))
-
-        train_part, test_part = split_data(self.train, self.shuffled_indexes[0], self.frac)
-        X_train = train_part["comment_text"].values
-        y_train = train_part[LABEL_COLS].values
-        X_test = test_part["comment_text"].values
-        y_test = test_part[LABEL_COLS].values
-        xprint('evaluate: X_train=%s y_train=%s' % (dim(X_train), dim(y_train)))
-        xprint('evaluate: X_test=%s y_test=%s' % (dim(X_test), dim(y_test)))
-        # assert len(X_train) >= 20000
-        # assert len(X_test) >= 20000
-
-        auc = np.zeros(len(LABEL_COLS), dtype=np.float64)
-        t0 = time.perf_counter()
-        clf.fit(X_train, y_train)
-        dt_fit = time.perf_counter() - t0
-        xprint('evaluate fit duration=%.1f sec %s' % (dt_fit, str(clf)))
-        t0 = time.perf_counter()
-        pred = clf.predict(X_test)
-        best_epoch = clf.best_epoch_
-        best_auc = clf.best_auc_
-        dt_pred = time.perf_counter() - t0
-        xprint('evaluate predict duration=%.1f sec %s' % (dt_pred, str(clf)))
-        xprint('y_test=%s pred=%s' % (dim(y_test), dim(pred)))
-
-        auc = np.zeros(len(LABEL_COLS), dtype=np.float64)
-        for j, col in enumerate(LABEL_COLS):
-            y_true = y_test[:, j]
-            y_pred = pred[:, j]
-            auc[j] = roc_auc_score(y_true, y_pred)
-        mean_auc = auc.mean()
-        xprint('auc=%.4f %s' % (mean_auc, label_score(auc)))
-
-        if clf is not None:
-            del clf
-        return auc, best_epoch, best_auc, dt_fit, dt_pred
+def _split(df, validation_size):
+    y = df[LABEL_COLS].values
+    X = list(df.index)
+    X_train, X_val, y_train, y_val = train_test_split(X, y, test_size=validation_size, stratify=n)
+    train = df.loc[X_train]
+    test = df.loc[y_train]
+    return train, test
 
 
-def prepare_data():
+def prepare_data(validation_size=0.0):
     train, test, subm = load_data()
+
+    valid = None
+    if validation_size:
+        train, valid = train_test_split(train, test_size=validation_size)
+
     idx_train = train.index
-    idx_test = test.index
     X_train = train["comment_text"].values
     y_train = train[LABEL_COLS].values
-    X_test = test["comment_text"].values
+    if valid is not None:
+        idx_test = valid.index
+        X_test = valid["comment_text"].values
+        y_test = valid[LABEL_COLS].values
+    else:
+        idx_test = test.index
+        X_test = test["comment_text"].values
+        y_test = None
+
     xprint('prepare_data: X_train=%s y_train=%s' % (dim(X_train), dim(y_train)))
-    xprint('prepare_data: X_test=%s' % dim(X_test))
-    return (idx_train, X_train, y_train), (idx_test, X_test)
+    xprint('prepare_data: X_test=%s y_test=%s' % (dim(X_test), dim(y_test)))
+
+    return (idx_train, X_train, y_train), (idx_test, X_test, y_test)
 
 
 def calc_auc(y_true_all, y_pred_all):
@@ -305,13 +256,28 @@ def calc_auc(y_true_all, y_pred_all):
     return auc
 
 
+def evaluate(get_clf, X_valid, y_valid):
+    clf = get_clf()
+    xprint('^' * 100)
+    xprint('evaluate: clf=%s' % str(clf))
+    clf.show_model()
+    xprint('#' * 100)
+
+    y_pred = clf.predict(X_valid)
+    auc = calc_auc(y_valid, y_pred)
+    score = auc.mean()
+
+    xprint('score=%.4f' % score)
+    return auc
+
+
 class CV_predictor():
     """
         class to extract predictions on train and test set from tuned pipeline
     """
 
     def __init__(self, get_clf, idx_train, x_train, y_train, idx_test, x_test, n_splits,
-        batch_size, epochs):
+        batch_size, epochs, y_test=None):
         self.get_clf = get_clf
         self.cv = KFold(n_splits=n_splits, shuffle=True, random_state=1)
         self.idx_train = idx_train
@@ -393,6 +359,18 @@ class CV_predictor():
         assert self.test_predictions.shape[0] == self.x_test.shape[0], (dim(self.test_predictions), dim(self.x_test))
 
         return self.auc_train
+
+    def eval_predictions(self):
+        if self.y_test is None:
+            xprint('eval_predictions: Needs y_test')
+            return None
+        test = pd.DataFrame(data=self.y_test, index=self.idx_test, columns=LABEL_COLS).sort_index()
+        y_test = test[LABEL_COLS].values
+        y_pred = self.test_predictions[LABEL_COLS].values
+        auc = calc_auc(y_test, y_pred)
+        xprint('eval_predictions: Needs score=%.4f' % auc.mean())
+        show_auc(auc)
+        return auc
 
 
 def make_submission(get_clf, submission_name):

@@ -117,7 +117,7 @@ def get_embeddings(max_features, maxlen):
 
     print('get_embeddings: embeddings_index=%s' % (embeddings_index is not None))
     if HACK:
-        print('HACKING !!!!!!!!!!!!!!!!!!!!!')
+        xprint('HACKING !!!!!!!!!!!!!!!!!!!!!')
 
     if embeddings_index is None:
         embeddings_index = {}

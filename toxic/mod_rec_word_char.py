@@ -10,14 +10,6 @@ def get_model1(embedding_matrix, char_embedding_matrix,
     max_features, maxlen, char_maxlen, Rec,
     dropout=0.2, rnn_layers=1, n_hidden=80, trainable=True):
 
-    # print('embedding_matrix=%s char_embedding_matrix=%s' % (type(embedding_matrix),
-    #       type(char_embedding_matrix)))
-    # print('max_features=%s maxlen=%s char_maxlen=%s' % (type(max_features),
-    #       type(maxlen), type(char_maxlen)))
-    assert isinstance(max_features, int)
-    assert isinstance(maxlen, int)
-    assert isinstance(char_maxlen, int)
-
     inp1 = Input(shape=(maxlen, ), name='w_inp')
     x = Embedding(embedding_matrix.shape[0],
                   embedding_matrix.shape[1],
@@ -30,7 +22,6 @@ def get_model1(embedding_matrix, char_embedding_matrix,
     avg_pool = GlobalAveragePooling1D(name='w_ave')(x)
     max_pool = GlobalMaxPooling1D(name='w_max')(x)
     conc1 = concatenate([avg_pool, max_pool], name='w_conc')
-    # conc1 = Bidirectional(Rec(n_hidden, return_sequences=False))(x)
 
     inp2 = Input(shape=(char_maxlen, ), name='c_inp')
     x = Embedding(char_embedding_matrix.shape[0],
@@ -38,10 +29,6 @@ def get_model1(embedding_matrix, char_embedding_matrix,
                   weights=[char_embedding_matrix], name='c_emb')(inp2)
     x = SpatialDropout1D(dropout, name='c_drop')(x)
 
-    # x = Bidirectional(LSTM(n_hidden, return_sequences=True))(x)
-    # avg_pool = GlobalAveragePooling1D()(x)
-    # max_pool = GlobalMaxPooling1D()(x)
-    # conc2 = concatenate([avg_pool, max_pool])
     for i in range(rnn_layers - 1):
         x = Bidirectional(Rec(n_hidden, return_sequences=True), name='c_bidi%d' % i)(x)
     conc2 = Bidirectional(Rec(n_hidden, return_sequences=False), name='c_bidi%d' % rnn_layers)(x)
@@ -62,14 +49,6 @@ def get_model2(embedding_matrix, char_embedding_matrix,
     max_features, maxlen, char_maxlen, Rec,
     dropout=0.2, rnn_layers=1, n_hidden=80, trainable=True):
 
-    # print('embedding_matrix=%s char_embedding_matrix=%s' % (type(embedding_matrix),
-    #       type(char_embedding_matrix)))
-    # print('max_features=%s maxlen=%s char_maxlen=%s' % (type(max_features),
-    #       type(maxlen), type(char_maxlen)))
-    assert isinstance(max_features, int)
-    assert isinstance(maxlen, int)
-    assert isinstance(char_maxlen, int)
-
     inp1 = Input(shape=(maxlen, ), name='w_inp')
     x = Embedding(embedding_matrix.shape[0],
                   embedding_matrix.shape[1],
@@ -82,7 +61,6 @@ def get_model2(embedding_matrix, char_embedding_matrix,
     avg_pool = GlobalAveragePooling1D(name='w_ave')(x)
     max_pool = GlobalMaxPooling1D(name='w_max')(x)
     conc1 = concatenate([avg_pool, max_pool], name='w_conc')
-    # conc1 = Bidirectional(Rec(n_hidden, return_sequences=False))(x)
 
     inp2 = Input(shape=(char_maxlen, ), name='c_inp')
     x = Embedding(char_embedding_matrix.shape[0],
@@ -95,7 +73,6 @@ def get_model2(embedding_matrix, char_embedding_matrix,
     avg_pool = GlobalAveragePooling1D(name='c_ave')(x)
     max_pool = GlobalMaxPooling1D(name='c_max')(x)
     conc2 = concatenate([avg_pool, max_pool], name='c_conc')
-    # conc2 = Bidirectional(Rec(n_hidden, return_sequences=False), name='c_bidi')(x)
 
     conc = concatenate([conc1, conc2], name='w_c_conc')
 

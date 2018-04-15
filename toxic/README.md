@@ -1,4 +1,12 @@
-/home/pcadmin/code/Butt-Head-Astronomer/toxic/logs/spacy_lstm2.log
+Cyclic Learning Rates: https://github.com/bckenstler/CLR/blob/master/clr_callback_tests.ipynb
+
+http://ruder.io/deep-learning-nlp-best-practices/
+
+Optimization scheme   While Adam internally tunes the learning rate for every parameter (Ruder, 2016) [22], we can explicitly use SGD-style annealing with Adam. In particular, we can perform learning rate annealing with restarts: We set a learning rate and train the model until convergence. We then halve the learning rate and restart by loading the previous best model. In Adam's case, this causes the optimizer to forget its per-parameter learning rates and start fresh. Denkowski & Neubig (2017) [23] show that Adam with 2 restarts and learning rate annealing is faster and performs better than SGD with annealing.
+
+https://www.kaggle.com/c/jigsaw-toxic-comment-classification-challenge/discussion/52557
+https://www.kaggle.com/c/jigsaw-toxic-comment-classification-challenge/discussion/52526
+https://blog.insightdatascience.com/how-to-solve-90-of-nlp-problems-a-step-by-step-guide-fda605278e4e
 
 SUBMISSION
 ----------
@@ -7,6 +15,28 @@ https://medium.com/@nokkk/make-your-kaggle-submissions-with-kaggle-official-api-
 kaggle competitions submissions -c jigsaw-toxic-comment-classification-challenge
 
 https://www.google.com.au/search?q=kaggle+web+text+classification
+
+RESULTS SUMMARY: 3
+auc=0.9898   0: ClfRecWordChar(batch_size=200, dropout=0.5, epochs=1, max_features=150000, maxlen=150, model_type=1, n_hidden=64, rec=CuDNNGRU, rnn_layers=2, trainable=False, char_max_features=1000, char_maxlen=600)
+auc=0.9896   2: ClfRecWordChar(batch_size=200, dropout=0.5, epochs=1, max_features=150000, maxlen=150, model_type=1, n_hidden=64, rec=CuDNNGRU, rnn_layers=3, trainable=False, char_max_features=1000, char_maxlen=600)
+auc=0.9894   1: ClfRecWordChar(batch_size=200, dropout=0.5, epochs=1, max_features=150000, maxlen=150, model_type=1, n_hidden=64, rec=CuDNNGRU, rnn_layers=1, trainable=False, char_max_features=1000, char_maxlen=600)
+
+RESULTS SUMMARY: 6
+auc=0.9897   4: ClfRecWordChar(batch_size=200, dropout=0.5, epochs=1, max_features=150000, maxlen=150, model_type=1, n_hidden=128, rec=CuDNNGRU, trainable=False, char_max_features=1000, char_maxlen=600)
+auc=0.9896   5: ClfRecWordChar(batch_size=200, dropout=0.5, epochs=1, max_features=150000, maxlen=150, model_type=1, n_hidden=128, rec=CuDNNLSTM, trainable=False, char_max_features=1000, char_maxlen=600)
+auc=0.9896   3: ClfRecWordChar(batch_size=200, dropout=0.3, epochs=1, max_features=150000, maxlen=150, model_type=2, n_hidden=128, rec=CuDNNLSTM, trainable=False, char_max_features=1000, char_maxlen=600)
+auc=0.9894   1: ClfRecWordChar(batch_size=200, dropout=0.3, epochs=1, max_features=150000, maxlen=150, model_type=1, n_hidden=128, rec=CuDNNLSTM, trainable=False, char_max_features=1000, char_maxlen=600)
+auc=0.9892   0: ClfRecWordChar(batch_size=200, dropout=0.3, epochs=1, max_features=150000, maxlen=150, model_type=1, n_hidden=128, rec=CuDNNGRU, trainable=False, char_max_features=1000, char_maxlen=600)
+auc=0.9892   2: ClfRecWordChar(batch_size=200, dropout=0.3, epochs=1, max_features=150000, maxlen=150, model_type=2, n_hidden=128, rec=CuDNNGRU, trainable=False, char_max_features=1000, char_maxlen=600)
+
+RESULTS SUMMARY: 11
+auc=0.9866   6: get_clf_word ClfRecWord(batch_size=32, dropout=0.3, epochs=40, max_features=50000, maxlen=150, n_hidden=200, rec=LSTM, validate=True)
+auc=0.9865   7: get_clf_word_char ClfRecWordChar(batch_size=32, dropout=0.3, epochs=40, max_features=50000, maxlen=150, n_hidden=200, rec=LSTM, validate=True, char_max_features=1000, char_maxlen=600)
+auc=0.9863   8: get_clf_word ClfRecWord(batch_size=32, dropout=0.5, epochs=40, max_features=70000, maxlen=150, n_hidden=150, rec=GRU, validate=True)
+auc=0.9859  10: get_clf_word ClfRecWord(batch_size=32, dropout=0.5, epochs=40, max_features=70000, maxlen=150, n_hidden=150, rec=LSTM, validate=True)
+auc=0.9848   4: get_clf_word ClfRecWord(batch_size=32, dropout=0.3, epochs=40, max_features=50000, maxlen=150, n_hidden=200, rec=GRU, validate=True)
+auc=0.9836   5: get_clf_word_char ClfRecWordChar(batch_size=32, dropout=0.3, epochs=40, max_features=50000, maxlen=150, n_hidden=200, rec=GRU, validate=True, char_max_features=1000, char_maxlen=600)
+
 
 GRU Fasttext
 ===========
