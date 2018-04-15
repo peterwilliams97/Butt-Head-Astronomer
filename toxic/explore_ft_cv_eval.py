@@ -18,7 +18,7 @@ def get_clf_word_char2(max_features, maxlen, dropout, n_hidden, Rec, rnn_layers,
 
 
 set_n_samples(20000)
-submission_base = 'ft_cv_explore_3y.%s' % get_n_samples_str()
+submission_base = 'ft_cv_eval.%s' % get_n_samples_str()
 xprint_init(submission_base, False)
 
 # RESULTS SUMMARY: 3
