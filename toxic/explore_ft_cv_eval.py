@@ -78,6 +78,7 @@ for params in params_list:
             evaluator.predict()
             auc_list.append((evaluator.auc_train, str(get_clf())))
             show_results_cv(auc_list)
+            evaluator.eval_predictions()
             # submission_name = '%s.%03d.csv' % (submission_base, n)
             # save_submission(evaluator.test_predictions, submission_name)
             xprint('&' * 100)
