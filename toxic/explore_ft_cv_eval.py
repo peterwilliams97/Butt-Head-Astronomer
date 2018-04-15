@@ -33,7 +33,7 @@ xprint_init(submission_base, False)
 # auc=0.9886   7: get_clf_word_char ClfRecWordChar(batch_size=128, dropout=0.3, epochs=40, max_features=150000, maxlen=150, n_hidden=128, rec=LSTM, trainable=False, validate=True, char_max_features=1000, char_maxlen=600) best_epoch=7 best_auc=0.9827 dt_fit=12331.1 sec dt_pred=26.5 sec
 # auc=0.9882   5: get_clf_word_char ClfRecWordChar(batch_size=128, dropout=0.3, epochs=40, max_features=150000, maxlen=150, n_hidden=128, rec=GRU, trainable=False, validate=True, char_max_features=1000, char_maxlen=600) best_epoch=7
 # Set params
-epochs = 7
+epochs = 1  # 7
 batch_size = 200
 max_features = 150000
 maxlen = 150
@@ -78,8 +78,8 @@ for params in params_list:
             evaluator.predict()
             auc_list.append((evaluator.auc_train, str(get_clf())))
             show_results_cv(auc_list)
-            submission_name = '%s.%03d.csv' % (submission_base, n)
-            save_submission(evaluator.test_predictions, submission_name)
+            # submission_name = '%s.%03d.csv' % (submission_base, n)
+            # save_submission(evaluator.test_predictions, submission_name)
             xprint('&' * 100)
 
 xprint('$' * 100)
