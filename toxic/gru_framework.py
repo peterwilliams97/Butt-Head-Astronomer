@@ -276,8 +276,8 @@ class CV_predictor():
         class to extract predictions on train and test set from tuned pipeline
     """
 
-    def __init__(self, get_clf, idx_train, x_train, y_train, idx_test, x_test, n_splits,
-        batch_size, epochs, y_test=None):
+    def __init__(self, get_clf, idx_train, x_train, y_train, idx_test, x_test, y_test, n_splits,
+        batch_size, epochs):
         self.get_clf = get_clf
         self.cv = KFold(n_splits=n_splits, shuffle=True, random_state=1)
         self.idx_train = idx_train
@@ -285,6 +285,7 @@ class CV_predictor():
         self.y_train = y_train
         self.idx_test = idx_test
         self.x_test = x_test
+        self.y_test = y_test
 
         self.epochs = epochs
         self.batch_size = batch_size

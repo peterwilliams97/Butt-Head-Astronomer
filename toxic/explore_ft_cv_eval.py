@@ -73,7 +73,7 @@ for params in params_list:
             xprint('#' * 100)
             xprint('config=%d of %d' % (n, len(params_list) * 4))
             xprint('params=%s %s %s' % (get_clf_base.__name__, Rec.__name__, list(params)))
-            evaluator = CV_predictor(get_clf, idx_train, X_train, y_train, idx_test, X_test,
+            evaluator = CV_predictor(get_clf, idx_train, X_train, y_train, idx_test, X_test, y_test,
                 n_splits, batch_size, epochs)
             evaluator.predict()
             auc_list.append((evaluator.auc_train, str(get_clf())))
