@@ -365,9 +365,13 @@ class CV_predictor():
         if self.y_test is None:
             xprint('eval_predictions: Needs y_test')
             return None
+        pred = pd.DataFrame(data=self.test_predictions, index=self.idx_test, columns=LABEL_COLS).sort_index()
+        y_pred = pred[LABEL_COLS].values
         test = pd.DataFrame(data=self.y_test, index=self.idx_test, columns=LABEL_COLS).sort_index()
         y_test = test[LABEL_COLS].values
-        y_pred = self.test_predictions[LABEL_COLS].values
+        assert len(y_pred) == len(y_test), (dim(y_pred), dim(y_test))
+        for i, (i1, i2) in enumerate(zip(y_pred.index, y_test.index)):
+            assert i1 == i2, (i, [i1, i2])
         auc = calc_auc(y_test, y_pred)
         score = auc.mean()
         xprint('eval_predictions: score=%.4f' % score)
