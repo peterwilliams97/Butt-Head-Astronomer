@@ -369,12 +369,13 @@ class CV_predictor():
         y_pred = pred[LABEL_COLS].values
         test = pd.DataFrame(data=self.y_test, index=self.idx_test, columns=LABEL_COLS).sort_index()
         y_test = test[LABEL_COLS].values
-        assert len(y_pred) == len(y_test), (dim(y_pred), dim(y_test))
-        for i, (i1, i2) in enumerate(zip(y_pred.index, y_test.index)):
-            assert i1 == i2, (i, [i1, i2])
         auc = calc_auc(y_test, y_pred)
         score = auc.mean()
         xprint('eval_predictions: score=%.4f' % score)
+        xprint('eval_predictions: y_pred=%s y_test=%s' % (dim(y_pred), dim(y_test)))
+        assert len(y_pred) == len(y_test), (dim(y_pred), dim(y_test))
+        for i, (i1, i2) in enumerate(zip(pred.index, test.index)):
+            assert i1 == i2, (i, [i1, i2])
         return score
 
 
