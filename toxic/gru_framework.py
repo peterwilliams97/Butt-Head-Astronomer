@@ -395,7 +395,7 @@ def save_submission(pred, submission_name):
     _, _, subm = load_data()
     # Create the submission file.
     submid = pd.DataFrame({'id': subm['id']})
-    print('submid=%s pred=%s' % (submid, pred))
+    xprint('submid=%s pred=%s' % (dim(submid), dim(pred)))
     submission = pd.concat([submid, pred], axis=1)
 
     submission_path = join(SUBMISSION_DIR, submission_name)
