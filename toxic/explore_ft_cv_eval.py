@@ -17,7 +17,7 @@ def get_clf_word_char2(max_features, maxlen, dropout, n_hidden, Rec, rnn_layers,
         Rec=Rec, rnn_layers=rnn_layers, trainable=trainable, batch_size=batch_size, epochs=1, model_type=2)
 
 
-set_n_samples(20000)
+set_n_samples(60000)
 submission_base = 'ft_cv_eval.%s' % get_n_samples_str()
 xprint_init(submission_base, False)
 
@@ -33,10 +33,10 @@ xprint_init(submission_base, False)
 # auc=0.9886   7: get_clf_word_char ClfRecWordChar(batch_size=128, dropout=0.3, epochs=40, max_features=150000, maxlen=150, n_hidden=128, rec=LSTM, trainable=False, validate=True, char_max_features=1000, char_maxlen=600) best_epoch=7 best_auc=0.9827 dt_fit=12331.1 sec dt_pred=26.5 sec
 # auc=0.9882   5: get_clf_word_char ClfRecWordChar(batch_size=128, dropout=0.3, epochs=40, max_features=150000, maxlen=150, n_hidden=128, rec=GRU, trainable=False, validate=True, char_max_features=1000, char_maxlen=600) best_epoch=7
 # Set params
-epochs = 1 # 7
+epochs = 7
 batch_size = 200
-max_features = 50000 # 150000
-maxlen = 50 # 150
+max_features = 150000
+maxlen = 150
 trainable = False
 
 params_list = []
@@ -58,7 +58,7 @@ for i, params in enumerate(params_list[:10]):
 xprint('$' * 100)
 
 (idx_train, X_train, y_train), (idx_test, X_test, y_test) = prepare_data(0.2)
-n_splits = 2
+n_splits = 4
 
 auc_list = []
 for params in params_list:
