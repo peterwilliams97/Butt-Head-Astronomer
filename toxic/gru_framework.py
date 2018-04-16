@@ -370,8 +370,7 @@ class CV_predictor():
         y_pred = self.test_predictions[LABEL_COLS].values
         auc = calc_auc(y_test, y_pred)
         xprint('eval_predictions: score=%.4f' % auc.mean())
-        show_auc(auc)
-        return auc
+        return score
 
 
 def make_submission(get_clf, submission_name):
