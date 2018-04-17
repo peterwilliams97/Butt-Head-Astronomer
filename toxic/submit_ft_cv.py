@@ -21,17 +21,16 @@ def get_clf_word_char2(max_features, maxlen, dropout, n_hidden, Rec, rnn_layers,
 submission_base = 'submit_ft_cv.%s' % get_n_samples_str()
 xprint_init(submission_base, False)
 
-# RESULTS SUMMARY: 3
-# auc=0.9898   0: ClfRecWordChar(batch_size=200, dropout=0.5, epochs=1, max_features=150000, maxlen=150, model_type=1, n_hidden=64, rec=CuDNNGRU, rnn_layers=2, trainable=False, char_max_features=1000, char_maxlen=600)
-# auc=0.9896   2: ClfRecWordChar(batch_size=200, dropout=0.5, epochs=1, max_features=150000, maxlen=150, model_type=1, n_hidden=64, rec=CuDNNGRU, rnn_layers=3, trainable=False, char_max_features=1000, char_maxlen=600)
-# auc=0.9894   1: ClfRecWordChar(batch_size=200, dropout=0.5, epochs=1, max_features=150000, maxlen=150, model_type=1, n_hidden=64, rec=CuDNNGRU, rnn_layers=1, trainable=False, char_max_features=1000, char_maxlen=600)
 
-# RESULTS SUMMARY: 6
-# auc=0.9897   4: ClfRecWordChar(batch_size=200, dropout=0.5, epochs=1, max_features=150000, maxlen=150, model_type=1, n_hidden=128, rec=CuDNNGRU, trainable=False, char_max_features=1000, char_maxlen=600)
-# auc=0.9896   5: ClfRecWordChar(batch_size=200, dropout=0.5, epochs=1, max_features=150000, maxlen=150, model_type=1, n_hidden=128, rec=CuDNNLSTM, trainable=False, char_max_features=1000, char_maxlen=600)
+#  0: ClfRecWordChar(batch_size=200, dropout=0.5, epochs=1, max_features=150000, maxlen=150, model_type=1, n_hidden=64, rec=CuDNNGRU, rnn_layers=2, trainable=False, char_max_features=1000, char_maxlen=600)
+#   CV: auc=0.9891
+#   Hold-out
+#   auc=0.9903 (toxic:0.987, severe_toxic:0.991, obscene:0.995, threat:0.992, insult:0.989, identity_hate:0.989)
+#   Kaggle submission
+#     auc=0.9899   0: ClfRecWordChar(batch_size=200, dropout=0.5, epochs=1, max_features=150000, maxlen=150, model_type=1, n_hidden=64, rec=CuDNNGRU, rnn_layers=2, trainable=False, char_max_features=1000, char_maxlen=600)
+#     submissions.cv/submit_ft_cv.ALL.000.csv
+#     Kaggle score:  0.9859 ***
 
-# auc=0.9886   7: get_clf_word_char ClfRecWordChar(batch_size=128, dropout=0.3, epochs=40, max_features=150000, maxlen=150, n_hidden=128, rec=LSTM, trainable=False, validate=True, char_max_features=1000, char_maxlen=600) best_epoch=7 best_auc=0.9827 dt_fit=12331.1 sec dt_pred=26.5 sec
-# auc=0.9882   5: get_clf_word_char ClfRecWordChar(batch_size=128, dropout=0.3, epochs=40, max_features=150000, maxlen=150, n_hidden=128, rec=GRU, trainable=False, validate=True, char_max_features=1000, char_maxlen=600) best_epoch=7
 # Set params
 epochs = 7
 batch_size = 200

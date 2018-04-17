@@ -17,7 +17,7 @@
 import numpy as np
 from sklearn.feature_extraction.text import TfidfVectorizer
 import time
-from utils import COMMENT
+from utils import COMMENT, xprint, dim
 from framework import LABEL_COLS
 
 
@@ -27,7 +27,7 @@ from framework import LABEL_COLS
 # ngrams, as suggested in the NBSVM paper.
 import re
 import string
-from spacy_glue import SpacyCache
+# from spacy_glue import SpacyCache
 
 
 def get_tokenizer(do_spacy):
@@ -84,40 +84,43 @@ def pr(y_i, x, y):
 class ClfTfidfNB:
 
     def __init__(self, get_est, do_spacy):
-        self.LABEL_COLS = LABEL_COLS
         self.get_est = get_est
-        print('TfidfVectorizer')
-        t0 = time.clock()
+        xprint('TfidfVectorizer')
+        t0 = time.perf_counter()
         self.vec = TfidfVectorizer(ngram_range=(1, 2), tokenizer=get_tokenizer(do_spacy),
                min_df=3, max_df=0.9, strip_accents='unicode', use_idf=1,
                smooth_idf=1, sublinear_tf=1)
-        print('TfidfVectorizer took %.1f seconds' % (time.clock() - t0))
+        xprint('TfidfVectorizer took %.1f seconds' % (time.perf_counter() - t0))
         self.model = {}
         self.r = {}
 
+    def show_model(self):
+        pass
+
     # Fit a model for one dependent at a time:
     def get_model(self, x, y):
-        y = y.values
+        print('fit_transform: x=%s y=%s' % (dim(x), dim(y)))
         r = np.log(pr(1, x, y) / pr(0, x, y))
         model = self.get_est()
         x_nb = x.multiply(r)
+        print('fit_transform: r=%s x_nb=%s' % (dim(r), dim(x_nb)))
         # print('** x y r x_nb:', x.shape, y.shape, r.shape, x_nb.shape)
         return model.fit(x_nb, y), r
 
-    def fit(self, train):
-        print('fit_transform')
-        t0 = time.clock()
-        x = self.vec.fit_transform(train[COMMENT])
-        print('fit_transform took %.1f seconds' % (time.clock() - t0))
-        for i, j in enumerate(self.LABEL_COLS):
-            print('fit', j)
-            self.model[j], self.r[j] = self.get_model(x, train[j])
+    def fit(self, X_train, y_train):
+        print('fit_transform: X_train=%s y_train=%s' % (dim(X_train), dim(y_train)))
+        t0 = time.perf_counter()
+        x_train = self.vec.fit_transform(X_train)
+        xprint('fit_transform took %.1f seconds' % (time.perf_counter() - t0))
+        for j, col in enumerate(LABEL_COLS):
+            print('fit: col=%s' % col)
+            self.model[col], self.r[col] = self.get_model(x_train, y_train[:, j])
 
-    def predict(self, test):
-        test_x = self.vec.transform(test[COMMENT])
-        preds = np.zeros((len(test), len(self.LABEL_COLS)))
-        for i, j in enumerate(self.LABEL_COLS):
-            print('predict', j)
-            model, r = self.model[j], self.r[j]
-            preds[:, i] = model.predict_proba(test_x.multiply(r))[:, 1]
-        return preds
+    def predict(self, X_test):
+        x_test = self.vec.transform(X_test)
+        y_pred = np.zeros((len(X_test), len(LABEL_COLS)))
+        for j, col in enumerate(LABEL_COLS):
+            print('predict: col=%s' % col)
+            model, r = self.model[col], self.r[col]
+            y_pred[:, j] = model.predict_proba(x_test.multiply(r))[:, 1]
+        return y_pred

@@ -277,7 +277,7 @@ class CV_predictor():
     """
 
     def __init__(self, get_clf, idx_train, x_train, y_train, idx_test, x_test, y_test, n_splits,
-        batch_size, epochs):
+        epochs=1):
         self.get_clf = get_clf
         self.cv = KFold(n_splits=n_splits, shuffle=True, random_state=1)
         self.idx_train = idx_train
@@ -288,7 +288,6 @@ class CV_predictor():
         self.y_test = y_test
 
         self.epochs = epochs
-        self.batch_size = batch_size
         self.col_names = LABEL_COLS
 
     def predict(self):

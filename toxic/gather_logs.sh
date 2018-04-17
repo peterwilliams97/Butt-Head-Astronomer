@@ -10,7 +10,7 @@ for i in `seq 2 4`;
                 mkdir $TOXIC_LOGS/gpu$i
                 cd $TOXIC_LOGS/gpu$i
                 pwd
-                gcloud compute scp "gpu$i:/home/pcadmin/code/Butt-Head-Astronomer/toxic/logs/ft_*.log" .
+                gcloud compute scp "gpu$i:/home/pcadmin/code/Butt-Head-Astronomer/toxic/logs/*.log" .
         done
 
 echo done
